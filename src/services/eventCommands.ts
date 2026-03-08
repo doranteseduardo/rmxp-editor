@@ -43,6 +43,8 @@ export const COMMAND_DEFS: CommandDef[] = [
   { code: 102, name: "Show Choices", category: "Message", description: "Present player with choices" },
   { code: 103, name: "Input Number", category: "Message", description: "Let player input a number" },
   { code: 104, name: "Change Text Options", category: "Message", description: "Change message window position/style" },
+  { code: 105, name: "Button Input Processing", category: "Message", description: "Wait for button press, store in variable" },
+  { code: 106, name: "Wait", category: "Message", description: "Pause event processing" },
   { code: 108, name: "Comment", category: "Message", description: "Developer comment (not executed)", continuationCode: 408 },
 
   // --- Game Progression ---
@@ -164,6 +166,7 @@ export const COMMAND_DEFS: CommandDef[] = [
   { code: 602, name: "If Escape", category: "Battle", description: "", isContinuation: true },
   { code: 603, name: "If Lose", category: "Battle", description: "", isContinuation: true },
   { code: 604, name: "(battle end)", category: "Battle", description: "", isBranchEnd: true },
+  { code: 605, name: "(shop item)", category: "Battle", description: "", isContinuation: true },
   { code: 655, name: "(script continuation)", category: "Other", description: "", isContinuation: true },
 ];
 
@@ -200,86 +203,207 @@ export function getPickerCommandsByCategory(): Map<string, CommandDef[]> {
   return map;
 }
 
+// --- Helpers used by summarizeCommand ---
+function _n(v: unknown): number { return typeof v === "number" ? v : 0; }
+function _s(v: unknown): string { return typeof v === "string" ? v : ""; }
+function _audioName(v: unknown): string {
+  if (typeof v === "string") return v || "(none)";
+  if (v && typeof v === "object" && !Array.isArray(v)) {
+    const obj = v as Record<string, unknown>;
+    const vol = typeof obj.volume === "number" ? ` (vol:${obj.volume})` : "";
+    return (_s(obj.name) || "(none)") + vol;
+  }
+  return "(none)";
+}
+function _incDec(params: unknown[], offset: number): string {
+  return `${_n(params[offset]) === 0 ? "+" : "-"}${_n(params[offset + 1]) === 0 ? _n(params[offset + 2]) : `V[${_n(params[offset + 2])}]`}`;
+}
+function _charTarget(v: unknown): string {
+  const id = _n(v);
+  return id === -1 ? "Player" : id === 0 ? "This Event" : `Event [${id}]`;
+}
+const _dirName: Record<number, string> = { 0: "Retain", 2: "Down", 4: "Left", 6: "Right", 8: "Up" };
+
 /**
  * Generate a human-readable summary of an event command's parameters.
  */
 export function summarizeCommand(code: number, params: unknown[]): string {
   switch (code) {
-    case 101: // Show Text
-      return params[0] ? String(params[0]) : "(empty text)";
-    case 401: // Text continuation
-      return params[0] ? String(params[0]) : "";
-    case 102: { // Show Choices
+    // --- Message ---
+    case 101: return params[0] ? String(params[0]) : "(empty text)";
+    case 401: return params[0] ? String(params[0]) : "";
+    case 102: {
       const choices = params[0] as string[] | undefined;
-      return choices ? choices.join(", ") : "(no choices)";
+      return choices ? choices.filter(Boolean).join(", ") : "(no choices)";
     }
-    case 108: // Comment
-    case 408:
-      return params[0] ? String(params[0]) : "";
-    case 111: { // Conditional Branch
-      const type = params[0] as number;
+    case 103: return `Variable [${_n(params[0])}], ${_n(params[1])} digits`;
+    case 104: return `${["Top", "Middle", "Bottom"][_n(params[0])] ?? "?"}, ${_n(params[1]) === 0 ? "Show" : "Hide"} frame`;
+    case 105: return `Variable [${_n(params[0])}]`;
+    case 106: return `${_n(params[0])} frames`;
+    case 108: case 408: return params[0] ? String(params[0]) : "";
+
+    // --- Flow Control ---
+    case 111: {
+      const type = _n(params[0]);
       switch (type) {
         case 0: return `Switch [${params[1]}] == ${params[2] === 0 ? "ON" : "OFF"}`;
-        case 1: return `Variable [${params[1]}] ${["==", ">=", "<=", ">", "<", "!="][params[4] as number ?? 0]} ${params[2] === 0 ? params[3] : `Variable [${params[3]}]`}`;
+        case 1: return `Variable [${params[1]}] ${["==", ">=", "<=", ">", "<", "!="][_n(params[4])]} ${params[2] === 0 ? params[3] : `V[${params[3]}]`}`;
         case 2: return `Self Switch ${params[1]} == ${params[2] === 0 ? "ON" : "OFF"}`;
-        case 4: return `Actor [${params[1]}] in party`;
+        case 3: return `Timer ${_n(params[2]) === 0 ? ">=" : "<="} ${_n(params[1])}s`;
+        case 4: {
+          const sub = _n(params[2]);
+          const subLabels = ["in party", `name == "${params[3]}"`, `skill [${params[3]}]`, `weapon [${params[3]}]`, `armor [${params[3]}]`, `state [${params[3]}]`];
+          return `Actor [${params[1]}] ${subLabels[sub] ?? `check ${sub}`}`;
+        }
+        case 5: return `Enemy [${params[1]}] ${_n(params[2]) === 0 ? "appeared" : `state [${params[3]}]`}`;
+        case 6: return `${_charTarget(params[1])} facing ${_dirName[_n(params[2])] ?? "?"}`;
+        case 7: return `Gold ${_n(params[2]) === 0 ? ">=" : "<="} ${params[1]}`;
+        case 8: return `Item [${params[1]}] in inventory`;
+        case 9: return `Weapon [${params[1]}] in inventory`;
+        case 10: return `Armor [${params[1]}] in inventory`;
+        case 11: return `Button [${params[1]}] pressed`;
         case 12: return `Script: ${params[1]}`;
         default: return `Condition type ${type}`;
       }
     }
-    case 117: // Call Common Event
-      return `Common Event [${params[0]}]`;
-    case 118: // Label
-      return `"${params[0]}"`;
-    case 119: // Jump to Label
-      return `"${params[0]}"`;
-    case 121: { // Control Switches
-      const start = params[0], end = params[1], val = params[2];
-      const range = start === end ? `[${start}]` : `[${start}..${end}]`;
-      return `${range} = ${val === 0 ? "ON" : "OFF"}`;
+    case 117: return `Common Event [${params[0]}]`;
+    case 118: return `"${params[0]}"`;
+    case 119: return `"${params[0]}"`;
+    case 411: return "Else";
+    case 402: return `"${params[1] ?? params[0]}"`;
+
+    // --- Game Progression ---
+    case 121: {
+      const range = params[0] === params[1] ? `[${params[0]}]` : `[${params[0]}..${params[1]}]`;
+      return `${range} = ${params[2] === 0 ? "ON" : "OFF"}`;
     }
-    case 122: { // Control Variables
-      const start = params[0], end = params[1];
-      const range = start === end ? `[${start}]` : `[${start}..${end}]`;
-      const op = ["=", "+=", "-=", "*=", "/=", "%="][params[2] as number ?? 0];
-      return `${range} ${op} ${params[4] ?? params[3]}`;
+    case 122: {
+      const range = params[0] === params[1] ? `[${params[0]}]` : `[${params[0]}..${params[1]}]`;
+      const op = ["=", "+=", "-=", "*=", "/=", "%="][_n(params[2])];
+      const opType = _n(params[3]);
+      let operand = String(params[4] ?? 0);
+      if (opType === 1) operand = `V[${params[4]}]`;
+      else if (opType === 2) operand = `Rand(${params[4]}..${params[5]})`;
+      else if (opType === 3) operand = `Item[${params[4]}].count`;
+      else if (opType === 4) operand = `Actor[${params[4]}].${["Lv", "EXP", "HP", "SP", "MaxHP", "MaxSP", "STR", "DEX", "AGI", "INT", "ATK", "PDEF", "MDEF", "EVA"][_n(params[5])] ?? "?"}`;
+      else if (opType === 6) operand = `${_charTarget(params[4])}.${["MapX", "MapY", "Dir", "ScreenX", "ScreenY", "Terrain"][_n(params[5])] ?? "?"}`;
+      else if (opType === 7) operand = ["MapID", "PartySize", "Gold", "Steps", "PlayTime", "Timer", "SaveCount"][_n(params[4])] ?? "?";
+      return `${range} ${op} ${operand}`;
     }
-    case 123: // Control Self Switch
-      return `${params[0]} = ${params[1] === 0 ? "ON" : "OFF"}`;
-    case 201: { // Transfer Player
-      if (params[0] === 0) {
-        return `Map [${params[1]}] (${params[2]}, ${params[3]})`;
-      }
-      return "Variable-based transfer";
+    case 123: return `${params[0]} = ${params[1] === 0 ? "ON" : "OFF"}`;
+    case 124: return _n(params[0]) === 0 ? `Start ${Math.floor(_n(params[1]) / 60)}m${_n(params[1]) % 60}s` : "Stop";
+    case 125: return `Gold ${_incDec(params, 0)}`;
+    case 126: return `Item [${params[0]}] ${_incDec(params, 1)}`;
+    case 127: return `Weapon [${params[0]}] ${_incDec(params, 1)}`;
+    case 128: return `Armor [${params[0]}] ${_incDec(params, 1)}`;
+    case 129: return `Actor [${params[0]}] ${_n(params[1]) === 0 ? "Add" : "Remove"}`;
+
+    // --- System ---
+    case 131: return `"${params[0]}"`;
+    case 132: return _audioName(params[0]);
+    case 133: return _audioName(params[0]);
+    case 134: return _n(params[0]) === 0 ? "Disable" : "Enable";
+    case 135: return _n(params[0]) === 0 ? "Disable" : "Enable";
+    case 136: return _n(params[0]) === 0 ? "Disable" : "Enable";
+
+    // --- Map ---
+    case 201:
+      return _n(params[0]) === 0 ? `Map [${params[1]}] (${params[2]}, ${params[3]}) ${_dirName[_n(params[4])] ?? ""}` : `Variable-based transfer`;
+    case 202: {
+      const t = _n(params[1]);
+      if (t === 2) return `Event [${params[0]}] ↔ Event [${params[2]}]`;
+      return `Event [${params[0]}] → ${t === 0 ? `(${params[2]}, ${params[3]})` : `V[${params[2]}], V[${params[3]}]`}`;
     }
-    case 209: // Set Move Route
-      return `Target: ${params[0] === -1 ? "Player" : params[0] === 0 ? "This Event" : `Event [${params[0]}]`}`;
-    case 241: // Play BGM
-    case 245: // Play BGS
-    case 249: // Play ME
-    case 250: { // Play SE
-      const audio = params[0] as { name?: string; volume?: number; pitch?: number } | string | undefined;
-      if (typeof audio === "string") return audio || "(none)";
-      if (audio && typeof audio === "object") {
-        const vol = audio.volume !== undefined ? ` (vol: ${audio.volume})` : "";
-        return (audio.name || "(none)") + vol;
-      }
-      return "(none)";
+    case 203: return `${_dirName[_n(params[0])] ?? "?"} ${params[1]} tiles, speed ${params[2]}`;
+    case 204: {
+      const t = _n(params[0]);
+      return `${["Panorama", "Fog", "Battleback"][t] ?? "?"}: "${params[1]}"`;
     }
-    case 355: // Script
-    case 655:
-      return params[0] ? String(params[0]) : "";
-    case 411:
-      return "Else";
-    case 402: { // When [Choice]
-      return `"${params[1] ?? params[0]}"`;
+    case 205: return `Fog tone (${_n((params[0] as Record<string, unknown>)?.red ?? 0)}, ${_n((params[0] as Record<string, unknown>)?.green ?? 0)}, ${_n((params[0] as Record<string, unknown>)?.blue ?? 0)}) ${params[1]}f`;
+    case 206: return `Opacity: ${params[0]}, ${params[1]} frames`;
+    case 207: return `${_charTarget(params[0])}, Animation [${params[1]}]`;
+    case 208: return _n(params[0]) === 0 ? "Transparent" : "Normal";
+    case 209: return `Target: ${_charTarget(params[0])}`;
+
+    // --- Screen Effects ---
+    case 222: return params[0] ? `"${params[0]}"` : "(default fade)";
+    case 223: {
+      const t = params[0] as Record<string, unknown> | undefined;
+      return t ? `(${_n(t.red)}, ${_n(t.green)}, ${_n(t.blue)}, gray:${_n(t.gray)}) ${params[1]}f` : "";
     }
+    case 224: {
+      const c = params[0] as Record<string, unknown> | undefined;
+      return c ? `(${_n(c.red)}, ${_n(c.green)}, ${_n(c.blue)}, ${_n(c.alpha)}) ${params[1]}f` : "";
+    }
+    case 225: return `Power: ${params[0]}, Speed: ${params[1]}, ${params[2]} frames`;
+
+    // --- Picture & Weather ---
+    case 231: return `#${params[0]} "${params[1]}" at (${params[4]}, ${params[5]})`;
+    case 232: return `#${params[0]} → (${params[4]}, ${params[5]}) in ${params[1]}f`;
+    case 233: return `#${params[0]} speed: ${params[1]}`;
+    case 234: return `#${params[0]} tone change, ${params[2]}f`;
+    case 235: return `#${params[0]}`;
+    case 236: return `${["None", "Rain", "Storm", "Snow"][_n(params[0])] ?? "?"} power:${params[1]}`;
+
+    // --- Audio ---
+    case 241: case 245: case 249: case 250: return _audioName(params[0]);
+    case 242: case 246: return `${params[0]}s`;
+
+    // --- Battle ---
+    case 301: return `Troop [${params[0]}]${params[1] ? " +Escape" : ""}${params[2] ? " +Lose" : ""}`;
+    case 302: {
+      const types = ["Item", "Weapon", "Armor"];
+      return `${types[_n(params[0])] ?? "?"} [${params[1]}]`;
+    }
+    case 605: {
+      const types = ["Item", "Weapon", "Armor"];
+      return `${types[_n(params[0])] ?? "?"} [${params[1]}]`;
+    }
+    case 303: return `Actor [${params[0]}], max ${params[1]} chars`;
+
+    // --- Actor ---
+    case 311: return `Actor [${params[0]}] HP ${_incDec(params, 1)}${params[4] ? " (can die)" : ""}`;
+    case 312: return `Actor [${params[0]}] SP ${_incDec(params, 1)}`;
+    case 313: return `Actor [${params[0]}] ${_n(params[1]) === 0 ? "+" : "-"}State [${params[2]}]`;
+    case 314: return `Actor [${params[0]}]${_n(params[0]) === 0 ? " (all)" : ""}`;
+    case 315: return `Actor [${params[0]}] EXP ${_incDec(params, 1)}`;
+    case 316: return `Actor [${params[0]}] Level ${_incDec(params, 1)}`;
+    case 317: return `Actor [${params[0]}] ${["MaxHP", "MaxSP", "STR", "DEX", "AGI", "INT"][_n(params[1])] ?? "?"} ${_incDec(params, 2)}`;
+    case 318: return `Actor [${params[0]}] ${_n(params[1]) === 0 ? "Learn" : "Forget"} Skill [${params[2]}]`;
+    case 319: return `Actor [${params[0]}] ${["Weapon", "Shield", "Helmet", "Armor", "Accessory"][_n(params[1])] ?? "?"} = [${params[2]}]`;
+    case 320: return `Actor [${params[0]}] → "${params[1]}"`;
+    case 321: return `Actor [${params[0]}] → Class [${params[1]}]`;
+    case 322: return `Actor [${params[0]}] graphic: "${params[1]}", battler: "${params[3]}"`;
+
+    // --- Enemy ---
+    case 331: return `Enemy [${params[0]}] HP ${_incDec(params, 1)}${params[4] ? " (can die)" : ""}`;
+    case 332: return `Enemy [${params[0]}] SP ${_incDec(params, 1)}`;
+    case 333: return `Enemy [${params[0]}] ${_n(params[1]) === 0 ? "+" : "-"}State [${params[2]}]`;
+    case 334: return `Enemy [${params[0]}]`;
+    case 335: return `Enemy [${params[0]}]`;
+    case 336: return `Enemy [${params[0]}] → Enemy [${params[1]}]`;
+    case 337: {
+      const target = _n(params[0]) === 0 ? `Enemy [${params[1]}]` : `Actor [${params[1]}]`;
+      return `${target}, Anim [${params[2]}]`;
+    }
+    case 338: {
+      const target = _n(params[0]) === 0 ? `Enemy [${params[1]}]` : `Actor [${params[1]}]`;
+      return `${target} ${_n(params[2]) === 0 ? _n(params[3]) : `V[${params[3]}]`} dmg`;
+    }
+    case 339: {
+      const target = _n(params[0]) === 0 ? `Enemy [${params[1]}]` : `Actor [${params[1]}]`;
+      const action = _n(params[2]) === 0 ? ["Attack", "Defend", "Escape", "Nothing"][_n(params[3])] ?? "?" : `Skill [${params[3]}]`;
+      return `${target}: ${action}`;
+    }
+
+    // --- Script ---
+    case 355: case 655: return params[0] ? String(params[0]) : "";
+
     default:
       if (params.length > 0) {
         return params.map((p) => {
           if (p === null || p === undefined) return "nil";
           if (typeof p === "object" && !Array.isArray(p)) {
-            // Ruby objects converted to JSON — show class or meaningful summary
             const obj = p as Record<string, unknown>;
             if (obj.__class) return `${obj.__class}${obj.name ? `: ${obj.name}` : ""}`;
             return JSON.stringify(p);

@@ -359,7 +359,7 @@ function MoveCommandPicker({
 // --- Param editors for specific move commands ---
 
 function hasMoveParams(code: number): boolean {
-  return [14, 15, 27, 28, 29, 30, 41, 42, 43, 45].includes(code);
+  return [14, 15, 27, 28, 29, 30, 41, 42, 43, 44, 45].includes(code);
 }
 
 function MoveParamEditor({
@@ -474,6 +474,37 @@ function MoveParamEditor({
           </select>
         </div>
       );
+
+    case 44: { // Play SE (RPG::AudioFile)
+      const audio = (p[0] && typeof p[0] === "object" && !Array.isArray(p[0]))
+        ? p[0] as Record<string, unknown>
+        : { name: "", volume: 80, pitch: 100 };
+      const updateAudio = (field: string, val: unknown) => {
+        onChange(0, { ...audio, [field]: val });
+      };
+      return (
+        <>
+          <div className="cmd-param-row">
+            <span className="cmd-param-label">File:</span>
+            <AssetPicker
+              projectPath={projectPath}
+              assetType="se"
+              value={String(audio.name ?? "")}
+              onChange={(v) => updateAudio("name", v)}
+              noneLabel="(None)"
+            />
+          </div>
+          <div className="cmd-param-row">
+            <span className="cmd-param-label">Vol:</span>
+            <input type="number" className="prop-number-input" value={num(audio.volume as number ?? 80)} min={0} max={100}
+              onChange={(e) => updateAudio("volume", Number(e.target.value))} />
+            <span className="cmd-param-label">Pitch:</span>
+            <input type="number" className="prop-number-input" value={num(audio.pitch as number ?? 100)} min={50} max={150}
+              onChange={(e) => updateAudio("pitch", Number(e.target.value))} />
+          </div>
+        </>
+      );
+    }
 
     case 45: // Script (string)
       return (
