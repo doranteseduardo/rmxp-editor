@@ -11,6 +11,8 @@ interface Props {
   onChange: (paramIndex: number, value: unknown) => void;
   onDone: () => void;
   mapInfos?: Record<number, MapInfo>;
+  switchNames?: string[];
+  variableNames?: string[];
 }
 
 /** All command codes that have a dedicated parameter editor. */
@@ -37,7 +39,7 @@ export function hasParamEditor(code: number): boolean {
 /**
  * Renders a parameter editor for the given command.
  */
-export function CommandParamEditor({ command, onChange, onDone, mapInfos }: Props) {
+export function CommandParamEditor({ command, onChange, onDone, mapInfos, switchNames, variableNames }: Props) {
   const p = command.parameters;
 
   switch (command.code) {
@@ -48,11 +50,11 @@ export function CommandParamEditor({ command, onChange, onDone, mapInfos }: Prop
     case 105: return <ButtonInputEditor params={p} onChange={onChange} onDone={onDone} />;
     case 106: return <WaitEditor params={p} onChange={onChange} onDone={onDone} />;
     // --- Flow Control ---
-    case 111: return <ConditionalBranchEditor params={p} onChange={onChange} onDone={onDone} />;
+    case 111: return <ConditionalBranchEditor params={p} onChange={onChange} onDone={onDone} switchNames={switchNames} variableNames={variableNames} />;
     case 117: return <CallCommonEventEditor params={p} onChange={onChange} onDone={onDone} />;
     // --- Game Progression ---
-    case 121: return <ControlSwitchesEditor params={p} onChange={onChange} onDone={onDone} />;
-    case 122: return <ControlVariablesEditor params={p} onChange={onChange} onDone={onDone} />;
+    case 121: return <ControlSwitchesEditor params={p} onChange={onChange} onDone={onDone} switchNames={switchNames} />;
+    case 122: return <ControlVariablesEditor params={p} onChange={onChange} onDone={onDone} variableNames={variableNames} />;
     case 123: return <ControlSelfSwitchEditor params={p} onChange={onChange} onDone={onDone} />;
     case 124: return <ControlTimerEditor params={p} onChange={onChange} onDone={onDone} />;
     case 125: return <ChangeGoldEditor params={p} onChange={onChange} onDone={onDone} />;
@@ -145,6 +147,39 @@ function EditorShell({ title, children, onDone }: { title: string; children: Rea
       <button className="cmd-param-editor-done" onClick={onDone}>Done</button>
     </div>
   );
+}
+
+/** Dropdown picker for named switch/variable IDs. Falls back to NInput if no names available. */
+function NamedIdPicker({ label, value, onChange, names, fallbackLabel }: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  names?: string[];
+  fallbackLabel: string;
+}) {
+  if (names && names.length > 1) {
+    return (
+      <>
+        <span className="cmd-param-label">{label}</span>
+        <select
+          className="prop-select"
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          style={{ flex: 1, minWidth: 120, fontSize: 10 }}
+        >
+          {names.map((name, i) => {
+            if (i === 0) return null;
+            return (
+              <option key={i} value={i}>
+                [{String(i).padStart(4, "0")}] {name || `${fallbackLabel} ${i}`}
+              </option>
+            );
+          })}
+        </select>
+      </>
+    );
+  }
+  return <NInput label={label} value={value} onChange={onChange} min={1} />;
 }
 
 function NInput({ value, onChange, min, max, label, width }: {
@@ -320,7 +355,7 @@ function WaitEditor({ params, onChange, onDone }: EditorProps) {
 // ══════════════════════════════════════════════════════════
 
 // --- Conditional Branch (111) ---
-function ConditionalBranchEditor({ params, onChange, onDone }: EditorProps) {
+function ConditionalBranchEditor({ params, onChange, onDone, switchNames, variableNames }: EditorProps & { switchNames?: string[]; variableNames?: string[] }) {
   const condType = (params[0] as number) ?? 0;
   return (
     <EditorShell title="Conditional Branch" onDone={onDone}>
@@ -345,7 +380,7 @@ function ConditionalBranchEditor({ params, onChange, onDone }: EditorProps) {
       {condType === 0 && (
         <>
           <div className="cmd-param-row">
-            <NInput label="Switch ID:" value={num(params[1])} onChange={(v) => onChange(1, v)} min={1} />
+            <NamedIdPicker label="Switch:" value={num(params[1])} onChange={(v) => onChange(1, v)} names={switchNames} fallbackLabel="Switch" />
           </div>
           <div className="cmd-param-row">
             <select className="prop-select" value={num(params[2])} onChange={(e) => onChange(2, Number(e.target.value))}>
@@ -358,7 +393,7 @@ function ConditionalBranchEditor({ params, onChange, onDone }: EditorProps) {
       {condType === 1 && (
         <>
           <div className="cmd-param-row">
-            <NInput label="Variable:" value={num(params[1])} onChange={(v) => onChange(1, v)} min={1} />
+            <NamedIdPicker label="Variable:" value={num(params[1])} onChange={(v) => onChange(1, v)} names={variableNames} fallbackLabel="Variable" />
           </div>
           <div className="cmd-param-row">
             <select className="prop-select" value={num(params[4])} onChange={(e) => onChange(4, Number(e.target.value))}>
@@ -375,7 +410,11 @@ function ConditionalBranchEditor({ params, onChange, onDone }: EditorProps) {
               <option value={0}>Constant</option>
               <option value={1}>Variable</option>
             </select>
-            <NInput label="" value={num(params[3])} onChange={(v) => onChange(3, v)} min={num(params[2]) === 0 ? undefined : 1} />
+            {num(params[2]) === 1 ? (
+              <NamedIdPicker label="" value={num(params[3])} onChange={(v) => onChange(3, v)} names={variableNames} fallbackLabel="Variable" />
+            ) : (
+              <NInput label="" value={num(params[3])} onChange={(v) => onChange(3, v)} />
+            )}
           </div>
         </>
       )}
@@ -529,13 +568,20 @@ function CallCommonEventEditor({ params, onChange, onDone }: EditorProps) {
 // ══════════════════════════════════════════════════════════
 
 // --- Control Switches (121) ---
-function ControlSwitchesEditor({ params, onChange, onDone }: EditorProps) {
+function ControlSwitchesEditor({ params, onChange, onDone, switchNames }: EditorProps & { switchNames?: string[] }) {
+  const isSingle = num(params[0]) === num(params[1]);
   return (
     <EditorShell title="Control Switches" onDone={onDone}>
-      <div className="cmd-param-row">
-        <NInput label="From:" value={num(params[0])} onChange={(v) => { onChange(0, v); if (v > num(params[1])) onChange(1, v); }} min={1} />
-        <NInput label="To:" value={num(params[1])} onChange={(v) => onChange(1, v)} min={num(params[0])} />
-      </div>
+      {isSingle && switchNames && switchNames.length > 1 ? (
+        <div className="cmd-param-row">
+          <NamedIdPicker label="Switch:" value={num(params[0])} onChange={(v) => { onChange(0, v); onChange(1, v); }} names={switchNames} fallbackLabel="Switch" />
+        </div>
+      ) : (
+        <div className="cmd-param-row">
+          <NInput label="From:" value={num(params[0])} onChange={(v) => { onChange(0, v); if (v > num(params[1])) onChange(1, v); }} min={1} />
+          <NInput label="To:" value={num(params[1])} onChange={(v) => onChange(1, v)} min={num(params[0])} />
+        </div>
+      )}
       <div className="cmd-param-row">
         <select className="prop-select" value={num(params[2])} onChange={(e) => onChange(2, Number(e.target.value))}>
           <option value={0}>ON</option>
@@ -547,14 +593,21 @@ function ControlSwitchesEditor({ params, onChange, onDone }: EditorProps) {
 }
 
 // --- Control Variables (122) ---
-function ControlVariablesEditor({ params, onChange, onDone }: EditorProps) {
+function ControlVariablesEditor({ params, onChange, onDone, variableNames }: EditorProps & { variableNames?: string[] }) {
   const opType = num(params[3]);
+  const isSingle = num(params[0]) === num(params[1]);
   return (
     <EditorShell title="Control Variables" onDone={onDone}>
-      <div className="cmd-param-row">
-        <NInput label="From:" value={num(params[0])} onChange={(v) => { onChange(0, v); if (v > num(params[1])) onChange(1, v); }} min={1} />
-        <NInput label="To:" value={num(params[1])} onChange={(v) => onChange(1, v)} min={num(params[0])} />
-      </div>
+      {isSingle && variableNames && variableNames.length > 1 ? (
+        <div className="cmd-param-row">
+          <NamedIdPicker label="Variable:" value={num(params[0])} onChange={(v) => { onChange(0, v); onChange(1, v); }} names={variableNames} fallbackLabel="Variable" />
+        </div>
+      ) : (
+        <div className="cmd-param-row">
+          <NInput label="From:" value={num(params[0])} onChange={(v) => { onChange(0, v); if (v > num(params[1])) onChange(1, v); }} min={1} />
+          <NInput label="To:" value={num(params[1])} onChange={(v) => onChange(1, v)} min={num(params[0])} />
+        </div>
+      )}
       <div className="cmd-param-row">
         <span className="cmd-param-label">Op:</span>
         <select className="prop-select" value={num(params[2])} onChange={(e) => onChange(2, Number(e.target.value))}>
@@ -575,7 +628,11 @@ function ControlVariablesEditor({ params, onChange, onDone }: EditorProps) {
         </select>
       </div>
       <div className="cmd-param-row">
-        <NInput label="Value:" value={num(params[4])} onChange={(v) => onChange(4, v)} />
+        {opType === 1 ? (
+          <NamedIdPicker label="Variable:" value={num(params[4])} onChange={(v) => onChange(4, v)} names={variableNames} fallbackLabel="Variable" />
+        ) : (
+          <NInput label="Value:" value={num(params[4])} onChange={(v) => onChange(4, v)} />
+        )}
         {opType === 2 && <NInput label="Max:" value={num(params[5])} onChange={(v) => onChange(5, v)} />}
         {opType === 4 && (
           <select className="prop-select" value={num(params[5])} onChange={(e) => onChange(5, Number(e.target.value))}>

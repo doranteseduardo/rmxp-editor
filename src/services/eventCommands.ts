@@ -229,7 +229,17 @@ const _dirName: Record<number, string> = { 0: "Retain", 2: "Down", 4: "Left", 6:
  * Generate a human-readable summary of an event command's parameters.
  * @param mapInfos Optional map name lookup for commands referencing map IDs.
  */
-export function summarizeCommand(code: number, params: unknown[], mapInfos?: Record<number, { name: string }>): string {
+/** Format a switch/variable name for display */
+function _switchName(id: number, names?: string[]): string {
+  const name = names?.[id];
+  return name ? `[${String(id).padStart(4, "0")}] ${name}` : `[${id}]`;
+}
+function _varName(id: number, names?: string[]): string {
+  const name = names?.[id];
+  return name ? `[${String(id).padStart(4, "0")}] ${name}` : `[${id}]`;
+}
+
+export function summarizeCommand(code: number, params: unknown[], mapInfos?: Record<number, { name: string }>, switchNames?: string[], variableNames?: string[]): string {
   switch (code) {
     // --- Message ---
     case 101: return params[0] ? String(params[0]) : "(empty text)";
@@ -248,8 +258,8 @@ export function summarizeCommand(code: number, params: unknown[], mapInfos?: Rec
     case 111: {
       const type = _n(params[0]);
       switch (type) {
-        case 0: return `Switch [${params[1]}] == ${params[2] === 0 ? "ON" : "OFF"}`;
-        case 1: return `Variable [${params[1]}] ${["==", ">=", "<=", ">", "<", "!="][_n(params[4])]} ${params[2] === 0 ? params[3] : `V[${params[3]}]`}`;
+        case 0: return `Switch ${_switchName(_n(params[1]), switchNames)} == ${params[2] === 0 ? "ON" : "OFF"}`;
+        case 1: return `Variable ${_varName(_n(params[1]), variableNames)} ${["==", ">=", "<=", ">", "<", "!="][_n(params[4])]} ${params[2] === 0 ? params[3] : `V${_varName(_n(params[3]), variableNames)}`}`;
         case 2: return `Self Switch ${params[1]} == ${params[2] === 0 ? "ON" : "OFF"}`;
         case 3: return `Timer ${_n(params[2]) === 0 ? ">=" : "<="} ${_n(params[1])}s`;
         case 4: {
@@ -276,15 +286,19 @@ export function summarizeCommand(code: number, params: unknown[], mapInfos?: Rec
 
     // --- Game Progression ---
     case 121: {
-      const range = params[0] === params[1] ? `[${params[0]}]` : `[${params[0]}..${params[1]}]`;
+      const from121 = _n(params[0]);
+      const to121 = _n(params[1]);
+      const range = from121 === to121 ? _switchName(from121, switchNames) : `[${from121}..${to121}]`;
       return `${range} = ${params[2] === 0 ? "ON" : "OFF"}`;
     }
     case 122: {
-      const range = params[0] === params[1] ? `[${params[0]}]` : `[${params[0]}..${params[1]}]`;
+      const from122 = _n(params[0]);
+      const to122 = _n(params[1]);
+      const range = from122 === to122 ? _varName(from122, variableNames) : `[${from122}..${to122}]`;
       const op = ["=", "+=", "-=", "*=", "/=", "%="][_n(params[2])];
       const opType = _n(params[3]);
       let operand = String(params[4] ?? 0);
-      if (opType === 1) operand = `V[${params[4]}]`;
+      if (opType === 1) operand = `V${_varName(_n(params[4]), variableNames)}`;
       else if (opType === 2) operand = `Rand(${params[4]}..${params[5]})`;
       else if (opType === 3) operand = `Item[${params[4]}].count`;
       else if (opType === 4) operand = `Actor[${params[4]}].${["Lv", "EXP", "HP", "SP", "MaxHP", "MaxSP", "STR", "DEX", "AGI", "INT", "ATK", "PDEF", "MDEF", "EVA"][_n(params[5])] ?? "?"}`;

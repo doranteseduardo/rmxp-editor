@@ -14,7 +14,7 @@ import {
   MOVE_COMMAND_NAMES,
   type CommandDef,
 } from "../../services/eventCommands";
-import { loadEvent, saveEvent } from "../../services/tauriApi";
+import { loadEvent, saveEvent, loadSystemData } from "../../services/tauriApi";
 import { useUndoable } from "../../hooks/useUndoable";
 import { loadCharacterImage } from "../../services/imageLoader";
 import { EventCommandPicker } from "./EventCommandPicker";
@@ -52,6 +52,20 @@ export function EventEditor({
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [clipboard, setClipboard] = useState<EventCommand[] | null>(null);
+  const [switchNames, setSwitchNames] = useState<string[]>([]);
+  const [variableNames, setVariableNames] = useState<string[]>([]);
+
+  // Load switch/variable names from System.rxdata
+  useEffect(() => {
+    let cancelled = false;
+    loadSystemData(projectPath).then((sys) => {
+      if (!cancelled) {
+        setSwitchNames(sys.switches ?? []);
+        setVariableNames(sys.variables ?? []);
+      }
+    }).catch(() => { /* ignore - names just won't show */ });
+    return () => { cancelled = true; };
+  }, [projectPath]);
 
   // Load full event data
   useEffect(() => {
@@ -334,7 +348,7 @@ export function EventEditor({
             <>
               {/* Left: Page properties */}
               <div className="event-page-properties">
-                <PageProperties page={page} onUpdatePage={updatePage} projectPath={projectPath} />
+                <PageProperties page={page} onUpdatePage={updatePage} projectPath={projectPath} switchNames={switchNames} variableNames={variableNames} />
               </div>
 
               {/* Right: Command list */}
@@ -384,6 +398,8 @@ export function EventEditor({
                       }
                       onStopEditing={() => setEditingCommand(null)}
                       mapInfos={mapInfos}
+                      switchNames={switchNames}
+                      variableNames={variableNames}
                     />
                   ))}
                 </div>
@@ -447,7 +463,7 @@ export function EventEditor({
 
 // --- Sub-components ---
 
-function PageProperties({ page, onUpdatePage, projectPath }: { page: EventPage; onUpdatePage: (updater: (p: EventPage) => EventPage) => void; projectPath: string }) {
+function PageProperties({ page, onUpdatePage, projectPath, switchNames, variableNames }: { page: EventPage; onUpdatePage: (updater: (p: EventPage) => EventPage) => void; projectPath: string; switchNames: string[]; variableNames: string[] }) {
   const [showMoveRoute, setShowMoveRoute] = useState(false);
   const [showCharPicker, setShowCharPicker] = useState(false);
 
@@ -475,21 +491,36 @@ function PageProperties({ page, onUpdatePage, projectPath }: { page: EventPage; 
           onToggle={() => updateCondition("switch1_valid", !page.condition.switch1_valid)}
           label="Switch 1"
         >
-          <NumberInput value={page.condition.switch1_id} onChange={(v) => updateCondition("switch1_id", v)} min={1} />
+          <NamedIdSelector
+            value={page.condition.switch1_id}
+            onChange={(v) => updateCondition("switch1_id", v)}
+            names={switchNames}
+            label="Switch"
+          />
         </EditableCondition>
         <EditableCondition
           active={page.condition.switch2_valid}
           onToggle={() => updateCondition("switch2_valid", !page.condition.switch2_valid)}
           label="Switch 2"
         >
-          <NumberInput value={page.condition.switch2_id} onChange={(v) => updateCondition("switch2_id", v)} min={1} />
+          <NamedIdSelector
+            value={page.condition.switch2_id}
+            onChange={(v) => updateCondition("switch2_id", v)}
+            names={switchNames}
+            label="Switch"
+          />
         </EditableCondition>
         <EditableCondition
           active={page.condition.variable_valid}
           onToggle={() => updateCondition("variable_valid", !page.condition.variable_valid)}
           label="Variable"
         >
-          <NumberInput value={page.condition.variable_id} onChange={(v) => updateCondition("variable_id", v)} min={1} />
+          <NamedIdSelector
+            value={page.condition.variable_id}
+            onChange={(v) => updateCondition("variable_id", v)}
+            names={variableNames}
+            label="Variable"
+          />
           <span style={{ color: "#6c7086", fontSize: 10 }}>&gt;=</span>
           <NumberInput value={page.condition.variable_value} onChange={(v) => updateCondition("variable_value", v)} />
         </EditableCondition>
@@ -823,6 +854,50 @@ function ToggleBadge({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   );
 }
 
+/** Dropdown selector that shows [0001] Name entries for switches/variables */
+function NamedIdSelector({
+  value,
+  onChange,
+  names,
+  label,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  names: string[];
+  label: string;
+}) {
+  // If names available (length > 1, since index 0 is always empty), show dropdown
+  if (names.length > 1) {
+    return (
+      <select
+        className="prop-select"
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        style={{ flex: 1, minWidth: 100, maxWidth: 200, fontSize: 10 }}
+      >
+        {names.map((name, i) => {
+          if (i === 0) return null; // skip index 0
+          return (
+            <option key={i} value={i}>
+              [{String(i).padStart(4, "0")}] {name || `${label} ${i}`}
+            </option>
+          );
+        })}
+      </select>
+    );
+  }
+  // Fallback to number input
+  return (
+    <input
+      type="number"
+      className="prop-number-input"
+      value={value}
+      min={1}
+      onChange={(e) => onChange(Number(e.target.value))}
+    />
+  );
+}
+
 function NumberInput({
   value,
   onChange,
@@ -856,6 +931,8 @@ function CommandRow({
   onParamChange,
   onStopEditing,
   mapInfos,
+  switchNames,
+  variableNames,
 }: {
   command: EventCommand;
   index: number;
@@ -866,9 +943,11 @@ function CommandRow({
   onParamChange: (paramIndex: number, value: unknown) => void;
   onStopEditing: () => void;
   mapInfos?: Record<number, import("../../types").MapInfo>;
+  switchNames?: string[];
+  variableNames?: string[];
 }) {
   const def = getCommandDef(command.code);
-  const summary = summarizeCommand(command.code, command.parameters, mapInfos);
+  const summary = summarizeCommand(command.code, command.parameters, mapInfos, switchNames, variableNames);
 
   let rowClass = "event-command-row";
   if (selected) rowClass += " selected";
@@ -942,6 +1021,8 @@ function CommandRow({
           onChange={onParamChange}
           onDone={onStopEditing}
           mapInfos={mapInfos}
+          switchNames={switchNames}
+          variableNames={variableNames}
         />
       </div>
     );
