@@ -9,6 +9,8 @@ import {
   createMap,
   deleteMap,
   renameMap,
+  createEvent,
+  deleteEvent,
 } from "./services/tauriApi";
 import { loadAllTilesetImages } from "./services/imageLoader";
 import { MapTreePanel } from "./components/MapTree/MapTreePanel";
@@ -286,6 +288,47 @@ function App() {
     [project, currentMapId, handleSelectMap]
   );
 
+  // --- Event management handlers ---
+
+  const handleCreateEvent = useCallback(
+    async (x: number, y: number) => {
+      if (!project || !currentMapId || !mapData) return;
+      try {
+        setError(null);
+        const [newEvent, updatedEvents] = await createEvent(
+          project.path,
+          currentMapId,
+          x,
+          y
+        );
+        // Update map data with new events list
+        setMapData({ ...mapData, events: updatedEvents });
+        // Open the event editor immediately
+        setEditingEvent({ eventId: newEvent.id, eventName: newEvent.name });
+      } catch (err) {
+        setError(`Create event failed: ${err}`);
+      }
+    },
+    [project, currentMapId, mapData]
+  );
+
+  const handleDeleteEvent = useCallback(
+    async (eventId: number, eventName: string) => {
+      if (!project || !currentMapId || !mapData) return;
+      if (!confirm(`Delete event "${eventName}" (ID: ${eventId})?\n\nThis cannot be undone.`)) {
+        return;
+      }
+      try {
+        setError(null);
+        const updatedEvents = await deleteEvent(project.path, currentMapId, eventId);
+        setMapData({ ...mapData, events: updatedEvents });
+      } catch (err) {
+        setError(`Delete event failed: ${err}`);
+      }
+    },
+    [project, currentMapId, mapData]
+  );
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -380,6 +423,8 @@ function App() {
           selectedTileId={selectedTileId}
           onMapDirty={handleMapDirty}
           onOpenEvent={handleOpenEvent}
+          onCreateEvent={handleCreateEvent}
+          onDeleteEvent={handleDeleteEvent}
         />
 
         {/* Right: Tileset palette */}

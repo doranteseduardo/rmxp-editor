@@ -24,6 +24,8 @@ interface Props {
   selectedTileId: number;
   onMapDirty: () => void;
   onOpenEvent?: (eventId: number, eventName: string) => void;
+  onCreateEvent?: (x: number, y: number) => void;
+  onDeleteEvent?: (eventId: number, eventName: string) => void;
 }
 
 export function MapEditor({
@@ -35,6 +37,8 @@ export function MapEditor({
   selectedTileId,
   onMapDirty,
   onOpenEvent,
+  onCreateEvent,
+  onDeleteEvent,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<MapRenderer | null>(null);
@@ -72,6 +76,14 @@ export function MapEditor({
 
   // Force re-render trigger
   const [renderTick, setRenderTick] = useState(0);
+
+  // Event context menu state
+  const [eventContextMenu, setEventContextMenu] = useState<{
+    x: number;
+    y: number;
+    eventId: number;
+    eventName: string;
+  } | null>(null);
 
   // Character sprite cache: graphicName → HTMLImageElement
   const [characterImages, setCharacterImages] = useState<Map<string, HTMLImageElement | null>>(new Map());
@@ -595,14 +607,18 @@ export function MapEditor({
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
           onDoubleClick={(e) => {
-            if (!mapData || !onOpenEvent) return;
+            if (!mapData) return;
             const pos = screenToTile(e.clientX, e.clientY);
             if (!pos) return;
             const evt = mapData.events.find(
               (ev) => ev.x === pos.x && ev.y === pos.y
             );
             if (evt) {
-              onOpenEvent(evt.id, evt.name);
+              // Double-click existing event → open editor
+              if (onOpenEvent) onOpenEvent(evt.id, evt.name);
+            } else if (selectedLayer === 3 && onCreateEvent) {
+              // Double-click empty tile on Events layer → create new event
+              onCreateEvent(pos.x, pos.y);
             }
           }}
           onMouseLeave={() => {
@@ -621,7 +637,25 @@ export function MapEditor({
               }
             }
           }}
-          onContextMenu={(e) => e.preventDefault()}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            if (!mapData) return;
+            const pos = screenToTile(e.clientX, e.clientY);
+            if (!pos) return;
+            const evt = mapData.events.find(
+              (ev) => ev.x === pos.x && ev.y === pos.y
+            );
+            if (evt) {
+              setEventContextMenu({
+                x: e.clientX,
+                y: e.clientY,
+                eventId: evt.id,
+                eventName: evt.name,
+              });
+            } else {
+              setEventContextMenu(null);
+            }
+          }}
         />
         {/* Scrollbar overlays */}
         {mapData && (
@@ -645,6 +679,40 @@ export function MapEditor({
           </div>
         )}
       </div>
+
+      {/* Event context menu */}
+      {eventContextMenu && (
+        <div
+          className="map-tree-context-overlay"
+          onClick={() => setEventContextMenu(null)}
+          onContextMenu={(e) => { e.preventDefault(); setEventContextMenu(null); }}
+        >
+          <div
+            className="map-tree-context-menu"
+            style={{ left: eventContextMenu.x, top: eventContextMenu.y }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => {
+                if (onOpenEvent) onOpenEvent(eventContextMenu.eventId, eventContextMenu.eventName);
+                setEventContextMenu(null);
+              }}
+            >
+              Edit Event
+            </button>
+            <div className="map-tree-context-separator" />
+            <button
+              className="map-tree-context-danger"
+              onClick={() => {
+                if (onDeleteEvent) onDeleteEvent(eventContextMenu.eventId, eventContextMenu.eventName);
+                setEventContextMenu(null);
+              }}
+            >
+              Delete Event
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Status bar */}
       {mapData && (

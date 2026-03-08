@@ -16,6 +16,8 @@ pub fn run() {
             list_asset_files,
             load_event,
             save_event,
+            create_event,
+            delete_event,
             save_map,
             get_map_properties,
             save_map_properties,

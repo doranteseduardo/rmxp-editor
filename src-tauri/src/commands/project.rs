@@ -426,6 +426,168 @@ pub async fn save_event(
     Ok(())
 }
 
+/// Create a new event on a map at position (x, y).
+/// Returns the created event (with auto-assigned ID) and the updated event list.
+#[tauri::command]
+pub async fn create_event(
+    project_path: String,
+    map_id: i64,
+    x: i64,
+    y: i64,
+) -> Result<(RpgEvent, Vec<EventInfo>), String> {
+    let path = PathBuf::from(&project_path);
+    let map_file = path
+        .join("Data")
+        .join(format!("Map{:03}.rxdata", map_id));
+
+    let mut value = marshal::load_file(&map_file)
+        .map_err(|e| format!("Failed to read map: {}", e))?;
+
+    let map = RpgMap::from_ruby_value(&value)
+        .ok_or_else(|| "Failed to interpret map data".to_string())?;
+
+    // Find next available event ID
+    let new_id = map.events.keys().max().copied().unwrap_or(0) + 1;
+
+    // Build default event with one blank page
+    let new_event = RpgEvent {
+        id: new_id,
+        name: format!("EV{:03}", new_id),
+        x,
+        y,
+        pages: vec![EventPage {
+            condition: EventCondition::default(),
+            graphic: EventGraphic::default(),
+            move_type: 0,
+            move_speed: 3,
+            move_frequency: 3,
+            move_route: MoveRoute::default(),
+            walk_anime: true,
+            step_anime: false,
+            direction_fix: false,
+            through: false,
+            always_on_top: false,
+            trigger: 0,
+            list: vec![EventCommand {
+                code: 0,
+                indent: 0,
+                parameters: vec![],
+            }],
+        }],
+    };
+
+    // Insert into the raw RubyValue @events hash
+    if let marshal::types::RubyValue::Object(ref mut obj) = value {
+        for (name, val) in obj.instance_vars.iter_mut() {
+            if name == "@events" {
+                if let marshal::types::RubyValue::Hash(ref mut pairs) = val {
+                    pairs.push((
+                        marshal::types::RubyValue::Integer(new_id),
+                        new_event.to_ruby_value(),
+                    ));
+                }
+                break;
+            }
+        }
+    }
+
+    marshal::dump_file(&map_file, &value)
+        .map_err(|e| format!("Failed to save map: {}", e))?;
+
+    // Re-read the map to get updated events list for frontend
+    let updated_value = marshal::load_file(&map_file)
+        .map_err(|e| format!("Failed to re-read map: {}", e))?;
+    let updated_map = RpgMap::from_ruby_value(&updated_value)
+        .ok_or_else(|| "Failed to interpret updated map".to_string())?;
+
+    let events: Vec<EventInfo> = updated_map
+        .events
+        .values()
+        .map(|e| {
+            let (gn, gd, gp) = if let Some(page) = e.pages.first() {
+                (page.graphic.character_name.clone(), page.graphic.direction, page.graphic.pattern)
+            } else {
+                (String::new(), 2, 0)
+            };
+            EventInfo {
+                id: e.id,
+                name: e.name.clone(),
+                x: e.x,
+                y: e.y,
+                page_count: e.pages.len(),
+                graphic_name: gn,
+                graphic_direction: gd,
+                graphic_pattern: gp,
+            }
+        })
+        .collect();
+
+    eprintln!("[create_event] Created event {} at ({},{}) on map {}", new_id, x, y, map_id);
+    Ok((new_event, events))
+}
+
+/// Delete an event from a map. Returns the updated event list.
+#[tauri::command]
+pub async fn delete_event(
+    project_path: String,
+    map_id: i64,
+    event_id: i64,
+) -> Result<Vec<EventInfo>, String> {
+    let path = PathBuf::from(&project_path);
+    let map_file = path
+        .join("Data")
+        .join(format!("Map{:03}.rxdata", map_id));
+
+    let mut value = marshal::load_file(&map_file)
+        .map_err(|e| format!("Failed to read map: {}", e))?;
+
+    // Remove from the @events hash
+    if let marshal::types::RubyValue::Object(ref mut obj) = value {
+        for (name, val) in obj.instance_vars.iter_mut() {
+            if name == "@events" {
+                if let marshal::types::RubyValue::Hash(ref mut pairs) = val {
+                    pairs.retain(|(key, _)| key.as_int() != Some(event_id));
+                }
+                break;
+            }
+        }
+    }
+
+    marshal::dump_file(&map_file, &value)
+        .map_err(|e| format!("Failed to save map: {}", e))?;
+
+    // Re-read to get updated events list
+    let updated_value = marshal::load_file(&map_file)
+        .map_err(|e| format!("Failed to re-read map: {}", e))?;
+    let updated_map = RpgMap::from_ruby_value(&updated_value)
+        .ok_or_else(|| "Failed to interpret updated map".to_string())?;
+
+    let events: Vec<EventInfo> = updated_map
+        .events
+        .values()
+        .map(|e| {
+            let (gn, gd, gp) = if let Some(page) = e.pages.first() {
+                (page.graphic.character_name.clone(), page.graphic.direction, page.graphic.pattern)
+            } else {
+                (String::new(), 2, 0)
+            };
+            EventInfo {
+                id: e.id,
+                name: e.name.clone(),
+                x: e.x,
+                y: e.y,
+                page_count: e.pages.len(),
+                graphic_name: gn,
+                graphic_direction: gd,
+                graphic_pattern: gp,
+            }
+        })
+        .collect();
+
+    eprintln!("[delete_event] Deleted event {} from map {}", event_id, map_id);
+    Ok(events)
+}
+
 /// Save modified tile data back to a map file.
 ///
 /// Takes the flat tile array from the frontend and writes it back

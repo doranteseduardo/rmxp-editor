@@ -10,6 +10,7 @@ import type {
   MapRenderData,
   TilesetRenderInfo,
   RpgEvent,
+  EventInfo,
   MapProperties,
   MapInfo,
 } from "../types";
@@ -119,6 +120,39 @@ export async function saveEvent(
     mapId,
     event,
   });
+}
+
+/**
+ * Create a new event on a map at position (x, y).
+ * Returns [newEvent, updatedEventInfos].
+ */
+export async function createEvent(
+  projectPath: string,
+  mapId: number,
+  x: number,
+  y: number
+): Promise<[RpgEvent, EventInfo[]]> {
+  return (await invoke("create_event", {
+    projectPath,
+    mapId,
+    x,
+    y,
+  })) as [RpgEvent, EventInfo[]];
+}
+
+/**
+ * Delete an event from a map. Returns updated event infos.
+ */
+export async function deleteEvent(
+  projectPath: string,
+  mapId: number,
+  eventId: number
+): Promise<EventInfo[]> {
+  return (await invoke("delete_event", {
+    projectPath,
+    mapId,
+    eventId,
+  })) as EventInfo[];
 }
 
 /**
@@ -385,6 +419,31 @@ async function mockInvoke(
 
     case "rename_map":
       return;
+
+    case "create_event":
+      return [{
+        id: 99,
+        name: "EV099",
+        x: (args?.x as number) ?? 0,
+        y: (args?.y as number) ?? 0,
+        pages: [{
+          condition: { switch1_valid: false, switch2_valid: false, variable_valid: false, self_switch_valid: false, switch1_id: 1, switch2_id: 1, variable_id: 1, variable_value: 0, self_switch_ch: "A" },
+          graphic: { tile_id: 0, character_name: "", character_hue: 0, direction: 2, pattern: 0, opacity: 255, blend_type: 0 },
+          move_type: 0, move_speed: 3, move_frequency: 3,
+          move_route: { repeat: true, skippable: false, list: [{ code: 0, parameters: [] }] },
+          walk_anime: true, step_anime: false, direction_fix: false, through: false, always_on_top: false, trigger: 0,
+          list: [{ code: 0, indent: 0, parameters: [] }],
+        }],
+      }, [
+        { id: 1, name: "Player Start", x: 10, y: 8, page_count: 1, graphic_name: "trainer_POKEMONTRAINER_Red", graphic_direction: 2, graphic_pattern: 0 },
+        { id: 2, name: "Sign", x: 5, y: 5, page_count: 1, graphic_name: "", graphic_direction: 2, graphic_pattern: 0 },
+        { id: 99, name: "EV099", x: (args?.x as number) ?? 0, y: (args?.y as number) ?? 0, page_count: 1, graphic_name: "", graphic_direction: 2, graphic_pattern: 0 },
+      ]];
+
+    case "delete_event":
+      return [
+        { id: 1, name: "Player Start", x: 10, y: 8, page_count: 1, graphic_name: "trainer_POKEMONTRAINER_Red", graphic_direction: 2, graphic_pattern: 0 },
+      ];
 
     case "list_asset_files":
       return ["boy_run", "girl_run", "trainer_POKEMONTRAINER_Red", "trainer_POKEMONTRAINER_Blue", "NPC 01", "NPC 02"];
