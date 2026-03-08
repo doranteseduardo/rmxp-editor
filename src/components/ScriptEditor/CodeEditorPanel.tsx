@@ -2,8 +2,8 @@ import { useEffect, useRef } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { javascript } from "@codemirror/lang-javascript";
-import { syntaxHighlighting, indentOnInput, bracketMatching, foldGutter, foldKeymap, HighlightStyle } from "@codemirror/language";
+import { syntaxHighlighting, indentOnInput, bracketMatching, foldGutter, foldKeymap, HighlightStyle, StreamLanguage } from "@codemirror/language";
+import { ruby } from "@codemirror/legacy-modes/mode/ruby";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { autocompletion, closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { tags } from "@lezer/highlight";
@@ -121,9 +121,12 @@ export function CodeEditorPanel({ source, loading, onSourceChange }: Props) {
   const onChangeRef = useRef(onSourceChange);
   onChangeRef.current = onSourceChange;
 
-  // Create the editor once
+  // Create the editor when container is available
+  // We track whether the editor has been created to avoid double-creation
+  const editorCreated = useRef(false);
+
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || editorCreated.current) return;
 
     const updateListener = EditorView.updateListener.of((update) => {
       if (update.docChanged) {
@@ -144,7 +147,7 @@ export function CodeEditorPanel({ source, loading, onSourceChange }: Props) {
         closeBrackets(),
         autocompletion(),
         highlightSelectionMatches(),
-        javascript(), // reasonable approximation for Ruby
+        StreamLanguage.define(ruby),
         catppuccinTheme,
         syntaxHighlighting(catppuccinHighlight),
         keymap.of([
@@ -167,14 +170,16 @@ export function CodeEditorPanel({ source, loading, onSourceChange }: Props) {
     });
 
     viewRef.current = view;
+    editorCreated.current = true;
 
     return () => {
       view.destroy();
       viewRef.current = null;
+      editorCreated.current = false;
     };
-    // Only create once — source swaps handled below
+    // Re-run when source becomes non-null (editor container appears)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [source !== null]);
 
   // Swap document when source prop changes (different script selected)
   useEffect(() => {
@@ -193,25 +198,17 @@ export function CodeEditorPanel({ source, loading, onSourceChange }: Props) {
     }
   }, [source]);
 
-  if (loading) {
-    return (
-      <div className="script-code-panel">
-        <div className="script-code-loading">Loading script...</div>
-      </div>
-    );
-  }
-
-  if (source === null) {
-    return (
-      <div className="script-code-panel">
-        <div className="script-code-empty">Select a script to edit</div>
-      </div>
-    );
-  }
-
   return (
     <div className="script-code-panel">
-      <div className="script-code-editor" ref={containerRef} />
+      {loading && <div className="script-code-loading">Loading script...</div>}
+      {!loading && source === null && (
+        <div className="script-code-empty">Select a script to edit</div>
+      )}
+      <div
+        className="script-code-editor"
+        ref={containerRef}
+        style={{ display: source !== null && !loading ? undefined : "none" }}
+      />
     </div>
   );
 }
