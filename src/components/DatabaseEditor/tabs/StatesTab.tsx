@@ -27,7 +27,7 @@ export function StatesTab({ projectPath }: Props) {
   const s = db.selected as RpgState | null;
 
   if (db.loading) return <div className="db-loading">Loading States...</div>;
-  if (db.error) return <div className="db-loading" style={{ color: "#f38ba8" }}>{db.error}</div>;
+  if (db.error) return <div className="db-loading" style={{ color: "#d20f39" }}>{db.error}</div>;
 
   const u = (patch: Partial<RpgState>) => db.update(patch);
 

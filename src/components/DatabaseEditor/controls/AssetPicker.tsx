@@ -105,10 +105,10 @@ export function AssetPicker({ projectPath, assetType, value, onChange, showPrevi
           minWidth: 0,
           padding: "3px 6px",
           fontSize: 12,
-          background: "#11111b",
-          border: "1px solid #45475a",
+          background: "#dce0e8",
+          border: "1px solid #bcc0cc",
           borderRadius: 3,
-          color: "#cdd6f4",
+          color: "#4c4f69",
         }}
       >
         {allowNone && <option value="">(None)</option>}
@@ -120,15 +120,15 @@ export function AssetPicker({ projectPath, assetType, value, onChange, showPrevi
           <option value={value}>{value} (not found)</option>
         )}
       </select>
-      {loading && <span style={{ fontSize: 10, color: "#6c7086" }}>...</span>}
+      {loading && <span style={{ fontSize: 10, color: "#8c8fa1" }}>...</span>}
       {previewUrl && value && (
         <div
           style={{
             width: 40,
             height: 40,
-            border: "1px solid #313244",
+            border: "1px solid #ccd0da",
             borderRadius: 3,
-            background: "#11111b",
+            background: "#dce0e8",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",

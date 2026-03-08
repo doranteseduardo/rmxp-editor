@@ -220,7 +220,7 @@ function CharacterTile({
             style={{ opacity: loaded ? 1 : 0.3 }}
           />
         ) : (
-          <span style={{ fontSize: 20, color: "#6c7086" }}>∅</span>
+          <span style={{ fontSize: 20, color: "#8c8fa1" }}>∅</span>
         )}
       </div>
       <span className="character-tile-name">{shortName}</span>

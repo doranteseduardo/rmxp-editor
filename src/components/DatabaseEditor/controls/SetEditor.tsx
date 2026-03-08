@@ -26,7 +26,7 @@ export function SetEditor({ value, entries, onChange, maxHeight = 160 }: Props) 
   };
 
   if (entries.length === 0) {
-    return <div style={{ fontSize: 11, color: "#6c7086", padding: 4 }}>No entries available</div>;
+    return <div style={{ fontSize: 11, color: "#8c8fa1", padding: 4 }}>No entries available</div>;
   }
 
   return (
@@ -43,7 +43,7 @@ export function SetEditor({ value, entries, onChange, maxHeight = 160 }: Props) 
             gap: 6,
             padding: "1px 6px",
             fontSize: 11,
-            color: valueSet.has(e.id) ? "#cdd6f4" : "#a6adc8",
+            color: valueSet.has(e.id) ? "#4c4f69" : "#6c6f85",
             cursor: "pointer",
           }}
         >
@@ -51,9 +51,9 @@ export function SetEditor({ value, entries, onChange, maxHeight = 160 }: Props) 
             type="checkbox"
             checked={valueSet.has(e.id)}
             onChange={() => toggle(e.id)}
-            style={{ accentColor: "#89b4fa" }}
+            style={{ accentColor: "#1e66f5" }}
           />
-          <span style={{ color: "#6c7086", width: 28, flexShrink: 0, fontSize: 10 }}>
+          <span style={{ color: "#8c8fa1", width: 28, flexShrink: 0, fontSize: 10 }}>
             {String(e.id).padStart(3, "0")}
           </span>
           {e.name || "(unnamed)"}

@@ -59,8 +59,8 @@ export function TroopPositionEditor({ members, enemyNames, selectedIndex, onSele
       style={{
         width: CANVAS_W,
         height: CANVAS_H,
-        background: "linear-gradient(180deg, #1e1e2e 0%, #313244 60%, #45475a 100%)",
-        border: "1px solid #45475a",
+        background: "linear-gradient(180deg, #eff1f5 0%, #ccd0da 60%, #bcc0cc 100%)",
+        border: "1px solid #bcc0cc",
         borderRadius: 4,
         position: "relative",
         cursor: dragging !== null ? "grabbing" : "default",
@@ -71,10 +71,10 @@ export function TroopPositionEditor({ members, enemyNames, selectedIndex, onSele
       {/* Grid lines for reference */}
       <svg width={CANVAS_W} height={CANVAS_H} style={{ position: "absolute", pointerEvents: "none" }}>
         {[160, 320, 480].map((x) => (
-          <line key={`v${x}`} x1={x * SCALE_X} y1={0} x2={x * SCALE_X} y2={CANVAS_H} stroke="#45475a" strokeWidth={0.5} strokeDasharray="4,4" />
+          <line key={`v${x}`} x1={x * SCALE_X} y1={0} x2={x * SCALE_X} y2={CANVAS_H} stroke="#bcc0cc" strokeWidth={0.5} strokeDasharray="4,4" />
         ))}
         {[160].map((y) => (
-          <line key={`h${y}`} x1={0} y1={y * SCALE_Y} x2={CANVAS_W} y2={y * SCALE_Y} stroke="#45475a" strokeWidth={0.5} strokeDasharray="4,4" />
+          <line key={`h${y}`} x1={0} y1={y * SCALE_Y} x2={CANVAS_W} y2={y * SCALE_Y} stroke="#bcc0cc" strokeWidth={0.5} strokeDasharray="4,4" />
         ))}
       </svg>
 
@@ -95,8 +95,8 @@ export function TroopPositionEditor({ members, enemyNames, selectedIndex, onSele
               width: 28,
               height: 28,
               borderRadius: "50%",
-              background: isSelected ? "#89b4fa" : (m.hidden ? "#6c7086" : "#f38ba8"),
-              border: `2px solid ${isSelected ? "#74c7ec" : "#1e1e2e"}`,
+              background: isSelected ? "#1e66f5" : (m.hidden ? "#8c8fa1" : "#d20f39"),
+              border: `2px solid ${isSelected ? "#209fb5" : "#eff1f5"}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -106,13 +106,13 @@ export function TroopPositionEditor({ members, enemyNames, selectedIndex, onSele
             }}
             title={`${name} (${m.x}, ${m.y})${m.hidden ? " [Hidden]" : ""}${m.immortal ? " [Immortal]" : ""}`}
           >
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#1e1e2e" }}>{i + 1}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#eff1f5" }}>{i + 1}</span>
           </div>
         );
       })}
 
       {/* Label */}
-      <div style={{ position: "absolute", bottom: 4, right: 6, fontSize: 9, color: "#6c7086" }}>
+      <div style={{ position: "absolute", bottom: 4, right: 6, fontSize: 9, color: "#8c8fa1" }}>
         640 × 320 battle area
       </div>
     </div>

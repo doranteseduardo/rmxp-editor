@@ -265,7 +265,7 @@ export function EventEditor({
           <div>
             <h3>
               Event [{String(eventId).padStart(3, "0")}] {event?.name ?? eventName}
-              {dirty && <span style={{ color: "#f9e2af", marginLeft: 8 }}>*</span>}
+              {dirty && <span style={{ color: "#df8e1d", marginLeft: 8 }}>*</span>}
             </h3>
             <span className="event-editor-header-info">
               Map [{String(mapId).padStart(3, "0")}] · Position ({event?.x ?? "?"},{" "}
@@ -337,11 +337,11 @@ export function EventEditor({
         {/* Body */}
         <div className="event-editor-body">
           {loading ? (
-            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#6c7086" }}>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#8c8fa1" }}>
               Loading event data...
             </div>
           ) : error ? (
-            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#f38ba8" }}>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#d20f39" }}>
               {error}
             </div>
           ) : page ? (
@@ -406,7 +406,7 @@ export function EventEditor({
               </div>
             </>
           ) : (
-            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#6c7086" }}>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#8c8fa1" }}>
               No pages defined
             </div>
           )}
@@ -414,7 +414,7 @@ export function EventEditor({
 
         {/* Footer */}
         <div className="event-editor-footer">
-          <span style={{ fontSize: 10, color: "#6c7086" }}>
+          <span style={{ fontSize: 10, color: "#8c8fa1" }}>
             Dbl-click edit · Del/Ins · Ctrl+Z undo · Ctrl+Y redo · Ctrl+S save
           </span>
           <div style={{ display: "flex", gap: 8 }}>
@@ -521,7 +521,7 @@ function PageProperties({ page, onUpdatePage, projectPath, switchNames, variable
             names={variableNames}
             label="Variable"
           />
-          <span style={{ color: "#6c7086", fontSize: 10 }}>&gt;=</span>
+          <span style={{ color: "#8c8fa1", fontSize: 10 }}>&gt;=</span>
           <NumberInput value={page.condition.variable_value} onChange={(v) => updateCondition("variable_value", v)} />
         </EditableCondition>
         <EditableCondition
@@ -578,7 +578,7 @@ function PageProperties({ page, onUpdatePage, projectPath, switchNames, variable
               </button>
             </div>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <span style={{ fontSize: 10, color: "#6c7086" }}>Dir:</span>
+              <span style={{ fontSize: 10, color: "#8c8fa1" }}>Dir:</span>
               <select
                 className="prop-select"
                 value={page.graphic.direction}
@@ -589,7 +589,7 @@ function PageProperties({ page, onUpdatePage, projectPath, switchNames, variable
                 <option value={6}>Right</option>
                 <option value={8}>Up</option>
               </select>
-              <span style={{ fontSize: 10, color: "#6c7086" }}>Opacity:</span>
+              <span style={{ fontSize: 10, color: "#8c8fa1" }}>Opacity:</span>
               <NumberInput value={page.graphic.opacity} onChange={(v) => updateGraphic("opacity", v)} min={0} max={255} />
             </div>
           </div>
@@ -656,7 +656,7 @@ function PageProperties({ page, onUpdatePage, projectPath, switchNames, variable
                   )
                 )}
                 {page.move_route.list.length > 6 && (
-                  <div className="move-route-item" style={{ color: "#6c7086" }}>
+                  <div className="move-route-item" style={{ color: "#8c8fa1" }}>
                     ...and {page.move_route.list.length - 6} more
                   </div>
                 )}
@@ -833,9 +833,9 @@ function EditableCondition({
         type="checkbox"
         checked={active}
         onChange={onToggle}
-        style={{ margin: 0, accentColor: "#a6e3a1" }}
+        style={{ margin: 0, accentColor: "#40a02b" }}
       />
-      <span style={{ color: active ? "#cdd6f4" : "#6c7086", fontSize: 11, minWidth: 60 }}>{label}</span>
+      <span style={{ color: active ? "#4c4f69" : "#8c8fa1", fontSize: 11, minWidth: 60 }}>{label}</span>
       {active && <span style={{ display: "flex", alignItems: "center", gap: 4 }}>{children}</span>}
     </div>
   );

@@ -107,8 +107,8 @@ export function AnimationFrameEditor({ frames, frameMax = 0, timings, onChange, 
             padding: "3px 12px",
             fontSize: 11,
             fontWeight: 600,
-            background: isPlaying ? "#f38ba8" : "#a6e3a1",
-            color: "#1e1e2e",
+            background: isPlaying ? "#d20f39" : "#40a02b",
+            color: "#eff1f5",
             border: "none",
             borderRadius: 3,
             cursor: totalFrames > 0 ? "pointer" : "not-allowed",
@@ -116,7 +116,7 @@ export function AnimationFrameEditor({ frames, frameMax = 0, timings, onChange, 
         >
           {isPlaying ? "⏸ Pause" : "▶ Play"}
         </button>
-        <span style={{ fontSize: 10, color: "#a6adc8" }}>
+        <span style={{ fontSize: 10, color: "#6c6f85" }}>
           {isPlaying ? `Playing ${selFrame + 1} / ${totalFrames}` : `${totalFrames} frame(s)`}
         </span>
       </div>
@@ -137,9 +137,9 @@ export function AnimationFrameEditor({ frames, frameMax = 0, timings, onChange, 
                 height: 22,
                 fontSize: 9,
                 position: "relative",
-                background: isPlayHead ? "#f38ba8" : isSelected ? "#89b4fa" : "#313244",
-                color: isSelected || isPlayHead ? "#1e1e2e" : "#a6adc8",
-                border: "1px solid " + (isPlayHead ? "#f38ba8" : isSelected ? "#89b4fa" : "#45475a"),
+                background: isPlayHead ? "#d20f39" : isSelected ? "#1e66f5" : "#ccd0da",
+                color: isSelected || isPlayHead ? "#eff1f5" : "#6c6f85",
+                border: "1px solid " + (isPlayHead ? "#d20f39" : isSelected ? "#1e66f5" : "#bcc0cc"),
                 borderRadius: 2,
                 cursor: isPlaying ? "default" : "pointer",
                 fontWeight: isSelected ? 600 : 400,
@@ -154,21 +154,21 @@ export function AnimationFrameEditor({ frames, frameMax = 0, timings, onChange, 
                   width: 6,
                   height: 6,
                   borderRadius: "50%",
-                  background: "#f9e2af",
-                  border: "1px solid #1e1e2e",
+                  background: "#df8e1d",
+                  border: "1px solid #eff1f5",
                 }} />
               )}
             </button>
           );
         })}
         {totalFrames === 0 && (
-          <span style={{ fontSize: 11, color: "#6c7086" }}>No frames (frame_max = 0)</span>
+          <span style={{ fontSize: 11, color: "#8c8fa1" }}>No frames (frame_max = 0)</span>
         )}
       </div>
 
       {frame && !isPlaying && (
         <>
-          <div style={{ fontSize: 11, color: "#a6adc8", marginBottom: 4 }}>
+          <div style={{ fontSize: 11, color: "#6c6f85", marginBottom: 4 }}>
             Frame {selFrame + 1} — {frame.cell_max} cell(s)
           </div>
 
@@ -186,7 +186,7 @@ export function AnimationFrameEditor({ frames, frameMax = 0, timings, onChange, 
           </div>
 
           {!cellDataAvailable && (
-            <div style={{ fontSize: 10, color: "#6c7086", marginTop: 6 }}>
+            <div style={{ fontSize: 10, color: "#8c8fa1", marginTop: 6 }}>
               Cell data is stored in binary Table format and is preserved on save.
             </div>
           )}
@@ -195,7 +195,7 @@ export function AnimationFrameEditor({ frames, frameMax = 0, timings, onChange, 
 
       {/* Show frame index info when frames array is empty but frameMax > 0 */}
       {!frame && totalFrames > 0 && !isPlaying && (
-        <div style={{ fontSize: 10, color: "#6c7086", marginTop: 4 }}>
+        <div style={{ fontSize: 10, color: "#8c8fa1", marginTop: 4 }}>
           Frame {selFrame + 1} — data stored in binary format, preserved on save.
         </div>
       )}

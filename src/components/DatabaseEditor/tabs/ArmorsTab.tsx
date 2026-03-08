@@ -24,7 +24,7 @@ export function ArmorsTab({ projectPath }: Props) {
   const a = db.selected as RpgArmor | null;
 
   if (db.loading) return <div className="db-loading">Loading Armors...</div>;
-  if (db.error) return <div className="db-loading" style={{ color: "#f38ba8" }}>{db.error}</div>;
+  if (db.error) return <div className="db-loading" style={{ color: "#d20f39" }}>{db.error}</div>;
 
   const u = (patch: Partial<RpgArmor>) => db.update(patch);
 

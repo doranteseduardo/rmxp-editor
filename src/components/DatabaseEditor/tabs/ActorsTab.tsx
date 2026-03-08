@@ -25,7 +25,7 @@ export function ActorsTab({ projectPath }: Props) {
   const a = db.selected as RpgActor | null;
 
   if (db.loading) return <div className="db-loading">Loading Actors...</div>;
-  if (db.error) return <div className="db-loading" style={{ color: "#f38ba8" }}>{db.error}</div>;
+  if (db.error) return <div className="db-loading" style={{ color: "#d20f39" }}>{db.error}</div>;
 
   const u = (patch: Partial<RpgActor>) => db.update(patch);
   const paramValues: number[] = a?.parameters?.data ?? [];
@@ -72,7 +72,7 @@ export function ActorsTab({ projectPath }: Props) {
               {paramValues.length > 0 ? (
                 <ParameterCurveEditor values={paramValues} onChange={(vals) => u({ parameters: { ...a.parameters, data: vals } })} />
               ) : (
-                <div style={{ fontSize: 11, color: "#6c7086" }}>Parameter data in binary Table format — preserved on save.</div>
+                <div style={{ fontSize: 11, color: "#8c8fa1" }}>Parameter data in binary Table format — preserved on save.</div>
               )}
             </div>
           </div>

@@ -108,7 +108,7 @@ export function TilesetsTab({ projectPath }: Props) {
   const [tileTab, setTileTab] = useState<PropertyMode>("passage");
 
   if (db.loading) return <div className="db-loading">Loading Tilesets...</div>;
-  if (db.error) return <div className="db-loading" style={{ color: "#f38ba8" }}>{db.error}</div>;
+  if (db.error) return <div className="db-loading" style={{ color: "#d20f39" }}>{db.error}</div>;
 
   const u = (patch: Partial<RpgTileset>) => db.update(patch);
 
@@ -175,9 +175,9 @@ export function TilesetsTab({ projectPath }: Props) {
                           padding: "3px 8px",
                           fontSize: 10,
                           fontWeight: tileTab === mode ? 600 : 400,
-                          background: tileTab === mode ? "#89b4fa" : "#313244",
-                          color: tileTab === mode ? "#1e1e2e" : "#a6adc8",
-                          border: "1px solid " + (tileTab === mode ? "#89b4fa" : "#45475a"),
+                          background: tileTab === mode ? "#1e66f5" : "#ccd0da",
+                          color: tileTab === mode ? "#eff1f5" : "#6c6f85",
+                          border: "1px solid " + (tileTab === mode ? "#1e66f5" : "#bcc0cc"),
                           borderRadius: 3,
                           cursor: "pointer",
                         }}
@@ -196,7 +196,7 @@ export function TilesetsTab({ projectPath }: Props) {
                       onChange={data => u(makeTablePatch(t, tileTab, data))}
                     />
                   ) : (
-                    <div style={{ fontSize: 11, color: "#6c7086" }}>No data available for this property</div>
+                    <div style={{ fontSize: 11, color: "#8c8fa1" }}>No data available for this property</div>
                   )}
                 </div>
               </div>

@@ -2,7 +2,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #11111b;
+  background: var(--color-crust);
   overflow: hidden;
   min-width: 0;
   min-height: 0;
@@ -13,7 +13,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6c7086;
+  color: var(--color-overlay0);
   font-size: 14px;
 }
 
@@ -22,8 +22,8 @@
   align-items: center;
   gap: 16px;
   padding: 6px 12px;
-  background: #1e1e2e;
-  border-bottom: 1px solid #313244;
+  background: var(--color-base);
+  border-bottom: 1px solid var(--color-surface0);
   flex-shrink: 0;
 }
 
@@ -35,16 +35,16 @@
 
 .toolbar-label {
   font-size: 12px;
-  color: #6c7086;
+  color: var(--color-overlay0);
   margin-right: 4px;
 }
 
 .toolbar-btn {
   padding: 4px 8px;
-  background: #313244;
-  border: 1px solid #45475a;
+  background: var(--color-surface0);
+  border: 1px solid var(--color-surface1);
   border-radius: 4px;
-  color: #cdd6f4;
+  color: var(--color-text);
   font-size: 12px;
   cursor: pointer;
   min-width: 32px;
@@ -52,13 +52,13 @@
 }
 
 .toolbar-btn:hover {
-  background: #45475a;
+  background: var(--color-surface1);
 }
 
 .toolbar-btn.active {
-  background: #585b70;
-  border-color: #89b4fa;
-  color: #89b4fa;
+  background: var(--color-surface2);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 .toolbar-check {
@@ -66,18 +66,18 @@
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: #bac2de;
+  color: var(--color-subtext1);
   cursor: pointer;
 }
 
 .toolbar-check input {
-  accent-color: #89b4fa;
+  accent-color: var(--color-accent);
 }
 
 .toolbar-separator {
   width: 1px;
   height: 20px;
-  background: #45475a;
+  background: var(--color-surface1);
 }
 
 .toolbar-right {
@@ -115,7 +115,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6c7086;
+  color: var(--color-overlay0);
   font-size: 14px;
   pointer-events: none;
   z-index: 1;
@@ -126,17 +126,17 @@
   align-items: center;
   gap: 16px;
   padding: 4px 12px;
-  background: #181825;
-  border-top: 1px solid #313244;
+  background: var(--color-mantle);
+  border-top: 1px solid var(--color-surface0);
   font-size: 11px;
-  color: #6c7086;
+  color: var(--color-overlay0);
   flex-shrink: 0;
 }
 
 /* Custom scrollbars for map canvas */
 .map-scrollbar {
   position: absolute;
-  background: rgba(17, 17, 27, 0.5);
+  background: rgba(220, 224, 232, 0.5);
   z-index: 5;
   padding: 2px;
 }
@@ -153,7 +153,7 @@
 
 .map-scrollbar-thumb {
   position: absolute;
-  background: rgba(69, 71, 90, 0.7);
+  background: rgba(172, 176, 190, 0.7);
   border-radius: 4px;
   min-width: 20px;
   min-height: 20px;
@@ -173,5 +173,5 @@
 
 .map-scrollbar-thumb:hover,
 .map-scrollbar-thumb:active {
-  background: rgba(137, 180, 250, 0.6);
+  background: rgba(30, 102, 245, 0.5);
 }

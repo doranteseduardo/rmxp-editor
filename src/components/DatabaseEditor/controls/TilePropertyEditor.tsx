@@ -43,8 +43,8 @@ const DIR_RIGHT = 0x04;
 const DIR_UP    = 0x08;
 
 const PRIORITY_COLORS: Record<number, string> = {
-  0: "#45475a", 1: "#89b4fa", 2: "#a6e3a1",
-  3: "#f9e2af", 4: "#fab387", 5: "#f38ba8",
+  0: "#bcc0cc", 1: "#1e66f5", 2: "#40a02b",
+  3: "#df8e1d", 4: "#fe640b", 5: "#d20f39",
 };
 
 // Pokémon Essentials v21.1 defines terrain tags 0-17:
@@ -54,11 +54,11 @@ const PRIORITY_COLORS: Record<number, string> = {
 const MAX_TERRAIN_TAG = 17;
 
 const TAG_COLORS: Record<number, string> = {
-  0: "#45475a",  1: "#89b4fa",  2: "#a6e3a1",  3: "#f9e2af",
-  4: "#fab387",  5: "#f38ba8",  6: "#cba6f7",  7: "#94e2d5",
-  8: "#74c7ec",  9: "#89dceb", 10: "#b4befe", 11: "#a6e3a1",
-  12: "#bac2de", 13: "#6c7086", 14: "#f2cdcd", 15: "#eba0ac",
-  16: "#7f849c", 17: "#585b70",
+  0: "#bcc0cc",  1: "#1e66f5",  2: "#40a02b",  3: "#df8e1d",
+  4: "#fe640b",  5: "#d20f39",  6: "#8839ef",  7: "#179299",
+  8: "#209fb5",  9: "#04a5e5", 10: "#b4befe", 11: "#40a02b",
+  12: "#5c5f77", 13: "#8c8fa1", 14: "#dd7878", 15: "#eba0ac",
+  16: "#7f849c", 17: "#acb0be",
 };
 
 const TAG_LABELS: Record<number, string> = {
@@ -85,7 +85,7 @@ function PassageBadge({ value }: { value: number }) {
       position: "absolute", inset: 0,
       display: "flex", alignItems: "center", justifyContent: "center",
       background: blocked ? "rgba(243, 139, 168, 0.45)" : "rgba(166, 227, 161, 0.25)",
-      color: blocked ? "#f38ba8" : "#a6e3a1",
+      color: blocked ? "#d20f39" : "#40a02b",
       fontSize: 14, fontWeight: 700,
       textShadow: "0 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6)",
       pointerEvents: "none",
@@ -111,7 +111,7 @@ function Passage4DirBadge({ value }: { value: number }) {
       position: "absolute", inset: 0,
       display: "flex", alignItems: "center", justifyContent: "center",
       background: allBlocked ? "rgba(243, 139, 168, 0.45)" : allOpen ? "rgba(166, 227, 161, 0.25)" : "rgba(249, 226, 175, 0.35)",
-      color: allBlocked ? "#f38ba8" : allOpen ? "#a6e3a1" : "#f9e2af",
+      color: allBlocked ? "#d20f39" : allOpen ? "#40a02b" : "#df8e1d",
       fontSize: allBlocked || allOpen ? 14 : 9,
       fontWeight: 700,
       textShadow: "0 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6)",
@@ -128,8 +128,8 @@ function PriorityBadge({ value }: { value: number }) {
     <div style={{
       position: "absolute", inset: 0,
       display: "flex", alignItems: "center", justifyContent: "center",
-      background: `${PRIORITY_COLORS[value] ?? "#45475a"}55`,
-      color: PRIORITY_COLORS[value] ?? "#a6adc8",
+      background: `${PRIORITY_COLORS[value] ?? "#bcc0cc"}55`,
+      color: PRIORITY_COLORS[value] ?? "#6c6f85",
       fontSize: 14, fontWeight: 700,
       textShadow: "0 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6)",
       pointerEvents: "none",
@@ -147,7 +147,7 @@ function FlagBadge({ value, onColor }: { value: number; onColor: string }) {
       position: "absolute", inset: 0,
       display: "flex", alignItems: "center", justifyContent: "center",
       background: on ? `${onColor}55` : "rgba(69, 71, 90, 0.35)",
-      color: on ? onColor : "#585b70",
+      color: on ? onColor : "#acb0be",
       fontSize: 14, fontWeight: 700,
       textShadow: "0 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6)",
       pointerEvents: "none",
@@ -163,8 +163,8 @@ function TagBadge({ value }: { value: number }) {
       position: "absolute", inset: 0,
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
-      background: `${TAG_COLORS[value] ?? "#45475a"}55`,
-      color: TAG_COLORS[value] ?? "#a6adc8",
+      background: `${TAG_COLORS[value] ?? "#bcc0cc"}55`,
+      color: TAG_COLORS[value] ?? "#6c6f85",
       fontWeight: 700,
       textShadow: "0 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6)",
       pointerEvents: "none",
@@ -184,8 +184,8 @@ function Badge({ mode, value }: { mode: PropertyMode; value: number }) {
     case "passage":      return <PassageBadge value={value} />;
     case "passage_4dir": return <Passage4DirBadge value={value} />;
     case "priorities":   return <PriorityBadge value={value} />;
-    case "bush_flag":    return <FlagBadge value={value} onColor="#a6e3a1" />;
-    case "counter_flag": return <FlagBadge value={value} onColor="#89b4fa" />;
+    case "bush_flag":    return <FlagBadge value={value} onColor="#40a02b" />;
+    case "counter_flag": return <FlagBadge value={value} onColor="#1e66f5" />;
     case "terrain_tags": return <TagBadge value={value} />;
   }
 }
@@ -350,14 +350,14 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
   }, [data, mode, onChange]);
 
   if (data.length === 0) {
-    return <div style={{ fontSize: 11, color: "#6c7086", padding: 4 }}>No tile data available</div>;
+    return <div style={{ fontSize: 11, color: "#8c8fa1", padding: 4 }}>No tile data available</div>;
   }
 
   const gridWidth = COLS * CELL_SIZE;
 
   return (
     <div>
-      <div style={{ fontSize: 10, color: "#6c7086", marginBottom: 4 }}>
+      <div style={{ fontSize: 10, color: "#8c8fa1", marginBottom: 4 }}>
         {HINT_TEXT[mode]}
       </div>
       <div
@@ -365,17 +365,17 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
         style={{
           maxHeight: 14 * CELL_SIZE + 2,
           overflowY: "auto",
-          border: "1px solid #313244",
+          border: "1px solid #ccd0da",
           borderRadius: 3,
-          background: "#11111b",
+          background: "#dce0e8",
         }}
       >
         {/* Autotile section — one cell per slot */}
         <div style={{
           padding: "2px 6px",
           fontSize: 9, fontWeight: 600,
-          color: "#6c7086", background: "#181825",
-          borderBottom: "1px solid #313244",
+          color: "#8c8fa1", background: "#e6e9ef",
+          borderBottom: "1px solid #ccd0da",
           textTransform: "uppercase", letterSpacing: 0.5,
         }}>
           Autotiles
@@ -399,7 +399,7 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
                   style={{
                     width: CELL_SIZE, height: CELL_SIZE,
                     position: "relative", cursor: "pointer",
-                    border: isHovered ? "1px solid #89b4fa" : "1px solid #313244",
+                    border: isHovered ? "1px solid #1e66f5" : "1px solid #ccd0da",
                     boxSizing: "border-box",
                     backgroundImage: atPreview ? `url("${atPreview}")` : undefined,
                     backgroundSize: `${CELL_SIZE}px ${CELL_SIZE}px`,
@@ -411,7 +411,7 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
                   <Badge mode={mode} value={val} />
                 </div>
                 <div style={{
-                  fontSize: 7, color: "#585b70",
+                  fontSize: 7, color: "#acb0be",
                   textAlign: "center", width: CELL_SIZE,
                   overflow: "hidden", textOverflow: "ellipsis",
                   whiteSpace: "nowrap", padding: "1px 0",
@@ -429,9 +429,9 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
             <div style={{
               padding: "3px 6px",
               fontSize: 9, fontWeight: 600,
-              color: "#89b4fa", background: "#181825",
-              borderBottom: "1px solid #313244",
-              borderTop: "1px solid #45475a",
+              color: "#1e66f5", background: "#e6e9ef",
+              borderBottom: "1px solid #ccd0da",
+              borderTop: "1px solid #bcc0cc",
               textTransform: "uppercase", letterSpacing: 0.5,
             }}>
               Regular Tiles {tilesetName ? `— ${tilesetName}` : ""}
@@ -443,8 +443,8 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
                   <div key={ri} style={{
                     width: 28, height: CELL_SIZE,
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 7, color: "#585b70",
-                    borderRight: "1px solid #313244",
+                    fontSize: 7, color: "#acb0be",
+                    borderRight: "1px solid #ccd0da",
                   }}>
                     {regularTileStartRow + ri}
                   </div>
@@ -481,7 +481,7 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
                         top: row * CELL_SIZE,
                         width: CELL_SIZE, height: CELL_SIZE,
                         cursor: "pointer",
-                        border: isHovered ? "1px solid #89b4fa" : "1px solid rgba(49,50,68,0.5)",
+                        border: isHovered ? "1px solid #1e66f5" : "1px solid rgba(49,50,68,0.5)",
                         boxSizing: "border-box",
                       }}
                     >
@@ -496,7 +496,7 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
       </div>
 
       {/* Status bar */}
-      <div style={{ fontSize: 10, color: "#6c7086", marginTop: 2, display: "flex", justifyContent: "space-between" }}>
+      <div style={{ fontSize: 10, color: "#8c8fa1", marginTop: 2, display: "flex", justifyContent: "space-between" }}>
         <span>{data.length} tiles ({rows} rows × {COLS} cols)</span>
         {hoveredIdx !== null && hoveredIdx < 0 && (
           <span>

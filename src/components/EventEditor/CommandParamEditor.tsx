@@ -237,7 +237,7 @@ function ActorSelector({ params, onChange, idx }: {
   return (
     <div className="cmd-param-row">
       <NInput label="Actor ID:" value={num(params[idx])} onChange={(v) => onChange(idx, v)} min={1} />
-      <span className="cmd-param-label" style={{ fontSize: 10, color: "#6c7086" }}>(0 = entire party)</span>
+      <span className="cmd-param-label" style={{ fontSize: 10, color: "#8c8fa1" }}>(0 = entire party)</span>
     </div>
   );
 }
@@ -328,7 +328,7 @@ function ButtonInputEditor({ params, onChange, onDone }: EditorProps) {
       <div className="cmd-param-row">
         <NInput label="Variable ID:" value={num(params[0])} onChange={(v) => onChange(0, v)} min={1} />
       </div>
-      <div className="cmd-param-row" style={{ fontSize: 10, color: "#6c7086" }}>
+      <div className="cmd-param-row" style={{ fontSize: 10, color: "#8c8fa1" }}>
         Down=2, Left=4, Right=6, Up=8, A=11, B=12, C=13, X=14, Y=15, Z=16, L=17, R=18
       </div>
     </EditorShell>
@@ -342,7 +342,7 @@ function WaitEditor({ params, onChange, onDone }: EditorProps) {
     <EditorShell title="Wait" onDone={onDone}>
       <div className="cmd-param-row">
         <NInput label="Frames:" value={num(params[0])} onChange={(v) => onChange(0, v)} min={1} />
-        <span className="cmd-param-label" style={{ fontSize: 10, color: "#6c7086" }}>
+        <span className="cmd-param-label" style={{ fontSize: 10, color: "#8c8fa1" }}>
           ({(num(params[0]) / 20).toFixed(1)}s at 20fps)
         </span>
       </div>
@@ -486,7 +486,7 @@ function ConditionalBranchEditor({ params, onChange, onDone, switchNames, variab
         <>
           <div className="cmd-param-row">
             <NInput label="Character:" value={num(params[1])} onChange={(v) => onChange(1, v)} min={-1} />
-            <span className="cmd-param-label" style={{ fontSize: 10, color: "#6c7086" }}>(-1=player, 0=this)</span>
+            <span className="cmd-param-label" style={{ fontSize: 10, color: "#8c8fa1" }}>(-1=player, 0=this)</span>
           </div>
           <div className="cmd-param-row">
             <span className="cmd-param-label">Facing:</span>
@@ -778,7 +778,7 @@ function ChangePartyMemberEditor({ params, onChange, onDone }: EditorProps) {
       </div>
       {num(params[1]) === 0 && (
         <div className="cmd-param-row">
-          <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#a6adc8", fontSize: 12 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#6c6f85", fontSize: 12 }}>
             <input type="checkbox" checked={num(params[2]) === 1}
               onChange={(e) => onChange(2, e.target.checked ? 1 : 0)} />
             Initialize
@@ -1030,7 +1030,7 @@ function ShowAnimationEditor({ params, onChange, onDone }: EditorProps) {
     <EditorShell title="Show Animation" onDone={onDone}>
       <div className="cmd-param-row">
         <NInput label="Character:" value={num(params[0])} onChange={(v) => onChange(0, v)} min={-1} />
-        <span className="cmd-param-label" style={{ fontSize: 10, color: "#6c7086" }}>(-1=player, 0=this)</span>
+        <span className="cmd-param-label" style={{ fontSize: 10, color: "#8c8fa1" }}>(-1=player, 0=this)</span>
       </div>
       <div className="cmd-param-row">
         <NInput label="Animation ID:" value={num(params[1])} onChange={(v) => onChange(1, v)} min={1} />
@@ -1046,7 +1046,7 @@ function ShowAnimationEditor({ params, onChange, onDone }: EditorProps) {
 function SimpleEditor({ title, onDone }: { title: string; onDone: () => void }) {
   return (
     <EditorShell title={title} onDone={onDone}>
-      <div className="cmd-param-row" style={{ color: "#6c7086", fontSize: 11 }}>No parameters needed.</div>
+      <div className="cmd-param-row" style={{ color: "#8c8fa1", fontSize: 11 }}>No parameters needed.</div>
     </EditorShell>
   );
 }
@@ -1309,13 +1309,13 @@ function BattleProcessingEditor({ params, onChange, onDone }: EditorProps) {
         <NInput label="Troop ID:" value={num(params[0])} onChange={(v) => onChange(0, v)} min={1} />
       </div>
       <div className="cmd-param-row">
-        <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#a6adc8", fontSize: 12 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#6c6f85", fontSize: 12 }}>
           <input type="checkbox" checked={!!params[1]}
             onChange={(e) => onChange(1, e.target.checked)} /> Can Escape
         </label>
       </div>
       <div className="cmd-param-row">
-        <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#a6adc8", fontSize: 12 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#6c6f85", fontSize: 12 }}>
           <input type="checkbox" checked={!!params[2]}
             onChange={(e) => onChange(2, e.target.checked)} /> Can Lose
         </label>
@@ -1341,7 +1341,7 @@ function ShopProcessingEditor({ params, onChange, onDone }: EditorProps) {
       <div className="cmd-param-row">
         <NInput label="ID:" value={num(params[1])} onChange={(v) => onChange(1, v)} min={1} />
       </div>
-      <div className="cmd-param-row" style={{ fontSize: 10, color: "#6c7086" }}>
+      <div className="cmd-param-row" style={{ fontSize: 10, color: "#8c8fa1" }}>
         First merchandise item. Add more items below this command using code 605 continuations.
       </div>
     </EditorShell>
@@ -1371,7 +1371,7 @@ function ChangeHPEditor({ params, onChange, onDone }: EditorProps) {
       <ActorSelector params={params} onChange={onChange} idx={0} />
       <IncDecOperand params={params} onChange={onChange} startIdx={1} />
       <div className="cmd-param-row">
-        <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#a6adc8", fontSize: 12 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#6c6f85", fontSize: 12 }}>
           <input type="checkbox" checked={!!params[4]}
             onChange={(e) => onChange(4, e.target.checked)} /> Allow Death (HP = 0)
         </label>
@@ -1412,7 +1412,7 @@ function RecoverAllEditor({ title, params, onChange, onDone }: EditorProps & { t
     <EditorShell title={title} onDone={onDone}>
       <div className="cmd-param-row">
         <NInput label="ID:" value={num(params[0])} onChange={(v) => onChange(0, v)} min={0} />
-        <span className="cmd-param-label" style={{ fontSize: 10, color: "#6c7086" }}>(0 = all)</span>
+        <span className="cmd-param-label" style={{ fontSize: 10, color: "#8c8fa1" }}>(0 = all)</span>
       </div>
     </EditorShell>
   );
@@ -1494,7 +1494,7 @@ function ChangeEquipmentEditor({ params, onChange, onDone }: EditorProps) {
       </div>
       <div className="cmd-param-row">
         <NInput label="ID:" value={num(params[2])} onChange={(v) => onChange(2, v)} min={0} />
-        <span className="cmd-param-label" style={{ fontSize: 10, color: "#6c7086" }}>(0 = unequip)</span>
+        <span className="cmd-param-label" style={{ fontSize: 10, color: "#8c8fa1" }}>(0 = unequip)</span>
       </div>
     </EditorShell>
   );
@@ -1558,7 +1558,7 @@ function ChangeEnemyHPEditor({ params, onChange, onDone }: EditorProps) {
       </div>
       <IncDecOperand params={params} onChange={onChange} startIdx={1} />
       <div className="cmd-param-row">
-        <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#a6adc8", fontSize: 12 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#6c6f85", fontSize: 12 }}>
           <input type="checkbox" checked={!!params[4]}
             onChange={(e) => onChange(4, e.target.checked)} /> Allow Death
         </label>
@@ -1690,7 +1690,7 @@ function ForceActionEditor({ params, onChange, onDone }: EditorProps) {
       </div>
       <div className="cmd-param-row">
         <NInput label="Target:" value={num(params[4])} onChange={(v) => onChange(4, v)} min={-1} />
-        <span className="cmd-param-label" style={{ fontSize: 10, color: "#6c7086" }}>(-1 = last target)</span>
+        <span className="cmd-param-label" style={{ fontSize: 10, color: "#8c8fa1" }}>(-1 = last target)</span>
       </div>
       <div className="cmd-param-row">
         <span className="cmd-param-label">Execute:</span>

@@ -556,7 +556,7 @@ export function MapEditor({
               className={`toolbar-btn ${selectedLayer === 3 ? "active" : ""}`}
               onClick={() => setSelectedLayer(3)}
               title="Events layer — view and select events"
-              style={selectedLayer === 3 ? { borderColor: "#fab387", color: "#fab387" } : {}}
+              style={selectedLayer === 3 ? { borderColor: "#fe640b", color: "#fe640b" } : {}}
             >
               Ev
             </button>

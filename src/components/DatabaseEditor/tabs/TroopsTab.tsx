@@ -24,7 +24,7 @@ export function TroopsTab({ projectPath }: Props) {
   const [selPage, setSelPage] = useState(0);
 
   if (db.loading) return <div className="db-loading">Loading Troops...</div>;
-  if (db.error) return <div className="db-loading" style={{ color: "#f38ba8" }}>{db.error}</div>;
+  if (db.error) return <div className="db-loading" style={{ color: "#d20f39" }}>{db.error}</div>;
 
   const u = (patch: Partial<RpgTroop>) => db.update(patch);
 
@@ -77,7 +77,7 @@ export function TroopsTab({ projectPath }: Props) {
                         {names.enemies.find(en => en.id === m.enemy_id)?.name ?? `Enemy #${m.enemy_id}`} ({m.x},{m.y}){m.hidden ? " [H]" : ""}{m.immortal ? " [I]" : ""}
                       </div>
                     ))}
-                    {t.members.length === 0 && <div style={{ padding: 4, fontSize: 11, color: "#6c7086" }}>No members</div>}
+                    {t.members.length === 0 && <div style={{ padding: 4, fontSize: 11, color: "#8c8fa1" }}>No members</div>}
                   </div>
                   <div className="db-sublist-toolbar">
                     <button onClick={addMember}>+ Add</button>
@@ -107,9 +107,9 @@ export function TroopsTab({ projectPath }: Props) {
                             style={{
                               padding: "2px 8px",
                               fontSize: 10,
-                              background: selPage === i ? "#89b4fa" : "#313244",
-                              color: selPage === i ? "#1e1e2e" : "#a6adc8",
-                              border: "1px solid " + (selPage === i ? "#89b4fa" : "#45475a"),
+                              background: selPage === i ? "#1e66f5" : "#ccd0da",
+                              color: selPage === i ? "#eff1f5" : "#6c6f85",
+                              border: "1px solid " + (selPage === i ? "#1e66f5" : "#bcc0cc"),
                               borderRadius: 2,
                               cursor: "pointer",
                             }}
@@ -120,7 +120,7 @@ export function TroopsTab({ projectPath }: Props) {
                       </div>
                       {t.pages[selPage] && (
                         <>
-                          <div style={{ fontSize: 10, color: "#6c7086", marginBottom: 4 }}>
+                          <div style={{ fontSize: 10, color: "#8c8fa1", marginBottom: 4 }}>
                             Span: {t.pages[selPage].span === 0 ? "Battle" : t.pages[selPage].span === 1 ? "Turn" : "Moment"}
                           </div>
                           <EventCommandList commands={t.pages[selPage].list} maxHeight={350} onChange={list => {
@@ -132,7 +132,7 @@ export function TroopsTab({ projectPath }: Props) {
                       )}
                     </>
                   ) : (
-                    <div style={{ fontSize: 11, color: "#6c7086" }}>No battle event pages</div>
+                    <div style={{ fontSize: 11, color: "#8c8fa1" }}>No battle event pages</div>
                   )}
                 </div>
               </div>

@@ -334,7 +334,7 @@ export function EventCommandList({ commands, onChange, maxHeight = 400 }: Props)
   }, [editable, selectedCommand, editingCommand, showPicker, commands, clipboard, onChange, handleDeleteCommand]);
 
   if (commands.length === 0 && !editable) {
-    return <div style={{ padding: 6, fontSize: 11, color: "#6c7086" }}>Empty event list</div>;
+    return <div style={{ padding: 6, fontSize: 11, color: "#8c8fa1" }}>Empty event list</div>;
   }
 
   return (
@@ -385,7 +385,7 @@ export function EventCommandList({ commands, onChange, maxHeight = 400 }: Props)
 
       {/* Footer hint */}
       {editable && (
-        <div style={{ padding: "3px 8px", fontSize: 9, color: "#585b70", borderTop: "1px solid #313244" }}>
+        <div style={{ padding: "3px 8px", fontSize: 9, color: "#acb0be", borderTop: "1px solid #ccd0da" }}>
           Dbl-click edit · Del remove · Ins insert · Ctrl+C/V copy/paste · Ctrl+D duplicate
         </div>
       )}

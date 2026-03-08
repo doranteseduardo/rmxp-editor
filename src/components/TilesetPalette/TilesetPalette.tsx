@@ -70,7 +70,7 @@ export function TilesetPalette({
       const idx = selectedTileId - FIRST_REGULAR_TILE;
       const sx = (idx % 8) * TILE_SIZE;
       const sy = Math.floor(idx / 8) * TILE_SIZE;
-      ctx.strokeStyle = "#89b4fa";
+      ctx.strokeStyle = "#1e66f5";
       ctx.lineWidth = 2;
       ctx.strokeRect(sx + 1, sy + 1, TILE_SIZE - 2, TILE_SIZE - 2);
     }

@@ -28,7 +28,7 @@ export function SkillsTab({ projectPath }: Props) {
   const s = db.selected as RpgSkill | null;
 
   if (db.loading) return <div className="db-loading">Loading Skills...</div>;
-  if (db.error) return <div className="db-loading" style={{ color: "#f38ba8" }}>{db.error}</div>;
+  if (db.error) return <div className="db-loading" style={{ color: "#d20f39" }}>{db.error}</div>;
 
   const u = (patch: Partial<RpgSkill>) => db.update(patch);
 

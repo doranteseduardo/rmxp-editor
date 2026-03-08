@@ -23,7 +23,7 @@ export function WeaponsTab({ projectPath }: Props) {
   const w = db.selected as RpgWeapon | null;
 
   if (db.loading) return <div className="db-loading">Loading Weapons...</div>;
-  if (db.error) return <div className="db-loading" style={{ color: "#f38ba8" }}>{db.error}</div>;
+  if (db.error) return <div className="db-loading" style={{ color: "#d20f39" }}>{db.error}</div>;
 
   const u = (patch: Partial<RpgWeapon>) => db.update(patch);
 

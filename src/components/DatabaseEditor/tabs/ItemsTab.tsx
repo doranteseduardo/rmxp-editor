@@ -30,7 +30,7 @@ export function ItemsTab({ projectPath }: Props) {
   const item = db.selected as RpgItem | null;
 
   if (db.loading) return <div className="db-loading">Loading Items...</div>;
-  if (db.error) return <div className="db-loading" style={{ color: "#f38ba8" }}>{db.error}</div>;
+  if (db.error) return <div className="db-loading" style={{ color: "#d20f39" }}>{db.error}</div>;
 
   const u = (patch: Partial<RpgItem>) => db.update(patch);
 

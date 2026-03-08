@@ -19,12 +19,12 @@ interface Props {
 
 const RANK_LABELS = ["", "A", "B", "C", "D", "E", "F"];
 const RANK_COLORS: Record<number, string> = {
-  1: "#a6e3a1", // A = green
-  2: "#89b4fa", // B = blue
-  3: "#a6adc8", // C = default gray
-  4: "#f9e2af", // D = yellow
-  5: "#fab387", // E = orange
-  6: "#f38ba8", // F = red
+  1: "#40a02b", // A = green
+  2: "#1e66f5", // B = blue
+  3: "#6c6f85", // C = default gray
+  4: "#df8e1d", // D = yellow
+  5: "#fe640b", // E = orange
+  6: "#d20f39", // F = red
 };
 
 export function RankTableEditor({ ranks, labels, onChange }: Props) {
@@ -36,7 +36,7 @@ export function RankTableEditor({ ranks, labels, onChange }: Props) {
   };
 
   if (labels.length === 0) {
-    return <div style={{ fontSize: 11, color: "#6c7086", padding: 4 }}>No entries to rank</div>;
+    return <div style={{ fontSize: 11, color: "#8c8fa1", padding: 4 }}>No entries to rank</div>;
   }
 
   return (
@@ -53,13 +53,13 @@ export function RankTableEditor({ ranks, labels, onChange }: Props) {
               gap: 6,
               padding: "1px 6px",
               fontSize: 11,
-              borderBottom: "1px solid #11111b",
+              borderBottom: "1px solid #dce0e8",
             }}
           >
-            <span style={{ color: "#6c7086", width: 28, flexShrink: 0, fontSize: 10 }}>
+            <span style={{ color: "#8c8fa1", width: 28, flexShrink: 0, fontSize: 10 }}>
               {String(idx).padStart(3, "0")}
             </span>
-            <span style={{ flex: 1, color: "#a6adc8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span style={{ flex: 1, color: "#6c6f85", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {label || `#${idx}`}
             </span>
             <select
@@ -70,10 +70,10 @@ export function RankTableEditor({ ranks, labels, onChange }: Props) {
                 padding: "1px 2px",
                 fontSize: 11,
                 fontWeight: 600,
-                background: "#11111b",
-                border: "1px solid #45475a",
+                background: "#dce0e8",
+                border: "1px solid #bcc0cc",
                 borderRadius: 2,
-                color: RANK_COLORS[rank] ?? "#a6adc8",
+                color: RANK_COLORS[rank] ?? "#6c6f85",
                 textAlign: "center",
               }}
             >

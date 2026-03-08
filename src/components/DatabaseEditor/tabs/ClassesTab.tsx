@@ -28,7 +28,7 @@ export function ClassesTab({ projectPath }: Props) {
   const [selLearning, setSelLearning] = useState<number>(-1);
 
   if (db.loading) return <div className="db-loading">Loading Classes...</div>;
-  if (db.error) return <div className="db-loading" style={{ color: "#f38ba8" }}>{db.error}</div>;
+  if (db.error) return <div className="db-loading" style={{ color: "#d20f39" }}>{db.error}</div>;
 
   const u = (patch: Partial<RpgClass>) => db.update(patch);
 
@@ -74,7 +74,7 @@ export function ClassesTab({ projectPath }: Props) {
                         Lv {l.level} → {names.skills.find(s => s.id === l.skill_id)?.name ?? `Skill #${l.skill_id}`}
                       </div>
                     ))}
-                    {c.learnings.length === 0 && <div style={{ padding: 4, fontSize: 11, color: "#6c7086" }}>No skills</div>}
+                    {c.learnings.length === 0 && <div style={{ padding: 4, fontSize: 11, color: "#8c8fa1" }}>No skills</div>}
                   </div>
                   <div className="db-sublist-toolbar">
                     <button onClick={addLearning}>+ Add</button>
@@ -93,13 +93,13 @@ export function ClassesTab({ projectPath }: Props) {
                   <div className="db-section-title">Element Efficiency</div>
                   {elementRanks.length > 0 ? (
                     <RankTableEditor ranks={elementRanks} labels={names.elements.slice(1)} onChange={v => u({ element_ranks: { ...c.element_ranks, data: v } })} />
-                  ) : <div style={{ fontSize: 11, color: "#6c7086" }}>Element rank data not available.</div>}
+                  ) : <div style={{ fontSize: 11, color: "#8c8fa1" }}>Element rank data not available.</div>}
                 </div>
                 <div className="db-section">
                   <div className="db-section-title">State Efficiency</div>
                   {stateRanks.length > 0 ? (
                     <RankTableEditor ranks={stateRanks} labels={names.states.map(s => s.name)} onChange={v => u({ state_ranks: { ...c.state_ranks, data: v } })} />
-                  ) : <div style={{ fontSize: 11, color: "#6c7086" }}>State rank data not available.</div>}
+                  ) : <div style={{ fontSize: 11, color: "#8c8fa1" }}>State rank data not available.</div>}
                 </div>
               </div>
             </div>

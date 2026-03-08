@@ -33,7 +33,7 @@ export function DatabaseListPanel({
           </button>
         )}
         <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 10, color: "#6c7086", alignSelf: "center" }}>
+        <span style={{ fontSize: 10, color: "#8c8fa1", alignSelf: "center" }}>
           {realCount} {label}
         </span>
       </div>

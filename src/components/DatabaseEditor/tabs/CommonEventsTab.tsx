@@ -22,7 +22,7 @@ export function CommonEventsTab({ projectPath }: Props) {
   const ce = db.selected as RpgCommonEvent | null;
 
   if (db.loading) return <div className="db-loading">Loading Common Events...</div>;
-  if (db.error) return <div className="db-loading" style={{ color: "#f38ba8" }}>{db.error}</div>;
+  if (db.error) return <div className="db-loading" style={{ color: "#d20f39" }}>{db.error}</div>;
 
   const u = (patch: Partial<RpgCommonEvent>) => db.update(patch);
 
@@ -50,7 +50,7 @@ export function CommonEventsTab({ projectPath }: Props) {
                   <span className="db-field-label">Condition Switch</span>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <input type="number" value={ce.switch_id} min={1} style={{ width: 60 }} onChange={e => u({ switch_id: +e.target.value })} />
-                    <span style={{ fontSize: 10, color: "#a6adc8" }}>{switchName(ce.switch_id)}</span>
+                    <span style={{ fontSize: 10, color: "#6c6f85" }}>{switchName(ce.switch_id)}</span>
                   </div>
                 </div>
               )}
@@ -58,7 +58,7 @@ export function CommonEventsTab({ projectPath }: Props) {
             <div className="db-section">
               <div className="db-section-title">Event Commands</div>
               <EventCommandList commands={ce.list} maxHeight={400} onChange={list => u({ list })} />
-              <div style={{ fontSize: 10, color: "#6c7086", marginTop: 4 }}>{ce.list.length} command(s)</div>
+              <div style={{ fontSize: 10, color: "#8c8fa1", marginTop: 4 }}>{ce.list.length} command(s)</div>
             </div>
           </div>
         ) : (

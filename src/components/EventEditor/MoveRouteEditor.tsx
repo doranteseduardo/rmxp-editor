@@ -182,7 +182,7 @@ export function MoveRouteEditor({ projectPath, moveRoute, onChange, onClose }: P
         </div>
 
         <div className="move-route-editor-footer">
-          <span style={{ fontSize: 11, color: "#6c7086" }}>
+          <span style={{ fontSize: 11, color: "#8c8fa1" }}>
             {moveRoute.list.length - 1} command(s)
           </span>
           <div style={{ display: "flex", gap: 4 }}>

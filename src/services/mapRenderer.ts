@@ -125,7 +125,7 @@ export class MapRenderer {
     const endY = Math.min(this.mapHeight, Math.ceil(viewportY + canvasH / tileSize));
 
     // Clear canvas
-    this.ctx.fillStyle = "#1a1a2e";
+    this.ctx.fillStyle = "#e0e2ea";
     this.ctx.fillRect(0, 0, canvasW, canvasH);
 
     // Render tiles — non-active layers are dimmed so the active layer stands out

@@ -97,13 +97,13 @@ export function AnimationPreviewCanvas({
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     // Draw background grid
-    ctx.fillStyle = "#11111b";
+    ctx.fillStyle = "#dce0e8";
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     // Draw crosshair at center
     const cx = CANVAS_WIDTH / 2;
     const cy = CANVAS_HEIGHT / 2;
-    ctx.strokeStyle = "#313244";
+    ctx.strokeStyle = "#ccd0da";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(cx, 0);
@@ -113,14 +113,14 @@ export function AnimationPreviewCanvas({
     ctx.stroke();
 
     // Draw a faint circle to represent the target area
-    ctx.strokeStyle = "#45475a";
+    ctx.strokeStyle = "#bcc0cc";
     ctx.beginPath();
     ctx.arc(cx, cy, 48, 0, Math.PI * 2);
     ctx.stroke();
 
     if (!frame || !spriteSheet) {
       // Draw "no frame" text
-      ctx.fillStyle = "#6c7086";
+      ctx.fillStyle = "#8c8fa1";
       ctx.font = "11px sans-serif";
       ctx.textAlign = "center";
       if (!spriteSheet && animationName) {
@@ -136,7 +136,7 @@ export function AnimationPreviewCanvas({
     // Extract cell data from the frame's cell_data Table
     const cellData = frame.cell_data?.data;
     if (!cellData || cellData.length === 0) {
-      ctx.fillStyle = "#6c7086";
+      ctx.fillStyle = "#8c8fa1";
       ctx.font = "11px sans-serif";
       ctx.textAlign = "center";
       ctx.fillText(`Frame ${frameIndex + 1}: ${frame.cell_max} cells (binary data)`, cx, cy);
@@ -216,7 +216,7 @@ export function AnimationPreviewCanvas({
     }
 
     // Frame label
-    ctx.fillStyle = "#6c7086";
+    ctx.fillStyle = "#8c8fa1";
     ctx.font = "10px sans-serif";
     ctx.textAlign = "left";
     ctx.fillText(`Frame ${frameIndex + 1} — ${frame.cell_max} cell(s)`, 4, CANVAS_HEIGHT - 4);
@@ -235,13 +235,13 @@ export function AnimationPreviewCanvas({
         style={{
           width: CANVAS_WIDTH,
           height: CANVAS_HEIGHT,
-          border: "1px solid #313244",
+          border: "1px solid #ccd0da",
           borderRadius: 3,
-          background: "#11111b",
+          background: "#dce0e8",
         }}
       />
       {!animationName && (
-        <div style={{ fontSize: 10, color: "#6c7086", marginTop: 2 }}>
+        <div style={{ fontSize: 10, color: "#8c8fa1", marginTop: 2 }}>
           Select an animation graphic to preview frames
         </div>
       )}

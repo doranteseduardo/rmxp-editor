@@ -32,7 +32,7 @@ export function EnemiesTab({ projectPath }: Props) {
   const [selAction, setSelAction] = useState(-1);
 
   if (db.loading) return <div className="db-loading">Loading Enemies...</div>;
-  if (db.error) return <div className="db-loading" style={{ color: "#f38ba8" }}>{db.error}</div>;
+  if (db.error) return <div className="db-loading" style={{ color: "#d20f39" }}>{db.error}</div>;
 
   const u = (patch: Partial<RpgEnemy>) => db.update(patch);
 

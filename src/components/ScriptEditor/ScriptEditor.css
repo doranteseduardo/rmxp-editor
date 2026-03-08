@@ -19,12 +19,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6c7086;
+  color: var(--color-overlay0);
   font-size: 14px;
 }
 
 .script-editor-message.error {
-  color: #f38ba8;
+  color: var(--color-danger);
 }
 
 /* ── Script list panel (left sidebar) ────────────────────────── */
@@ -34,8 +34,8 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: #1e1e2e;
-  border-right: 1px solid #313244;
+  background: var(--color-base);
+  border-right: 1px solid var(--color-surface0);
   overflow: hidden;
 }
 
@@ -46,16 +46,16 @@
   padding: 8px 12px;
   font-weight: 600;
   font-size: 13px;
-  color: #cdd6f4;
-  background: #181825;
-  border-bottom: 1px solid #313244;
+  color: var(--color-text);
+  background: var(--color-mantle);
+  border-bottom: 1px solid var(--color-surface0);
   flex-shrink: 0;
 }
 
 .script-list-add-btn {
   background: none;
-  border: 1px solid #45475a;
-  color: #a6adc8;
+  border: 1px solid var(--color-surface1);
+  color: var(--color-subtext0);
   border-radius: 3px;
   width: 22px;
   height: 22px;
@@ -68,8 +68,8 @@
 }
 
 .script-list-add-btn:hover {
-  background: #313244;
-  color: #cdd6f4;
+  background: var(--color-surface0);
+  color: var(--color-text);
 }
 
 .script-list-items {
@@ -84,19 +84,19 @@
   gap: 6px;
   padding: 4px 12px;
   font-size: 12px;
-  color: #bac2de;
+  color: var(--color-subtext1);
   cursor: pointer;
   user-select: none;
   border-bottom: 1px solid transparent;
 }
 
 .script-list-item:hover {
-  background: #181825;
+  background: var(--color-mantle);
 }
 
 .script-list-item.selected {
-  background: #313244;
-  color: #89b4fa;
+  background: var(--color-surface0);
+  color: var(--color-accent);
   font-weight: 500;
 }
 
@@ -111,15 +111,15 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #f9e2af;
+  background: var(--color-warning);
   flex-shrink: 0;
 }
 
 .script-rename-input {
   flex: 1;
-  background: #181825;
-  border: 1px solid #89b4fa;
-  color: #cdd6f4;
+  background: var(--color-mantle);
+  border: 1px solid var(--color-accent);
+  color: var(--color-text);
   font-size: 12px;
   padding: 1px 4px;
   border-radius: 2px;
@@ -131,12 +131,12 @@
 .script-context-menu {
   position: fixed;
   z-index: 2000;
-  background: #1e1e2e;
-  border: 1px solid #45475a;
+  background: var(--color-base);
+  border: 1px solid var(--color-surface1);
   border-radius: 6px;
   padding: 4px 0;
   min-width: 140px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow);
 }
 
 .script-context-menu button {
@@ -146,26 +146,26 @@
   padding: 6px 14px;
   background: none;
   border: none;
-  color: #cdd6f4;
+  color: var(--color-text);
   font-size: 12px;
   cursor: pointer;
 }
 
 .script-context-menu button:hover {
-  background: #313244;
+  background: var(--color-surface0);
 }
 
 .script-context-menu button.danger {
-  color: #f38ba8;
+  color: var(--color-danger);
 }
 
 .script-context-menu button.danger:hover {
-  background: #45102a;
+  background: var(--color-red-bg);
 }
 
 .script-context-menu hr {
   border: none;
-  border-top: 1px solid #313244;
+  border-top: 1px solid var(--color-surface0);
   margin: 4px 0;
 }
 
@@ -176,7 +176,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #1e1e2e;
+  background: var(--color-base);
 }
 
 .script-code-editor {
@@ -194,7 +194,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6c7086;
+  color: var(--color-overlay0);
   font-size: 14px;
 }
 
@@ -205,8 +205,8 @@
   top: 8px;
   right: 16px;
   padding: 4px 12px;
-  background: #89b4fa;
-  color: #1e1e2e;
+  background: var(--color-accent);
+  color: #fff;
   border-radius: 4px;
   font-size: 12px;
   font-weight: 600;

@@ -12,7 +12,7 @@
 import { useState, useMemo, useCallback } from "react";
 
 const STAT_NAMES = ["Max HP", "Max SP", "STR", "DEX", "AGI", "INT"];
-const STAT_COLORS = ["#a6e3a1", "#89b4fa", "#f38ba8", "#f9e2af", "#fab387", "#cba6f7"];
+const STAT_COLORS = ["#40a02b", "#1e66f5", "#d20f39", "#df8e1d", "#fe640b", "#8839ef"];
 const PREVIEW_LEVELS = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 99];
 
 interface Props {
@@ -94,8 +94,8 @@ export function ParameterCurveEditor({ values, onChange }: Props) {
                       onKeyDown={(e) => { if (e.key === "Enter") { setEditingStat(null); setEditingLevel(null); } }}
                       style={{
                         width: 50, padding: "1px 2px", fontSize: 11,
-                        background: "#11111b", border: "1px solid #89b4fa",
-                        borderRadius: 2, color: "#cdd6f4", textAlign: "center",
+                        background: "#dce0e8", border: "1px solid #1e66f5",
+                        borderRadius: 2, color: "#4c4f69", textAlign: "center",
                       }}
                     />
                   ) : (
@@ -119,8 +119,8 @@ export function ParameterCurveEditor({ values, onChange }: Props) {
 
 const thStyle: React.CSSProperties = {
   padding: "3px 4px",
-  borderBottom: "1px solid #313244",
-  color: "#6c7086",
+  borderBottom: "1px solid #ccd0da",
+  color: "#8c8fa1",
   fontSize: 10,
   fontWeight: 500,
   textAlign: "center",
@@ -129,7 +129,7 @@ const thStyle: React.CSSProperties = {
 
 const tdStyle: React.CSSProperties = {
   padding: "2px 4px",
-  borderBottom: "1px solid #181825",
+  borderBottom: "1px solid #e6e9ef",
   textAlign: "center",
-  color: "#a6adc8",
+  color: "#6c6f85",
 };

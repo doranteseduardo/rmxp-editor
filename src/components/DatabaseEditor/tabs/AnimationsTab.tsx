@@ -27,7 +27,7 @@ export function AnimationsTab({ projectPath }: Props) {
   const [isPlaying, setIsPlaying] = useState(false);
 
   if (db.loading) return <div className="db-loading">Loading Animations...</div>;
-  if (db.error) return <div className="db-loading" style={{ color: "#f38ba8" }}>{db.error}</div>;
+  if (db.error) return <div className="db-loading" style={{ color: "#d20f39" }}>{db.error}</div>;
 
   const u = (patch: Partial<RpgAnimation>) => db.update(patch);
 
@@ -106,7 +106,7 @@ export function AnimationsTab({ projectPath }: Props) {
                         Frame {t.frame}: {t.se?.name || "(no SE)"} — {FLASH_SCOPES[t.flash_scope] ?? `Flash ${t.flash_scope}`}
                       </div>
                     ))}
-                    {a.timings.length === 0 && <div style={{ padding: 4, fontSize: 11, color: "#6c7086" }}>No timings</div>}
+                    {a.timings.length === 0 && <div style={{ padding: 4, fontSize: 11, color: "#8c8fa1" }}>No timings</div>}
                   </div>
                   <div className="db-sublist-toolbar">
                     <button onClick={addTiming}>+ Add</button>

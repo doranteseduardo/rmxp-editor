@@ -138,7 +138,7 @@ export function SystemTab({ projectPath }: Props) {
   };
 
   if (loading && !sys) return <div className="db-loading">Loading System...</div>;
-  if (error && !sys) return <div className="db-loading" style={{ color: "#f38ba8" }}>{error}</div>;
+  if (error && !sys) return <div className="db-loading" style={{ color: "#d20f39" }}>{error}</div>;
   if (!sys) return <div className="db-loading">No system data</div>;
 
   const switchCount = Math.max(0, sys.switches.length - 1); // exclude index 0
@@ -170,18 +170,18 @@ export function SystemTab({ projectPath }: Props) {
                 <div className="db-section-title">Party Members</div>
                 <div className="db-sublist" style={{ maxHeight: 150 }}>
                   {sys.party_members.map((actorId, idx) => (
-                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 4px", borderBottom: "1px solid #181825" }}>
-                      <span style={{ fontSize: 10, color: "#6c7086", width: 16, textAlign: "right" }}>{idx + 1}.</span>
+                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 4px", borderBottom: "1px solid #e6e9ef" }}>
+                      <span style={{ fontSize: 10, color: "#8c8fa1", width: 16, textAlign: "right" }}>{idx + 1}.</span>
                       <div style={{ flex: 1 }}>
                         <IdSelect value={actorId} entries={names.actors} onChange={id => updatePartyMember(idx, id)} />
                       </div>
                       <button
                         onClick={() => removePartyMember(idx)}
-                        style={{ padding: "1px 6px", fontSize: 10, background: "#313244", color: "#f38ba8", border: "1px solid #45475a", borderRadius: 2, cursor: "pointer" }}
+                        style={{ padding: "1px 6px", fontSize: 10, background: "#ccd0da", color: "#d20f39", border: "1px solid #bcc0cc", borderRadius: 2, cursor: "pointer" }}
                       >×</button>
                     </div>
                   ))}
-                  {sys.party_members.length === 0 && <div style={{ padding: 4, fontSize: 11, color: "#6c7086" }}>No party members</div>}
+                  {sys.party_members.length === 0 && <div style={{ padding: 4, fontSize: 11, color: "#8c8fa1" }}>No party members</div>}
                 </div>
                 <div className="db-sublist-toolbar">
                   <button onClick={addPartyMember}>+ Add Member</button>
@@ -190,7 +190,7 @@ export function SystemTab({ projectPath }: Props) {
               <div className="db-section">
                 <div className="db-section-title">Test</div>
                 <div className="db-field"><span className="db-field-label wide">Test Troop ID</span><input type="number" value={sys.test_troop_id} min={1} onChange={e => u({ test_troop_id: +e.target.value })} /></div>
-                <div style={{ fontSize: 11, color: "#6c7086" }}>{sys.test_battlers.length} test battler(s)</div>
+                <div style={{ fontSize: 11, color: "#8c8fa1" }}>{sys.test_battlers.length} test battler(s)</div>
               </div>
             </div>
             <div className="db-column">
@@ -235,7 +235,7 @@ export function SystemTab({ projectPath }: Props) {
               <div className="db-section-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span>Switches ({switchCount})</span>
                 <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                  <span style={{ fontSize: 10, color: "#6c7086" }}>Max:</span>
+                  <span style={{ fontSize: 10, color: "#8c8fa1" }}>Max:</span>
                   <input
                     type="number"
                     value={switchCount}
@@ -250,21 +250,21 @@ export function SystemTab({ projectPath }: Props) {
                 {sys.switches.map((name, i) => {
                   if (i === 0) return null;
                   return (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, padding: "1px 4px", borderBottom: "1px solid #181825" }}>
-                      <span style={{ fontSize: 10, color: "#6c7086", width: 38, textAlign: "right", flexShrink: 0 }}>
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, padding: "1px 4px", borderBottom: "1px solid #e6e9ef" }}>
+                      <span style={{ fontSize: 10, color: "#8c8fa1", width: 38, textAlign: "right", flexShrink: 0 }}>
                         [{String(i).padStart(4, "0")}]
                       </span>
                       <input
                         type="text"
                         value={name}
                         placeholder={`Switch ${i}`}
-                        style={{ flex: 1, minWidth: 0, fontSize: 11, background: "#1e1e2e", color: "#cdd6f4", border: "1px solid #313244", borderRadius: 2, padding: "2px 4px" }}
+                        style={{ flex: 1, minWidth: 0, fontSize: 11, background: "#eff1f5", color: "#4c4f69", border: "1px solid #ccd0da", borderRadius: 2, padding: "2px 4px" }}
                         onChange={e => updateSwitchName(i, e.target.value)}
                       />
                     </div>
                   );
                 })}
-                {switchCount === 0 && <div style={{ padding: 4, fontSize: 11, color: "#6c7086" }}>No switches</div>}
+                {switchCount === 0 && <div style={{ padding: 4, fontSize: 11, color: "#8c8fa1" }}>No switches</div>}
               </div>
             </div>
 
@@ -273,7 +273,7 @@ export function SystemTab({ projectPath }: Props) {
               <div className="db-section-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span>Variables ({variableCount})</span>
                 <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                  <span style={{ fontSize: 10, color: "#6c7086" }}>Max:</span>
+                  <span style={{ fontSize: 10, color: "#8c8fa1" }}>Max:</span>
                   <input
                     type="number"
                     value={variableCount}
@@ -288,21 +288,21 @@ export function SystemTab({ projectPath }: Props) {
                 {sys.variables.map((name, i) => {
                   if (i === 0) return null;
                   return (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, padding: "1px 4px", borderBottom: "1px solid #181825" }}>
-                      <span style={{ fontSize: 10, color: "#6c7086", width: 38, textAlign: "right", flexShrink: 0 }}>
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, padding: "1px 4px", borderBottom: "1px solid #e6e9ef" }}>
+                      <span style={{ fontSize: 10, color: "#8c8fa1", width: 38, textAlign: "right", flexShrink: 0 }}>
                         [{String(i).padStart(4, "0")}]
                       </span>
                       <input
                         type="text"
                         value={name}
                         placeholder={`Variable ${i}`}
-                        style={{ flex: 1, minWidth: 0, fontSize: 11, background: "#1e1e2e", color: "#cdd6f4", border: "1px solid #313244", borderRadius: 2, padding: "2px 4px" }}
+                        style={{ flex: 1, minWidth: 0, fontSize: 11, background: "#eff1f5", color: "#4c4f69", border: "1px solid #ccd0da", borderRadius: 2, padding: "2px 4px" }}
                         onChange={e => updateVariableName(i, e.target.value)}
                       />
                     </div>
                   );
                 })}
-                {variableCount === 0 && <div style={{ padding: 4, fontSize: 11, color: "#6c7086" }}>No variables</div>}
+                {variableCount === 0 && <div style={{ padding: 4, fontSize: 11, color: "#8c8fa1" }}>No variables</div>}
               </div>
             </div>
           </div>
