@@ -1,0 +1,356 @@
+/* Database Editor Layout */
+.db-editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Tab bar */
+.db-tabs {
+  display: flex;
+  background: #181825;
+  border-bottom: 1px solid #313244;
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #45475a transparent;
+}
+
+.db-tab {
+  padding: 6px 14px;
+  font-size: 11px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #a6adc8;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.db-tab:hover {
+  background: #1e1e2e;
+  color: #cdd6f4;
+}
+
+.db-tab.active {
+  color: #89b4fa;
+  border-bottom-color: #89b4fa;
+  font-weight: 600;
+}
+
+/* Main content area: list + detail */
+.db-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Left list panel */
+.db-list-panel {
+  width: 220px;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  background: #1e1e2e;
+  border-right: 1px solid #313244;
+}
+
+.db-list-toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 4px 6px;
+  border-bottom: 1px solid #313244;
+  flex-shrink: 0;
+}
+
+.db-list-toolbar button {
+  padding: 2px 8px;
+  font-size: 11px;
+  background: #313244;
+  border: 1px solid #45475a;
+  border-radius: 3px;
+  color: #cdd6f4;
+  cursor: pointer;
+}
+
+.db-list-toolbar button:hover {
+  background: #45475a;
+}
+
+.db-list-toolbar button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.db-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #45475a transparent;
+}
+
+.db-list-item {
+  display: flex;
+  align-items: center;
+  padding: 3px 8px;
+  font-size: 12px;
+  color: #a6adc8;
+  cursor: pointer;
+  border-bottom: 1px solid #181825;
+}
+
+.db-list-item:hover {
+  background: #313244;
+  color: #cdd6f4;
+}
+
+.db-list-item.selected {
+  background: #313244;
+  color: #89b4fa;
+}
+
+.db-list-item .db-list-id {
+  color: #6c7086;
+  font-size: 10px;
+  width: 36px;
+  flex-shrink: 0;
+}
+
+.db-list-item .db-list-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Right detail panel */
+.db-detail-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  scrollbar-width: thin;
+  scrollbar-color: #45475a transparent;
+}
+
+.db-detail-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #6c7086;
+  font-size: 13px;
+}
+
+/* Form fields */
+.db-section {
+  margin-bottom: 16px;
+}
+
+.db-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #89b4fa;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #313244;
+}
+
+.db-field {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  gap: 8px;
+}
+
+.db-field-label {
+  font-size: 11px;
+  color: #a6adc8;
+  width: 120px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.db-field-label.wide {
+  width: 160px;
+}
+
+.db-field input[type="text"],
+.db-field input[type="number"],
+.db-field textarea {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  font-size: 12px;
+  font-family: inherit;
+  background: #11111b;
+  border: 1px solid #45475a;
+  border-radius: 3px;
+  color: #cdd6f4;
+  outline: none;
+}
+
+.db-field input[type="text"]:focus,
+.db-field input[type="number"]:focus,
+.db-field textarea:focus {
+  border-color: #89b4fa;
+}
+
+.db-field input[type="number"] {
+  width: 80px;
+  flex: 0 0 auto;
+}
+
+.db-field select {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  font-size: 12px;
+  background: #11111b;
+  border: 1px solid #45475a;
+  border-radius: 3px;
+  color: #cdd6f4;
+  outline: none;
+}
+
+.db-field select:focus {
+  border-color: #89b4fa;
+}
+
+.db-field input[type="checkbox"] {
+  accent-color: #89b4fa;
+}
+
+.db-field .db-check-label {
+  font-size: 12px;
+  color: #cdd6f4;
+  cursor: pointer;
+}
+
+/* Two-column layout for detail forms */
+.db-columns {
+  display: flex;
+  gap: 24px;
+}
+
+.db-column {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Audio file field */
+.db-audio-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.db-audio-field input {
+  flex: 1;
+}
+
+.db-audio-field .db-audio-vol,
+.db-audio-field .db-audio-pitch {
+  width: 50px;
+}
+
+/* Array/list editor inside detail */
+.db-sublist {
+  border: 1px solid #313244;
+  border-radius: 3px;
+  background: #181825;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #45475a transparent;
+}
+
+.db-sublist-item {
+  display: flex;
+  align-items: center;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: #a6adc8;
+  border-bottom: 1px solid #11111b;
+  cursor: pointer;
+}
+
+.db-sublist-item:hover {
+  background: #313244;
+}
+
+.db-sublist-item.selected {
+  background: #313244;
+  color: #89b4fa;
+}
+
+.db-sublist-toolbar {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.db-sublist-toolbar button {
+  padding: 1px 6px;
+  font-size: 10px;
+  background: #313244;
+  border: 1px solid #45475a;
+  border-radius: 2px;
+  color: #cdd6f4;
+  cursor: pointer;
+}
+
+.db-sublist-toolbar button:hover {
+  background: #45475a;
+}
+
+/* Save bar */
+.db-save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 6px 12px;
+  border-top: 1px solid #313244;
+  background: #181825;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.db-save-bar .db-dirty {
+  font-size: 11px;
+  color: #f9e2af;
+}
+
+.db-save-btn {
+  padding: 4px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #89b4fa;
+  color: #1e1e2e;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.db-save-btn:hover {
+  background: #74c7ec;
+}
+
+.db-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Loading state */
+.db-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #89b4fa;
+  font-size: 13px;
+}

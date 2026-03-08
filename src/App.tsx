@@ -21,6 +21,7 @@ import { EventEditor } from "./components/EventEditor/EventEditor";
 import { MapPropertiesDialog } from "./components/MapProperties/MapPropertiesDialog";
 import { CreateMapDialog } from "./components/MapProperties/CreateMapDialog";
 import { ScriptEditor } from "./components/ScriptEditor/ScriptEditor";
+import { DatabaseEditor } from "./components/DatabaseEditor/DatabaseEditor";
 import "./App.css";
 
 /** Try to open a native folder picker via Tauri dialog plugin. */
@@ -72,8 +73,8 @@ function App() {
   // Tileset names cache (loaded once when project opens)
   const [tilesetNames, setTilesetNames] = useState<Array<[number, string]>>([]);
 
-  // Editor mode: map editor vs script editor
-  const [editorMode, setEditorMode] = useState<"map" | "script">("map");
+  // Editor mode: map editor, script editor, or database editor
+  const [editorMode, setEditorMode] = useState<"map" | "script" | "database">("map");
 
   // Open a project by path
   const handleOpenProject = useCallback(
@@ -417,6 +418,12 @@ function App() {
               Maps
             </button>
             <button
+              className={`app-mode-btn${editorMode === "database" ? " active" : ""}`}
+              onClick={() => setEditorMode("database")}
+            >
+              Database
+            </button>
+            <button
               className={`app-mode-btn${editorMode === "script" ? " active" : ""}`}
               onClick={() => setEditorMode("script")}
             >
@@ -468,6 +475,8 @@ function App() {
               onSelectTile={setSelectedTileId}
             />
           </>
+        ) : editorMode === "database" ? (
+          <DatabaseEditor projectPath={project.path} />
         ) : (
           <ScriptEditor projectPath={project.path} />
         )}
