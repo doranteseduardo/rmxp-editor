@@ -108,9 +108,41 @@ export function SystemTab({ projectPath }: Props) {
     u({ party_members: copy });
   };
 
+  // Switch / Variable name helpers
+  const updateSwitchName = (idx: number, name: string) => {
+    if (!sys) return;
+    const copy = [...sys.switches];
+    copy[idx] = name;
+    u({ switches: copy });
+  };
+  const updateVariableName = (idx: number, name: string) => {
+    if (!sys) return;
+    const copy = [...sys.variables];
+    copy[idx] = name;
+    u({ variables: copy });
+  };
+  const changeSwitchCount = (newCount: number) => {
+    if (!sys) return;
+    const copy = [...sys.switches];
+    // Index 0 is always empty, actual switches start at 1
+    while (copy.length < newCount + 1) copy.push("");
+    if (copy.length > newCount + 1) copy.length = newCount + 1;
+    u({ switches: copy });
+  };
+  const changeVariableCount = (newCount: number) => {
+    if (!sys) return;
+    const copy = [...sys.variables];
+    while (copy.length < newCount + 1) copy.push("");
+    if (copy.length > newCount + 1) copy.length = newCount + 1;
+    u({ variables: copy });
+  };
+
   if (loading && !sys) return <div className="db-loading">Loading System...</div>;
   if (error && !sys) return <div className="db-loading" style={{ color: "#f38ba8" }}>{error}</div>;
   if (!sys) return <div className="db-loading">No system data</div>;
+
+  const switchCount = Math.max(0, sys.switches.length - 1); // exclude index 0
+  const variableCount = Math.max(0, sys.variables.length - 1);
 
   return (
     <>
@@ -192,6 +224,85 @@ export function SystemTab({ projectPath }: Props) {
                     <input type="text" value={val} onChange={ev => u({ words: { ...sys.words, [key]: ev.target.value } })} />
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Switches & Variables — full-width row below the two-column layout */}
+          <div style={{ display: "flex", gap: 16, marginTop: 12 }}>
+            {/* Switches */}
+            <div className="db-section" style={{ flex: 1, minWidth: 0 }}>
+              <div className="db-section-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span>Switches ({switchCount})</span>
+                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  <span style={{ fontSize: 10, color: "#6c7086" }}>Max:</span>
+                  <input
+                    type="number"
+                    value={switchCount}
+                    min={1}
+                    max={5000}
+                    style={{ width: 56, textAlign: "center", fontSize: 10 }}
+                    onChange={e => changeSwitchCount(Math.max(1, Math.min(5000, +e.target.value)))}
+                  />
+                </div>
+              </div>
+              <div className="db-sublist" style={{ maxHeight: 280, overflow: "auto" }}>
+                {sys.switches.map((name, i) => {
+                  if (i === 0) return null;
+                  return (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, padding: "1px 4px", borderBottom: "1px solid #181825" }}>
+                      <span style={{ fontSize: 10, color: "#6c7086", width: 38, textAlign: "right", flexShrink: 0 }}>
+                        [{String(i).padStart(4, "0")}]
+                      </span>
+                      <input
+                        type="text"
+                        value={name}
+                        placeholder={`Switch ${i}`}
+                        style={{ flex: 1, minWidth: 0, fontSize: 11, background: "#1e1e2e", color: "#cdd6f4", border: "1px solid #313244", borderRadius: 2, padding: "2px 4px" }}
+                        onChange={e => updateSwitchName(i, e.target.value)}
+                      />
+                    </div>
+                  );
+                })}
+                {switchCount === 0 && <div style={{ padding: 4, fontSize: 11, color: "#6c7086" }}>No switches</div>}
+              </div>
+            </div>
+
+            {/* Variables */}
+            <div className="db-section" style={{ flex: 1, minWidth: 0 }}>
+              <div className="db-section-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span>Variables ({variableCount})</span>
+                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  <span style={{ fontSize: 10, color: "#6c7086" }}>Max:</span>
+                  <input
+                    type="number"
+                    value={variableCount}
+                    min={1}
+                    max={5000}
+                    style={{ width: 56, textAlign: "center", fontSize: 10 }}
+                    onChange={e => changeVariableCount(Math.max(1, Math.min(5000, +e.target.value)))}
+                  />
+                </div>
+              </div>
+              <div className="db-sublist" style={{ maxHeight: 280, overflow: "auto" }}>
+                {sys.variables.map((name, i) => {
+                  if (i === 0) return null;
+                  return (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, padding: "1px 4px", borderBottom: "1px solid #181825" }}>
+                      <span style={{ fontSize: 10, color: "#6c7086", width: 38, textAlign: "right", flexShrink: 0 }}>
+                        [{String(i).padStart(4, "0")}]
+                      </span>
+                      <input
+                        type="text"
+                        value={name}
+                        placeholder={`Variable ${i}`}
+                        style={{ flex: 1, minWidth: 0, fontSize: 11, background: "#1e1e2e", color: "#cdd6f4", border: "1px solid #313244", borderRadius: 2, padding: "2px 4px" }}
+                        onChange={e => updateVariableName(i, e.target.value)}
+                      />
+                    </div>
+                  );
+                })}
+                {variableCount === 0 && <div style={{ padding: 4, fontSize: 11, color: "#6c7086" }}>No variables</div>}
               </div>
             </div>
           </div>
