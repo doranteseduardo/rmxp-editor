@@ -20,6 +20,7 @@ export interface RenderOptions {
   showGrid: boolean;
   showEvents: boolean;
   showLayer: [boolean, boolean, boolean];
+  activeLayer: number;
   zoom: number;
   viewportX: number;
   viewportY: number;
@@ -30,6 +31,14 @@ export interface EventMarker {
   name: string;
   x: number;
   y: number;
+  /** Character sprite sheet name (e.g., "trainer_POKEMONTRAINER_Red") */
+  graphicName: string;
+  /** Direction: 2=down, 4=left, 6=right, 8=up */
+  graphicDirection: number;
+  /** Pattern/frame (0-3) */
+  graphicPattern: number;
+  /** Pre-loaded character sprite image, if available */
+  graphicImage?: HTMLImageElement | null;
 }
 
 export class MapRenderer {
@@ -88,7 +97,7 @@ export class MapRenderer {
 
   /** Render a full frame. */
   render(time: number, options: RenderOptions, events: EventMarker[]) {
-    const { zoom, viewportX, viewportY, showGrid, showEvents, showLayer } = options;
+    const { zoom, viewportX, viewportY, showGrid, showEvents, showLayer, activeLayer } = options;
 
     // Update autotile animation
     if (time - this.lastFrameTime > this.FRAME_DURATION) {
@@ -119,10 +128,20 @@ export class MapRenderer {
     this.ctx.fillStyle = "#1a1a2e";
     this.ctx.fillRect(0, 0, canvasW, canvasH);
 
-    // Render tiles
+    // Render tiles — non-active layers are dimmed so the active layer stands out
+    // activeLayer: 0-2 = tile layers, 3 = events layer, -1 = All
     let tilesDrawn = 0;
     for (let layer = 0; layer < 3; layer++) {
       if (!showLayer[layer]) continue;
+
+      // Dim non-active layers (activeLayer === -1 means "All" — no dimming)
+      // When Events layer (3) is active, dim all tile layers
+      const isActive = activeLayer === -1 || layer === activeLayer;
+      const dimForEvents = activeLayer === 3;
+      if (!isActive || dimForEvents) {
+        this.ctx.globalAlpha = dimForEvents ? 0.5 : 0.35;
+      }
+
       for (let y = startY; y < endY; y++) {
         for (let x = startX; x < endX; x++) {
           const tileId = this.getTileId(x, y, layer);
@@ -133,11 +152,25 @@ export class MapRenderer {
           tilesDrawn++;
         }
       }
+
+      // Restore full opacity after non-active/dimmed layer
+      if (!isActive || dimForEvents) {
+        this.ctx.globalAlpha = 1.0;
+      }
     }
 
-    // Render event markers
-    if (showEvents) {
-      this.renderEvents(events, viewportX, viewportY, tileSize);
+    // Render event markers — visible on Events layer (3), All (-1), or when showEvents is on
+    // They are dimmed when a tile layer (0-2) is active
+    const eventsVisible = activeLayer === -1 || activeLayer === 3 || showEvents;
+    if (eventsVisible) {
+      const eventsDimmed = activeLayer >= 0 && activeLayer <= 2;
+      if (eventsDimmed) {
+        this.ctx.globalAlpha = 0.25;
+      }
+      this.renderEvents(events, viewportX, viewportY, tileSize, activeLayer === 3);
+      if (eventsDimmed) {
+        this.ctx.globalAlpha = 1.0;
+      }
     }
 
     // Render grid
@@ -216,7 +249,6 @@ export class MapRenderer {
       this.ctx.lineWidth = 1;
       this.ctx.strokeRect(screenX + 1, screenY + 1, tileSize - 2, tileSize - 2);
       if (tileSize >= 16) {
-        const dpr = window.devicePixelRatio || 1;
         this.ctx.fillStyle = `hsl(${hue}, 90%, 75%)`;
         this.ctx.font = `${Math.max(8, tileSize * 0.35)}px monospace`;
         this.ctx.textAlign = "center";
@@ -246,25 +278,151 @@ export class MapRenderer {
     }
   }
 
-  private renderEvents(events: EventMarker[], viewportX: number, viewportY: number, tileSize: number) {
+  private renderEvents(events: EventMarker[], viewportX: number, viewportY: number, tileSize: number, highlight: boolean) {
     for (const event of events) {
       const screenX = (event.x - viewportX) * tileSize;
       const screenY = (event.y - viewportY) * tileSize;
 
-      this.ctx.fillStyle = "rgba(66, 135, 245, 0.4)";
-      this.ctx.fillRect(screenX + 2, screenY + 2, tileSize - 4, tileSize - 4);
-      this.ctx.strokeStyle = "rgba(66, 135, 245, 0.9)";
-      this.ctx.lineWidth = 2;
-      this.ctx.strokeRect(screenX + 2, screenY + 2, tileSize - 4, tileSize - 4);
+      // Try to render character sprite if available
+      if (event.graphicImage && event.graphicName) {
+        this.renderCharacterSprite(
+          event.graphicImage,
+          event.graphicDirection,
+          event.graphicPattern,
+          screenX,
+          screenY,
+          tileSize
+        );
+      } else if (event.graphicName) {
+        // Has a graphic name but image not loaded yet — show placeholder with name
+        this.ctx.fillStyle = "rgba(66, 135, 245, 0.3)";
+        this.ctx.fillRect(screenX + 2, screenY + 2, tileSize - 4, tileSize - 4);
+        this.ctx.strokeStyle = "rgba(66, 135, 245, 0.8)";
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(screenX + 2, screenY + 2, tileSize - 4, tileSize - 4);
+        if (tileSize >= 24) {
+          this.ctx.fillStyle = "#fff";
+          this.ctx.font = `${Math.max(8, tileSize * 0.25)}px monospace`;
+          this.ctx.textAlign = "center";
+          this.ctx.fillText(event.name.substring(0, 8), screenX + tileSize / 2, screenY + tileSize / 2 + 4);
+          this.ctx.textAlign = "start";
+        }
+      } else {
+        // No graphic — draw the blue event marker box
+        this.ctx.fillStyle = "rgba(66, 135, 245, 0.4)";
+        this.ctx.fillRect(screenX + 2, screenY + 2, tileSize - 4, tileSize - 4);
+        this.ctx.strokeStyle = "rgba(66, 135, 245, 0.9)";
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(screenX + 2, screenY + 2, tileSize - 4, tileSize - 4);
 
-      if (tileSize >= 24) {
-        this.ctx.fillStyle = "#fff";
-        this.ctx.font = `${Math.max(9, tileSize * 0.3)}px monospace`;
-        this.ctx.textAlign = "center";
-        this.ctx.fillText(event.name.substring(0, 8), screenX + tileSize / 2, screenY + tileSize / 2 + 4);
-        this.ctx.textAlign = "start";
+        if (tileSize >= 24) {
+          this.ctx.fillStyle = "#fff";
+          this.ctx.font = `${Math.max(9, tileSize * 0.3)}px monospace`;
+          this.ctx.textAlign = "center";
+          this.ctx.fillText(event.name.substring(0, 8), screenX + tileSize / 2, screenY + tileSize / 2 + 4);
+          this.ctx.textAlign = "start";
+        }
+      }
+
+      // Always draw a bounding rectangle around events so they're distinguishable from map tiles
+      // Stronger highlight when the Events layer is active
+      if (highlight) {
+        // Active events layer — solid outline with subtle fill
+        this.ctx.strokeStyle = "rgba(250, 179, 135, 0.9)";
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(screenX + 1, screenY + 1, tileSize - 2, tileSize - 2);
+        this.ctx.fillStyle = "rgba(250, 179, 135, 0.08)";
+        this.ctx.fillRect(screenX + 1, screenY + 1, tileSize - 2, tileSize - 2);
+        // Event ID badge in corner
+        if (tileSize >= 20) {
+          const badge = `E${event.id}`;
+          this.ctx.font = `bold ${Math.max(7, tileSize * 0.2)}px monospace`;
+          this.ctx.textAlign = "left";
+          const textW = this.ctx.measureText(badge).width;
+          this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+          this.ctx.fillRect(screenX + 1, screenY + 1, textW + 4, Math.max(10, tileSize * 0.25) + 2);
+          this.ctx.fillStyle = "rgba(250, 179, 135, 1)";
+          this.ctx.fillText(badge, screenX + 3, screenY + Math.max(10, tileSize * 0.25));
+          this.ctx.textAlign = "start";
+        }
+      } else {
+        // Not on events layer — subtle dashed border
+        this.ctx.strokeStyle = "rgba(250, 179, 135, 0.45)";
+        this.ctx.lineWidth = 1;
+        this.ctx.setLineDash([3, 3]);
+        this.ctx.strokeRect(screenX + 1, screenY + 1, tileSize - 2, tileSize - 2);
+        this.ctx.setLineDash([]);
       }
     }
+  }
+
+  /**
+   * Render a character sprite from an RMXP character sheet.
+   *
+   * Character sheets come in various sizes but always use a 4-column × 4-row layout:
+   *   - 128×192 → 32×48 per frame (standard: 1 tile wide, 1.5 tiles tall)
+   *   - 128×128 → 32×32 per frame (1 tile square)
+   *   - 128×256 → 32×64 per frame (1 tile wide, 2 tiles tall)
+   *   - 192×192 → 48×48 per frame (1.5 tiles square)
+   *   - 256×256 → 64×64 per frame (2 tiles square)
+   *   - 32×32   → single frame, no sheet
+   *
+   * We scale each frame proportionally: 1 source pixel = 1 game pixel (32px = 1 tile),
+   * then apply the current zoom + DPR factor so the sprite matches the map scale.
+   *
+   * Direction mapping: row 0 = down (2), row 1 = left (4), row 2 = right (6), row 3 = up (8).
+   */
+  private renderCharacterSprite(
+    img: HTMLImageElement,
+    direction: number,
+    pattern: number,
+    screenX: number,
+    screenY: number,
+    tileSize: number          // already equals TILE_SIZE * zoom * dpr
+  ) {
+    // Detect whether this is a single-frame image or a 4×4 sheet
+    const isSingleFrame = img.width <= TILE_SIZE && img.height <= TILE_SIZE;
+    const cols = isSingleFrame ? 1 : 4;
+    const rows = isSingleFrame ? 1 : 4;
+
+    const frameW = img.width / cols;
+    const frameH = img.height / rows;
+
+    // Direction → row mapping
+    let row = 0;
+    if (!isSingleFrame) {
+      switch (direction) {
+        case 2: row = 0; break; // Down
+        case 4: row = 1; break; // Left
+        case 6: row = 2; break; // Right
+        case 8: row = 3; break; // Up
+        default: row = 0; break;
+      }
+    }
+
+    const col = isSingleFrame ? 0 : Math.max(0, Math.min(3, pattern));
+
+    // Source rectangle from the sprite sheet
+    const srcX = col * frameW;
+    const srcY = row * frameH;
+
+    // Scale factor: how many screen-pixels per source-pixel.
+    // tileSize is the on-screen size of one 32×32 tile, so the
+    // ratio tileSize / TILE_SIZE gives us the current zoom+DPR scale.
+    const scale = tileSize / TILE_SIZE;
+
+    const destW = frameW * scale;
+    const destH = frameH * scale;
+
+    // Centre horizontally on the tile, anchor at the bottom of the tile cell.
+    const destX = screenX + (tileSize - destW) / 2;
+    const destY = screenY + tileSize - destH;
+
+    this.ctx.drawImage(
+      img,
+      srcX, srcY, frameW, frameH,
+      destX, destY, destW, destH
+    );
   }
 
   private renderGrid(startX: number, startY: number, endX: number, endY: number, viewportX: number, viewportY: number, tileSize: number) {

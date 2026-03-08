@@ -67,32 +67,55 @@ pub struct MoveRoute {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MoveCommand {
     pub code: i64,
-    pub parameters: Vec<RubyValue>,
+    /// Parameters converted to plain JSON values for frontend consumption
+    pub parameters: Vec<serde_json::Value>,
 }
 
 /// RPG::EventCommand — a single command in an event's command list.
-///
-/// Commands are identified by their `code` field:
-/// - 0: Empty (end of list)
-/// - 101: Show Text
-/// - 102: Show Choices
-/// - 111: Conditional Branch
-/// - 112: Loop
-/// - 121: Control Switches
-/// - 122: Control Variables
-/// - 201: Transfer Player
-/// - 209: Set Move Route
-/// - 355: Script (Ruby code)
-/// - 401: Show Text (continuation)
-/// - 655: Script (continuation)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventCommand {
     pub code: i64,
     pub indent: i64,
-    pub parameters: Vec<RubyValue>,
+    /// Parameters converted to plain JSON values for frontend consumption
+    pub parameters: Vec<serde_json::Value>,
+}
+
+// --- Helper to build a RubyObject with ivars ---
+fn ruby_obj(class: &str, vars: Vec<(&str, RubyValue)>) -> RubyValue {
+    let mut obj = RubyObject::new(class.to_string());
+    for (name, val) in vars {
+        obj.instance_vars.push((format!("@{}", name), val));
+    }
+    RubyValue::Object(obj)
+}
+
+fn ruby_str(s: &str) -> RubyValue {
+    RubyValue::String(RubyString::with_encoding(
+        s.as_bytes().to_vec(),
+        "UTF-8".to_string(),
+    ))
+}
+
+fn ruby_int(v: i64) -> RubyValue {
+    RubyValue::Integer(v)
+}
+
+fn ruby_bool(v: bool) -> RubyValue {
+    if v { RubyValue::True } else { RubyValue::False }
 }
 
 impl RpgEvent {
+    /// Convert back to a RubyValue for writing to .rxdata
+    pub fn to_ruby_value(&self) -> RubyValue {
+        ruby_obj("RPG::Event", vec![
+            ("id", ruby_int(self.id)),
+            ("name", ruby_str(&self.name)),
+            ("x", ruby_int(self.x)),
+            ("y", ruby_int(self.y)),
+            ("pages", RubyValue::Array(self.pages.iter().map(|p| p.to_ruby_value()).collect())),
+        ])
+    }
+
     pub fn from_ruby_value(value: &RubyValue) -> Option<Self> {
         let obj = value.as_object()?;
         if obj.class_name != "RPG::Event" {
@@ -125,6 +148,24 @@ impl RpgEvent {
 }
 
 impl EventPage {
+    pub fn to_ruby_value(&self) -> RubyValue {
+        ruby_obj("RPG::Event::Page", vec![
+            ("condition", self.condition.to_ruby_value()),
+            ("graphic", self.graphic.to_ruby_value()),
+            ("move_type", ruby_int(self.move_type)),
+            ("move_speed", ruby_int(self.move_speed)),
+            ("move_frequency", ruby_int(self.move_frequency)),
+            ("move_route", self.move_route.to_ruby_value()),
+            ("walk_anime", ruby_bool(self.walk_anime)),
+            ("step_anime", ruby_bool(self.step_anime)),
+            ("direction_fix", ruby_bool(self.direction_fix)),
+            ("through", ruby_bool(self.through)),
+            ("always_on_top", ruby_bool(self.always_on_top)),
+            ("trigger", ruby_int(self.trigger)),
+            ("list", RubyValue::Array(self.list.iter().map(|c| c.to_ruby_value()).collect())),
+        ])
+    }
+
     pub fn from_ruby_value(value: &RubyValue) -> Option<Self> {
         let obj = value.as_object()?;
 
@@ -172,6 +213,20 @@ impl EventPage {
 }
 
 impl EventCondition {
+    pub fn to_ruby_value(&self) -> RubyValue {
+        ruby_obj("RPG::Event::Page::Condition", vec![
+            ("switch1_valid", ruby_bool(self.switch1_valid)),
+            ("switch2_valid", ruby_bool(self.switch2_valid)),
+            ("variable_valid", ruby_bool(self.variable_valid)),
+            ("self_switch_valid", ruby_bool(self.self_switch_valid)),
+            ("switch1_id", ruby_int(self.switch1_id)),
+            ("switch2_id", ruby_int(self.switch2_id)),
+            ("variable_id", ruby_int(self.variable_id)),
+            ("variable_value", ruby_int(self.variable_value)),
+            ("self_switch_ch", ruby_str(&self.self_switch_ch)),
+        ])
+    }
+
     pub fn from_ruby_value(value: &RubyValue) -> Option<Self> {
         let obj = value.as_object()?;
         Some(Self {
@@ -205,6 +260,18 @@ impl Default for EventCondition {
 }
 
 impl EventGraphic {
+    pub fn to_ruby_value(&self) -> RubyValue {
+        ruby_obj("RPG::Event::Page::Graphic", vec![
+            ("tile_id", ruby_int(self.tile_id)),
+            ("character_name", ruby_str(&self.character_name)),
+            ("character_hue", ruby_int(self.character_hue)),
+            ("direction", ruby_int(self.direction)),
+            ("pattern", ruby_int(self.pattern)),
+            ("opacity", ruby_int(self.opacity)),
+            ("blend_type", ruby_int(self.blend_type)),
+        ])
+    }
+
     pub fn from_ruby_value(value: &RubyValue) -> Option<Self> {
         let obj = value.as_object()?;
         Some(Self {
@@ -234,6 +301,14 @@ impl Default for EventGraphic {
 }
 
 impl MoveRoute {
+    pub fn to_ruby_value(&self) -> RubyValue {
+        ruby_obj("RPG::MoveRoute", vec![
+            ("repeat", ruby_bool(self.repeat)),
+            ("skippable", ruby_bool(self.skippable)),
+            ("list", RubyValue::Array(self.list.iter().map(|c| c.to_ruby_value()).collect())),
+        ])
+    }
+
     pub fn from_ruby_value(value: &RubyValue) -> Option<Self> {
         let obj = value.as_object()?;
 
@@ -269,6 +344,15 @@ impl Default for MoveRoute {
 }
 
 impl MoveCommand {
+    pub fn to_ruby_value(&self) -> RubyValue {
+        ruby_obj("RPG::MoveCommand", vec![
+            ("code", ruby_int(self.code)),
+            ("parameters", RubyValue::Array(
+                self.parameters.iter().map(RubyValue::from_json_value).collect()
+            )),
+        ])
+    }
+
     pub fn from_ruby_value(value: &RubyValue) -> Option<Self> {
         let obj = value.as_object()?;
         Some(Self {
@@ -276,13 +360,23 @@ impl MoveCommand {
             parameters: obj
                 .get("parameters")
                 .and_then(|v| v.as_array())
-                .cloned()
+                .map(|arr| arr.iter().map(|v| v.to_json_value()).collect())
                 .unwrap_or_default(),
         })
     }
 }
 
 impl EventCommand {
+    pub fn to_ruby_value(&self) -> RubyValue {
+        ruby_obj("RPG::EventCommand", vec![
+            ("code", ruby_int(self.code)),
+            ("indent", ruby_int(self.indent)),
+            ("parameters", RubyValue::Array(
+                self.parameters.iter().map(RubyValue::from_json_value).collect()
+            )),
+        ])
+    }
+
     pub fn from_ruby_value(value: &RubyValue) -> Option<Self> {
         let obj = value.as_object()?;
         Some(Self {
@@ -291,7 +385,7 @@ impl EventCommand {
             parameters: obj
                 .get("parameters")
                 .and_then(|v| v.as_array())
-                .cloned()
+                .map(|arr| arr.iter().map(|v| v.to_json_value()).collect())
                 .unwrap_or_default(),
         })
     }

@@ -13,8 +13,15 @@ pub fn run() {
             load_map,
             load_tileset,
             get_asset_path,
+            list_asset_files,
             load_event,
+            save_event,
             save_map,
+            get_map_properties,
+            save_map_properties,
+            create_map,
+            delete_map,
+            rename_map,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

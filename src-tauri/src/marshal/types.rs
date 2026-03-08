@@ -130,6 +130,130 @@ impl RubyObject {
 }
 
 impl RubyValue {
+    /// Convert to a plain serde_json::Value for frontend consumption.
+    /// Produces simple JSON: strings → "hello", integers → 42, objects → {"name": ..., "volume": ...}
+    pub fn to_json_value(&self) -> serde_json::Value {
+        use serde_json::Value;
+        match self {
+            RubyValue::Nil => Value::Null,
+            RubyValue::True => Value::Bool(true),
+            RubyValue::False => Value::Bool(false),
+            RubyValue::Integer(v) => Value::Number((*v).into()),
+            RubyValue::Float(v) => {
+                serde_json::Number::from_f64(*v)
+                    .map(Value::Number)
+                    .unwrap_or(Value::Null)
+            }
+            RubyValue::String(s) => Value::String(s.to_string_lossy()),
+            RubyValue::Symbol(s) => Value::String(format!(":{}", s)),
+            RubyValue::Array(arr) => {
+                Value::Array(arr.iter().map(|v| v.to_json_value()).collect())
+            }
+            RubyValue::Hash(pairs) => {
+                // Try to make a JSON object if keys are strings/symbols
+                let mut map = serde_json::Map::new();
+                for (k, v) in pairs {
+                    let key = match k {
+                        RubyValue::String(s) => s.to_string_lossy(),
+                        RubyValue::Symbol(s) => s.clone(),
+                        RubyValue::Integer(i) => i.to_string(),
+                        other => format!("{}", other),
+                    };
+                    map.insert(key, v.to_json_value());
+                }
+                Value::Object(map)
+            }
+            RubyValue::Object(obj) => {
+                let mut map = serde_json::Map::new();
+                map.insert("__class".into(), Value::String(obj.class_name.clone()));
+                for (k, v) in &obj.instance_vars {
+                    // Strip @ prefix from ivar names
+                    let key = k.strip_prefix('@').unwrap_or(k).to_string();
+                    map.insert(key, v.to_json_value());
+                }
+                Value::Object(map)
+            }
+            RubyValue::UserDefined { class_name, .. } => {
+                Value::String(format!("#<{}>", class_name))
+            }
+            RubyValue::UserMarshal { class_name, data } => {
+                let mut map = serde_json::Map::new();
+                map.insert("__class".into(), Value::String(class_name.clone()));
+                map.insert("data".into(), data.to_json_value());
+                Value::Object(map)
+            }
+            RubyValue::Struct { name, members } => {
+                let mut map = serde_json::Map::new();
+                map.insert("__struct".into(), Value::String(name.clone()));
+                for (k, v) in members {
+                    map.insert(k.clone(), v.to_json_value());
+                }
+                Value::Object(map)
+            }
+            _ => Value::String(format!("{}", self)),
+        }
+    }
+
+    /// Convert a serde_json::Value back to a RubyValue.
+    /// This is the inverse of `to_json_value()`, used when saving edits back to .rxdata.
+    /// Objects with `__class` are rebuilt as RubyObject, others become hashes.
+    pub fn from_json_value(val: &serde_json::Value) -> RubyValue {
+        use serde_json::Value;
+        match val {
+            Value::Null => RubyValue::Nil,
+            Value::Bool(b) => if *b { RubyValue::True } else { RubyValue::False },
+            Value::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    RubyValue::Integer(i)
+                } else if let Some(f) = n.as_f64() {
+                    RubyValue::Float(f)
+                } else {
+                    RubyValue::Integer(0)
+                }
+            }
+            Value::String(s) => {
+                // Symbols were encoded as ":name"
+                if s.starts_with(':') && s.len() > 1 {
+                    RubyValue::Symbol(s[1..].to_string())
+                } else {
+                    RubyValue::String(RubyString::with_encoding(
+                        s.as_bytes().to_vec(),
+                        "UTF-8".to_string(),
+                    ))
+                }
+            }
+            Value::Array(arr) => {
+                RubyValue::Array(arr.iter().map(RubyValue::from_json_value).collect())
+            }
+            Value::Object(map) => {
+                // If it has __class, reconstruct as RubyObject
+                if let Some(Value::String(class_name)) = map.get("__class") {
+                    let mut obj = RubyObject::new(class_name.clone());
+                    for (k, v) in map {
+                        if k == "__class" { continue; }
+                        obj.instance_vars.push((
+                            format!("@{}", k),
+                            RubyValue::from_json_value(v),
+                        ));
+                    }
+                    RubyValue::Object(obj)
+                } else {
+                    // Generic hash
+                    let pairs: Vec<(RubyValue, RubyValue)> = map.iter().map(|(k, v)| {
+                        (
+                            RubyValue::String(RubyString::with_encoding(
+                                k.as_bytes().to_vec(),
+                                "UTF-8".to_string(),
+                            )),
+                            RubyValue::from_json_value(v),
+                        )
+                    }).collect();
+                    RubyValue::Hash(pairs)
+                }
+            }
+        }
+    }
+
     pub fn as_int(&self) -> Option<i64> {
         match self {
             RubyValue::Integer(v) => Some(*v),

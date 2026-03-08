@@ -52,6 +52,33 @@ export interface TilesetRenderInfo {
   terrain_tags: number[];
 }
 
+// --- Map properties (for properties dialog) ---
+
+export interface MapProperties {
+  id: number;
+  name: string;
+  tileset_id: number;
+  width: number;
+  height: number;
+  autoplay_bgm: boolean;
+  bgm_name: string;
+  bgm_volume: number;
+  bgm_pitch: number;
+  autoplay_bgs: boolean;
+  bgs_name: string;
+  bgs_volume: number;
+  bgs_pitch: number;
+  encounter_step: number;
+  scroll_type: number;
+  disable_dashing: boolean;
+  parallax_name: string;
+  parallax_loop_x: boolean;
+  parallax_loop_y: boolean;
+  parallax_sx: number;
+  parallax_sy: number;
+  parallax_show: boolean;
+}
+
 // --- Map tree node (derived from MapInfo) ---
 
 export interface MapTreeNode {

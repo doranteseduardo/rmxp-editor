@@ -161,6 +161,77 @@ impl RpgMap {
     pub fn set_tile(&mut self, x: u32, y: u32, layer: u32, tile_id: i16) {
         self.data.set(x, y, layer, tile_id);
     }
+
+    /// Convert to a full RubyValue for serialization to .rxdata.
+    pub fn to_ruby_value(&self) -> RubyValue {
+        let mut obj = RubyObject::new("RPG::Map".to_string());
+
+        obj.instance_vars.push(("@tileset_id".to_string(), RubyValue::Integer(self.tileset_id)));
+        obj.instance_vars.push(("@width".to_string(), RubyValue::Integer(self.width)));
+        obj.instance_vars.push(("@height".to_string(), RubyValue::Integer(self.height)));
+        obj.instance_vars.push(("@autoplay_bgm".to_string(), if self.autoplay_bgm { RubyValue::True } else { RubyValue::False }));
+        obj.instance_vars.push(("@bgm".to_string(), self.bgm.to_ruby_value()));
+        obj.instance_vars.push(("@autoplay_bgs".to_string(), if self.autoplay_bgs { RubyValue::True } else { RubyValue::False }));
+        obj.instance_vars.push(("@bgs".to_string(), self.bgs.to_ruby_value()));
+
+        let enc_arr: Vec<RubyValue> = self.encounter_list.iter().map(|&v| RubyValue::Integer(v)).collect();
+        obj.instance_vars.push(("@encounter_list".to_string(), RubyValue::Array(enc_arr)));
+        obj.instance_vars.push(("@encounter_step".to_string(), RubyValue::Integer(self.encounter_step)));
+
+        obj.instance_vars.push(("@data".to_string(), RubyValue::UserDefined {
+            class_name: "Table".to_string(),
+            data: self.data.to_bytes(),
+        }));
+
+        let event_pairs: Vec<(RubyValue, RubyValue)> = self.events.iter()
+            .map(|(&id, ev)| (RubyValue::Integer(id), ev.to_ruby_value()))
+            .collect();
+        obj.instance_vars.push(("@events".to_string(), RubyValue::Hash(event_pairs)));
+
+        obj.instance_vars.push(("@parallax_name".to_string(), RubyValue::String(RubyString::with_encoding(self.parallax_name.as_bytes().to_vec(), "UTF-8".to_string()))));
+        obj.instance_vars.push(("@parallax_loop_x".to_string(), if self.parallax_loop_x { RubyValue::True } else { RubyValue::False }));
+        obj.instance_vars.push(("@parallax_loop_y".to_string(), if self.parallax_loop_y { RubyValue::True } else { RubyValue::False }));
+        obj.instance_vars.push(("@parallax_sx".to_string(), RubyValue::Integer(self.parallax_sx)));
+        obj.instance_vars.push(("@parallax_sy".to_string(), RubyValue::Integer(self.parallax_sy)));
+        obj.instance_vars.push(("@parallax_show".to_string(), if self.parallax_show { RubyValue::True } else { RubyValue::False }));
+
+        obj.instance_vars.push(("@scroll_type".to_string(), RubyValue::Integer(self.scroll_type)));
+        obj.instance_vars.push(("@disable_dashing".to_string(), if self.disable_dashing { RubyValue::True } else { RubyValue::False }));
+
+        RubyValue::Object(obj)
+    }
+
+    /// Create a default blank map with given dimensions.
+    pub fn new_blank(width: i64, height: i64, tileset_id: i64) -> Self {
+        let mut data = Table::new_3d(width as u32, height as u32, 3);
+        for y in 0..height as u32 {
+            for x in 0..width as u32 {
+                data.set(x, y, 0, 384);
+            }
+        }
+
+        Self {
+            tileset_id,
+            width,
+            height,
+            autoplay_bgm: false,
+            bgm: AudioFile::default(),
+            autoplay_bgs: false,
+            bgs: AudioFile::default(),
+            encounter_list: Vec::new(),
+            encounter_step: 30,
+            data,
+            events: HashMap::new(),
+            parallax_name: String::new(),
+            parallax_loop_x: false,
+            parallax_loop_y: false,
+            parallax_sx: 0,
+            parallax_sy: 0,
+            parallax_show: false,
+            scroll_type: 0,
+            disable_dashing: false,
+        }
+    }
 }
 
 impl AudioFile {
@@ -171,6 +242,14 @@ impl AudioFile {
             volume: obj.get_int("volume").unwrap_or(100),
             pitch: obj.get_int("pitch").unwrap_or(100),
         })
+    }
+
+    pub fn to_ruby_value(&self) -> RubyValue {
+        let mut obj = RubyObject::new("RPG::AudioFile".to_string());
+        obj.instance_vars.push(("@name".to_string(), RubyValue::String(RubyString::with_encoding(self.name.as_bytes().to_vec(), "UTF-8".to_string()))));
+        obj.instance_vars.push(("@volume".to_string(), RubyValue::Integer(self.volume)));
+        obj.instance_vars.push(("@pitch".to_string(), RubyValue::Integer(self.pitch)));
+        RubyValue::Object(obj)
     }
 }
 
@@ -197,5 +276,16 @@ impl MapInfo {
             scroll_x: obj.get_int("scroll_x").unwrap_or(0),
             scroll_y: obj.get_int("scroll_y").unwrap_or(0),
         })
+    }
+
+    pub fn to_ruby_value(&self) -> RubyValue {
+        let mut obj = RubyObject::new("RPG::MapInfo".to_string());
+        obj.instance_vars.push(("@name".to_string(), RubyValue::String(RubyString::with_encoding(self.name.as_bytes().to_vec(), "UTF-8".to_string()))));
+        obj.instance_vars.push(("@parent_id".to_string(), RubyValue::Integer(self.parent_id)));
+        obj.instance_vars.push(("@order".to_string(), RubyValue::Integer(self.order)));
+        obj.instance_vars.push(("@expanded".to_string(), if self.expanded { RubyValue::True } else { RubyValue::False }));
+        obj.instance_vars.push(("@scroll_x".to_string(), RubyValue::Integer(self.scroll_x)));
+        obj.instance_vars.push(("@scroll_y".to_string(), RubyValue::Integer(self.scroll_y)));
+        RubyValue::Object(obj)
     }
 }

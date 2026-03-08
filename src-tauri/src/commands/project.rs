@@ -301,6 +301,55 @@ pub async fn get_asset_path(
     ))
 }
 
+/// List all asset filenames in a given asset directory (without extensions).
+/// Returns sorted Vec of asset names.
+#[tauri::command]
+pub async fn list_asset_files(
+    project_path: String,
+    asset_type: String,
+) -> Result<Vec<String>, String> {
+    let base = PathBuf::from(&project_path).join("Graphics");
+
+    let dir = match asset_type.as_str() {
+        "tileset" => "Tilesets",
+        "autotile" => "Autotiles",
+        "character" => "Characters",
+        "panorama" => "Panoramas",
+        "fog" => "Fogs",
+        "battleback" => "Battlebacks",
+        "picture" => "Pictures",
+        "animation" => "Animations",
+        "icon" => "Icons",
+        _ => return Err(format!("Unknown asset type: {}", asset_type)),
+    };
+
+    let dir_path = base.join(dir);
+    if !dir_path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut names: Vec<String> = Vec::new();
+    let entries = std::fs::read_dir(&dir_path)
+        .map_err(|e| format!("Failed to read directory: {}", e))?;
+
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+        let path = entry.path();
+        if path.is_file() {
+            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                if ["png", "jpg", "jpeg", "bmp", "gif"].contains(&ext.to_lowercase().as_str()) {
+                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                        names.push(stem.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    names.sort();
+    Ok(names)
+}
+
 /// Load the full event data for a specific event on a map.
 /// Returns the complete RPG::Event with all pages and commands.
 #[tauri::command]
@@ -324,6 +373,57 @@ pub async fn load_event(
         .get(&event_id)
         .cloned()
         .ok_or_else(|| format!("Event {} not found on map {}", event_id, map_id))
+}
+
+/// Save a modified event back to its map file.
+///
+/// Receives the full RpgEvent from the frontend and writes it back
+/// into the original .rxdata file, replacing the event in the events hash.
+#[tauri::command]
+pub async fn save_event(
+    project_path: String,
+    map_id: i64,
+    event: RpgEvent,
+) -> Result<(), String> {
+    let path = PathBuf::from(&project_path);
+    let map_file = path
+        .join("Data")
+        .join(format!("Map{:03}.rxdata", map_id));
+
+    if !map_file.exists() {
+        return Err(format!("Map file not found: Map{:03}.rxdata", map_id));
+    }
+
+    // Read the original map data
+    let mut value = marshal::load_file(&map_file)
+        .map_err(|e| format!("Failed to read map: {}", e))?;
+
+    // Find the @events ivar (a Hash of Integer → RPG::Event) and replace the target event
+    if let marshal::types::RubyValue::Object(ref mut obj) = value {
+        for (name, val) in obj.instance_vars.iter_mut() {
+            if name == "@events" {
+                if let marshal::types::RubyValue::Hash(ref mut pairs) = val {
+                    // Find the matching event by ID key
+                    for (key, event_val) in pairs.iter_mut() {
+                        if let Some(id) = key.as_int() {
+                            if id == event.id {
+                                *event_val = event.to_ruby_value();
+                                eprintln!("[save_event] Updated event {} on map {}", event.id, map_id);
+                                break;
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    // Write back to file
+    marshal::dump_file(&map_file, &value)
+        .map_err(|e| format!("Failed to save map: {}", e))?;
+
+    Ok(())
 }
 
 /// Save modified tile data back to a map file.
@@ -391,6 +491,336 @@ pub async fn save_map(
     // Write back to file
     marshal::dump_file(&map_file, &value)
         .map_err(|e| format!("Failed to save map: {}", e))?;
+
+    Ok(())
+}
+
+/// Map properties data for the properties dialog.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MapProperties {
+    pub id: i64,
+    pub name: String,
+    pub tileset_id: i64,
+    pub width: i64,
+    pub height: i64,
+    pub autoplay_bgm: bool,
+    pub bgm_name: String,
+    pub bgm_volume: i64,
+    pub bgm_pitch: i64,
+    pub autoplay_bgs: bool,
+    pub bgs_name: String,
+    pub bgs_volume: i64,
+    pub bgs_pitch: i64,
+    pub encounter_step: i64,
+    pub scroll_type: i64,
+    pub disable_dashing: bool,
+    pub parallax_name: String,
+    pub parallax_loop_x: bool,
+    pub parallax_loop_y: bool,
+    pub parallax_sx: i64,
+    pub parallax_sy: i64,
+    pub parallax_show: bool,
+}
+
+/// Get full map properties for the properties dialog.
+#[tauri::command]
+pub async fn get_map_properties(
+    project_path: String,
+    map_id: i64,
+) -> Result<MapProperties, String> {
+    let path = PathBuf::from(&project_path);
+    let map_file = path.join("Data").join(format!("Map{:03}.rxdata", map_id));
+
+    let value = marshal::load_file(&map_file)
+        .map_err(|e| format!("Failed to parse map: {}", e))?;
+    let map = RpgMap::from_ruby_value(&value)
+        .ok_or_else(|| "Failed to interpret map data".to_string())?;
+
+    // Get map name from MapInfos
+    let map_infos_path = path.join("Data").join("MapInfos.rxdata");
+    let map_infos = load_map_infos(&map_infos_path)?;
+    let name = map_infos.get(&map_id).map(|i| i.name.clone()).unwrap_or_default();
+
+    Ok(MapProperties {
+        id: map_id,
+        name,
+        tileset_id: map.tileset_id,
+        width: map.width,
+        height: map.height,
+        autoplay_bgm: map.autoplay_bgm,
+        bgm_name: map.bgm.name.clone(),
+        bgm_volume: map.bgm.volume,
+        bgm_pitch: map.bgm.pitch,
+        autoplay_bgs: map.autoplay_bgs,
+        bgs_name: map.bgs.name.clone(),
+        bgs_volume: map.bgs.volume,
+        bgs_pitch: map.bgs.pitch,
+        encounter_step: map.encounter_step,
+        scroll_type: map.scroll_type,
+        disable_dashing: map.disable_dashing,
+        parallax_name: map.parallax_name,
+        parallax_loop_x: map.parallax_loop_x,
+        parallax_loop_y: map.parallax_loop_y,
+        parallax_sx: map.parallax_sx,
+        parallax_sy: map.parallax_sy,
+        parallax_show: map.parallax_show,
+    })
+}
+
+/// Save map properties back to .rxdata files.
+/// Updates both the map file and MapInfos.rxdata (for name).
+#[tauri::command]
+pub async fn save_map_properties(
+    project_path: String,
+    props: MapProperties,
+) -> Result<(), String> {
+    let path = PathBuf::from(&project_path);
+    let map_file = path.join("Data").join(format!("Map{:03}.rxdata", props.id));
+
+    // Update map file — modify instance variables on the raw RubyValue
+    let mut value = marshal::load_file(&map_file)
+        .map_err(|e| format!("Failed to read map: {}", e))?;
+
+    if let marshal::types::RubyValue::Object(ref mut obj) = value {
+        for (name, val) in obj.instance_vars.iter_mut() {
+            match name.as_str() {
+                "@tileset_id" => *val = marshal::types::RubyValue::Integer(props.tileset_id),
+                "@width" => *val = marshal::types::RubyValue::Integer(props.width),
+                "@height" => *val = marshal::types::RubyValue::Integer(props.height),
+                "@autoplay_bgm" => *val = if props.autoplay_bgm { marshal::types::RubyValue::True } else { marshal::types::RubyValue::False },
+                "@bgm" => {
+                    let bgm = AudioFile { name: props.bgm_name.clone(), volume: props.bgm_volume, pitch: props.bgm_pitch };
+                    *val = bgm.to_ruby_value();
+                }
+                "@autoplay_bgs" => *val = if props.autoplay_bgs { marshal::types::RubyValue::True } else { marshal::types::RubyValue::False },
+                "@bgs" => {
+                    let bgs = AudioFile { name: props.bgs_name.clone(), volume: props.bgs_volume, pitch: props.bgs_pitch };
+                    *val = bgs.to_ruby_value();
+                }
+                "@encounter_step" => *val = marshal::types::RubyValue::Integer(props.encounter_step),
+                "@scroll_type" => *val = marshal::types::RubyValue::Integer(props.scroll_type),
+                "@disable_dashing" => *val = if props.disable_dashing { marshal::types::RubyValue::True } else { marshal::types::RubyValue::False },
+                "@parallax_name" => *val = marshal::types::RubyValue::String(marshal::types::RubyString::with_encoding(props.parallax_name.as_bytes().to_vec(), "UTF-8".to_string())),
+                "@parallax_loop_x" => *val = if props.parallax_loop_x { marshal::types::RubyValue::True } else { marshal::types::RubyValue::False },
+                "@parallax_loop_y" => *val = if props.parallax_loop_y { marshal::types::RubyValue::True } else { marshal::types::RubyValue::False },
+                "@parallax_sx" => *val = marshal::types::RubyValue::Integer(props.parallax_sx),
+                "@parallax_sy" => *val = marshal::types::RubyValue::Integer(props.parallax_sy),
+                "@parallax_show" => *val = if props.parallax_show { marshal::types::RubyValue::True } else { marshal::types::RubyValue::False },
+                _ => {}
+            }
+        }
+
+        // Handle resize — rebuild the Table if dimensions changed
+        let old_width = obj.instance_vars.iter()
+            .find(|(n, _)| n == "@width")
+            .and_then(|(_, v)| v.as_int())
+            .unwrap_or(props.width);
+        let old_height = obj.instance_vars.iter()
+            .find(|(n, _)| n == "@height")
+            .and_then(|(_, v)| v.as_int())
+            .unwrap_or(props.height);
+
+        // Note: width/height were already updated above. Check if they differ from original loaded data.
+        // We need to read the current table and resize it if needed.
+        if old_width != props.width || old_height != props.height {
+            // Find the @data ivar and resize the table
+            for (name, val) in obj.instance_vars.iter_mut() {
+                if name == "@data" {
+                    if let marshal::types::RubyValue::UserDefined { class_name, data } = val {
+                        if class_name == "Table" {
+                            if let Some(mut table) = Table::from_bytes(data) {
+                                table.resize(props.width as u32, props.height as u32, 3);
+                                *data = table.to_bytes();
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    marshal::dump_file(&map_file, &value)
+        .map_err(|e| format!("Failed to save map: {}", e))?;
+
+    // Update MapInfos.rxdata with the new name
+    let map_infos_path = path.join("Data").join("MapInfos.rxdata");
+    let mut infos_value = marshal::load_file(&map_infos_path)
+        .map_err(|e| format!("Failed to read MapInfos: {}", e))?;
+
+    if let marshal::types::RubyValue::Hash(ref mut pairs) = infos_value {
+        for (key, val) in pairs.iter_mut() {
+            if let Some(id) = key.as_int() {
+                if id == props.id {
+                    if let marshal::types::RubyValue::Object(ref mut obj) = val {
+                        for (name, v) in obj.instance_vars.iter_mut() {
+                            if name == "@name" {
+                                *v = marshal::types::RubyValue::String(
+                                    marshal::types::RubyString::with_encoding(
+                                        props.name.as_bytes().to_vec(),
+                                        "UTF-8".to_string(),
+                                    ),
+                                );
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    marshal::dump_file(&map_infos_path, &infos_value)
+        .map_err(|e| format!("Failed to save MapInfos: {}", e))?;
+
+    eprintln!("[save_map_properties] Saved map {} properties", props.id);
+    Ok(())
+}
+
+/// Create a new blank map. Returns the new map ID and updated map_infos.
+#[tauri::command]
+pub async fn create_map(
+    project_path: String,
+    name: String,
+    parent_id: i64,
+    width: i64,
+    height: i64,
+    tileset_id: i64,
+) -> Result<(i64, HashMap<i64, MapInfo>), String> {
+    let path = PathBuf::from(&project_path);
+    let map_infos_path = path.join("Data").join("MapInfos.rxdata");
+
+    // Load current map infos to find next available ID
+    let mut infos_value = marshal::load_file(&map_infos_path)
+        .map_err(|e| format!("Failed to read MapInfos: {}", e))?;
+
+    let current_infos = load_map_infos(&map_infos_path)?;
+    let new_id = current_infos.keys().max().copied().unwrap_or(0) + 1;
+    let max_order = current_infos.values().map(|i| i.order).max().unwrap_or(0) + 1;
+
+    // Create blank map .rxdata
+    let blank_map = RpgMap::new_blank(width, height, tileset_id);
+    let map_file = path.join("Data").join(format!("Map{:03}.rxdata", new_id));
+    marshal::dump_file(&map_file, &blank_map.to_ruby_value())
+        .map_err(|e| format!("Failed to create map file: {}", e))?;
+
+    // Add to MapInfos
+    let new_info = MapInfo {
+        name: name.clone(),
+        parent_id,
+        order: max_order,
+        expanded: false,
+        scroll_x: 0,
+        scroll_y: 0,
+    };
+
+    if let marshal::types::RubyValue::Hash(ref mut pairs) = infos_value {
+        pairs.push((
+            marshal::types::RubyValue::Integer(new_id),
+            new_info.to_ruby_value(),
+        ));
+    }
+
+    marshal::dump_file(&map_infos_path, &infos_value)
+        .map_err(|e| format!("Failed to save MapInfos: {}", e))?;
+
+    // Return updated map infos
+    let updated_infos = load_map_infos(&map_infos_path)?;
+
+    eprintln!("[create_map] Created Map{:03} '{}' ({}x{}, tileset={})",
+        new_id, name, width, height, tileset_id);
+
+    Ok((new_id, updated_infos))
+}
+
+/// Delete a map — removes the .rxdata file and its MapInfos entry.
+/// Also reparents any children to the deleted map's parent.
+#[tauri::command]
+pub async fn delete_map(
+    project_path: String,
+    map_id: i64,
+) -> Result<HashMap<i64, MapInfo>, String> {
+    let path = PathBuf::from(&project_path);
+    let map_infos_path = path.join("Data").join("MapInfos.rxdata");
+
+    // Load current infos to find the parent of the deleted map
+    let current_infos = load_map_infos(&map_infos_path)?;
+    let parent_of_deleted = current_infos.get(&map_id).map(|i| i.parent_id).unwrap_or(0);
+
+    // Remove map file
+    let map_file = path.join("Data").join(format!("Map{:03}.rxdata", map_id));
+    if map_file.exists() {
+        std::fs::remove_file(&map_file)
+            .map_err(|e| format!("Failed to delete map file: {}", e))?;
+    }
+
+    // Update MapInfos: remove the entry and reparent children
+    let mut infos_value = marshal::load_file(&map_infos_path)
+        .map_err(|e| format!("Failed to read MapInfos: {}", e))?;
+
+    if let marshal::types::RubyValue::Hash(ref mut pairs) = infos_value {
+        // Remove the entry
+        pairs.retain(|(key, _)| key.as_int() != Some(map_id));
+
+        // Reparent children
+        for (_, val) in pairs.iter_mut() {
+            if let marshal::types::RubyValue::Object(ref mut obj) = val {
+                for (name, v) in obj.instance_vars.iter_mut() {
+                    if name == "@parent_id" {
+                        if let marshal::types::RubyValue::Integer(pid) = v {
+                            if *pid == map_id {
+                                *pid = parent_of_deleted;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    marshal::dump_file(&map_infos_path, &infos_value)
+        .map_err(|e| format!("Failed to save MapInfos: {}", e))?;
+
+    let updated_infos = load_map_infos(&map_infos_path)?;
+    eprintln!("[delete_map] Deleted Map{:03}", map_id);
+    Ok(updated_infos)
+}
+
+/// Rename a map in MapInfos.rxdata.
+#[tauri::command]
+pub async fn rename_map(
+    project_path: String,
+    map_id: i64,
+    new_name: String,
+) -> Result<(), String> {
+    let path = PathBuf::from(&project_path);
+    let map_infos_path = path.join("Data").join("MapInfos.rxdata");
+
+    let mut infos_value = marshal::load_file(&map_infos_path)
+        .map_err(|e| format!("Failed to read MapInfos: {}", e))?;
+
+    if let marshal::types::RubyValue::Hash(ref mut pairs) = infos_value {
+        for (key, val) in pairs.iter_mut() {
+            if key.as_int() == Some(map_id) {
+                if let marshal::types::RubyValue::Object(ref mut obj) = val {
+                    for (name, v) in obj.instance_vars.iter_mut() {
+                        if name == "@name" {
+                            *v = marshal::types::RubyValue::String(
+                                marshal::types::RubyString::with_encoding(
+                                    new_name.as_bytes().to_vec(),
+                                    "UTF-8".to_string(),
+                                ),
+                            );
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    marshal::dump_file(&map_infos_path, &infos_value)
+        .map_err(|e| format!("Failed to save MapInfos: {}", e))?;
 
     Ok(())
 }

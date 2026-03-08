@@ -10,6 +10,8 @@ import type {
   MapRenderData,
   TilesetRenderInfo,
   RpgEvent,
+  MapProperties,
+  MapInfo,
 } from "../types";
 
 // Lazy-loaded Tauri invoke — resolved on first call
@@ -105,6 +107,34 @@ export async function loadEvent(
 }
 
 /**
+ * Save modified event data back to the map's .rxdata file.
+ */
+export async function saveEvent(
+  projectPath: string,
+  mapId: number,
+  event: RpgEvent
+): Promise<void> {
+  await invoke("save_event", {
+    projectPath,
+    mapId,
+    event,
+  });
+}
+
+/**
+ * List all asset file names (without extension) in a given asset directory.
+ */
+export async function listAssetFiles(
+  projectPath: string,
+  assetType: string
+): Promise<string[]> {
+  return (await invoke("list_asset_files", {
+    projectPath,
+    assetType,
+  })) as string[];
+}
+
+/**
  * Get the filesystem path for a game asset.
  */
 export async function getAssetPath(
@@ -117,6 +147,81 @@ export async function getAssetPath(
     assetType,
     assetName,
   })) as string;
+}
+
+/**
+ * Get full map properties for the properties dialog.
+ */
+export async function getMapProperties(
+  projectPath: string,
+  mapId: number
+): Promise<MapProperties> {
+  return (await invoke("get_map_properties", {
+    projectPath,
+    mapId,
+  })) as MapProperties;
+}
+
+/**
+ * Save map properties back to .rxdata files.
+ */
+export async function saveMapProperties(
+  projectPath: string,
+  props: MapProperties
+): Promise<void> {
+  await invoke("save_map_properties", {
+    projectPath,
+    props,
+  });
+}
+
+/**
+ * Create a new blank map. Returns [newMapId, updatedMapInfos].
+ */
+export async function createMap(
+  projectPath: string,
+  name: string,
+  parentId: number,
+  width: number,
+  height: number,
+  tilesetId: number
+): Promise<[number, Record<number, MapInfo>]> {
+  return (await invoke("create_map", {
+    projectPath,
+    name,
+    parentId,
+    width,
+    height,
+    tilesetId,
+  })) as [number, Record<number, MapInfo>];
+}
+
+/**
+ * Delete a map. Returns updated map infos.
+ */
+export async function deleteMap(
+  projectPath: string,
+  mapId: number
+): Promise<Record<number, MapInfo>> {
+  return (await invoke("delete_map", {
+    projectPath,
+    mapId,
+  })) as Record<number, MapInfo>;
+}
+
+/**
+ * Rename a map in MapInfos.
+ */
+export async function renameMap(
+  projectPath: string,
+  mapId: number,
+  newName: string
+): Promise<void> {
+  await invoke("rename_map", {
+    projectPath,
+    mapId,
+    newName,
+  });
 }
 
 /**
@@ -232,6 +337,57 @@ async function mockInvoke(
           },
         ],
       } satisfies RpgEvent;
+
+    case "get_map_properties":
+      return {
+        id: (args?.mapId as number) ?? 1,
+        name: "Mock Map",
+        tileset_id: 1,
+        width: 20,
+        height: 15,
+        autoplay_bgm: false,
+        bgm_name: "",
+        bgm_volume: 100,
+        bgm_pitch: 100,
+        autoplay_bgs: false,
+        bgs_name: "",
+        bgs_volume: 80,
+        bgs_pitch: 100,
+        encounter_step: 30,
+        scroll_type: 0,
+        disable_dashing: false,
+        parallax_name: "",
+        parallax_loop_x: false,
+        parallax_loop_y: false,
+        parallax_sx: 0,
+        parallax_sy: 0,
+        parallax_show: false,
+      } satisfies MapProperties;
+
+    case "save_map_properties":
+      return;
+
+    case "create_map":
+      return [6, {
+        1: { name: "Intro", parent_id: 0, order: 0, expanded: true, scroll_x: 0, scroll_y: 0 },
+        2: { name: "Lappet Town", parent_id: 0, order: 1, expanded: true, scroll_x: 0, scroll_y: 0 },
+        3: { name: "Player's House 1F", parent_id: 2, order: 2, expanded: false, scroll_x: 0, scroll_y: 0 },
+        4: { name: "Player's House 2F", parent_id: 2, order: 3, expanded: false, scroll_x: 0, scroll_y: 0 },
+        5: { name: "Route 1", parent_id: 0, order: 4, expanded: false, scroll_x: 0, scroll_y: 0 },
+        6: { name: (args?.name as string) ?? "New Map", parent_id: (args?.parentId as number) ?? 0, order: 5, expanded: false, scroll_x: 0, scroll_y: 0 },
+      }];
+
+    case "delete_map":
+      return {
+        1: { name: "Intro", parent_id: 0, order: 0, expanded: true, scroll_x: 0, scroll_y: 0 },
+        2: { name: "Lappet Town", parent_id: 0, order: 1, expanded: true, scroll_x: 0, scroll_y: 0 },
+      };
+
+    case "rename_map":
+      return;
+
+    case "list_asset_files":
+      return ["boy_run", "girl_run", "trainer_POKEMONTRAINER_Red", "trainer_POKEMONTRAINER_Blue", "NPC 01", "NPC 02"];
 
     case "get_asset_path":
       return `/mock/Graphics/${args?.assetType}/${args?.assetName}.png`;

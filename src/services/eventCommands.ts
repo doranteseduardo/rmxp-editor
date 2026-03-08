@@ -258,8 +258,13 @@ export function summarizeCommand(code: number, params: unknown[]): string {
     case 245: // Play BGS
     case 249: // Play ME
     case 250: { // Play SE
-      const audio = params[0] as { name?: string } | undefined;
-      return audio?.name ?? "(none)";
+      const audio = params[0] as { name?: string; volume?: number; pitch?: number } | string | undefined;
+      if (typeof audio === "string") return audio || "(none)";
+      if (audio && typeof audio === "object") {
+        const vol = audio.volume !== undefined ? ` (vol: ${audio.volume})` : "";
+        return (audio.name || "(none)") + vol;
+      }
+      return "(none)";
     }
     case 355: // Script
     case 655:
@@ -271,7 +276,16 @@ export function summarizeCommand(code: number, params: unknown[]): string {
     }
     default:
       if (params.length > 0) {
-        return params.map((p) => JSON.stringify(p)).join(", ").substring(0, 60);
+        return params.map((p) => {
+          if (p === null || p === undefined) return "nil";
+          if (typeof p === "object" && !Array.isArray(p)) {
+            // Ruby objects converted to JSON — show class or meaningful summary
+            const obj = p as Record<string, unknown>;
+            if (obj.__class) return `${obj.__class}${obj.name ? `: ${obj.name}` : ""}`;
+            return JSON.stringify(p);
+          }
+          return JSON.stringify(p);
+        }).join(", ").substring(0, 80);
       }
       return "";
   }

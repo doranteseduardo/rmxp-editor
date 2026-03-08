@@ -1,12 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
-import type { ProjectInfo, MapRenderData, TilesetRenderInfo } from "./types";
+import type { ProjectInfo, MapRenderData, TilesetRenderInfo, MapProperties } from "./types";
 import { FIRST_REGULAR_TILE } from "./types";
-import { openProject, loadMap, loadTileset, saveMap } from "./services/tauriApi";
+import {
+  openProject,
+  loadMap,
+  loadTileset,
+  saveMap,
+  createMap,
+  deleteMap,
+  renameMap,
+} from "./services/tauriApi";
 import { loadAllTilesetImages } from "./services/imageLoader";
 import { MapTreePanel } from "./components/MapTree/MapTreePanel";
 import { MapEditor } from "./components/MapEditor/MapEditor";
 import { TilesetPalette } from "./components/TilesetPalette/TilesetPalette";
 import { EventEditor } from "./components/EventEditor/EventEditor";
+import { MapPropertiesDialog } from "./components/MapProperties/MapPropertiesDialog";
+import { CreateMapDialog } from "./components/MapProperties/CreateMapDialog";
 import "./App.css";
 
 /** Try to open a native folder picker via Tauri dialog plugin. */
@@ -48,6 +58,12 @@ function App() {
     eventId: number;
     eventName: string;
   } | null>(null);
+
+  // Map properties dialog state
+  const [propsMapId, setPropsMapId] = useState<number | null>(null);
+
+  // Create map dialog state
+  const [createMapParentId, setCreateMapParentId] = useState<number | null>(null);
 
   // Open a project by path
   const handleOpenProject = useCallback(
@@ -165,6 +181,111 @@ function App() {
     }
   }, [project, mapData, isDirty]);
 
+  // --- Map management handlers ---
+
+  const handleCreateMap = useCallback((parentId: number) => {
+    setCreateMapParentId(parentId);
+  }, []);
+
+  const handleConfirmCreateMap = useCallback(
+    async (name: string, parentId: number, width: number, height: number, tilesetId: number) => {
+      if (!project) return;
+      try {
+        setCreateMapParentId(null);
+        setLoading(true);
+        setError(null);
+        const [newId, updatedInfos] = await createMap(
+          project.path,
+          name,
+          parentId,
+          width,
+          height,
+          tilesetId
+        );
+        setProject({ ...project, map_infos: updatedInfos });
+        // Open the new map
+        await handleSelectMap(newId, project.path);
+      } catch (err) {
+        setError(`Create failed: ${err}`);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [project, handleSelectMap]
+  );
+
+  const handleDeleteMap = useCallback(
+    async (mapId: number, mapName: string) => {
+      if (!project) return;
+      if (!confirm(`Delete map [${String(mapId).padStart(3, "0")}] "${mapName}"?\n\nThis cannot be undone.`)) {
+        return;
+      }
+      try {
+        setLoading(true);
+        setError(null);
+        const updatedInfos = await deleteMap(project.path, mapId);
+        setProject({ ...project, map_infos: updatedInfos });
+        if (currentMapId === mapId) {
+          setCurrentMapId(null);
+          setMapData(null);
+        }
+      } catch (err) {
+        setError(`Delete failed: ${err}`);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [project, currentMapId]
+  );
+
+  const handleRenameMap = useCallback(
+    async (mapId: number, currentName: string) => {
+      if (!project) return;
+      const newName = prompt("Rename map:", currentName);
+      if (!newName || newName === currentName) return;
+      try {
+        setLoading(true);
+        setError(null);
+        await renameMap(project.path, mapId, newName);
+        // Update local state
+        const updatedInfos = { ...project.map_infos };
+        if (updatedInfos[mapId]) {
+          updatedInfos[mapId] = { ...updatedInfos[mapId], name: newName };
+        }
+        setProject({ ...project, map_infos: updatedInfos });
+      } catch (err) {
+        setError(`Rename failed: ${err}`);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [project]
+  );
+
+  const handleMapProperties = useCallback((mapId: number) => {
+    setPropsMapId(mapId);
+  }, []);
+
+  const handleMapPropertiesSaved = useCallback(
+    async (props: MapProperties) => {
+      if (!project) return;
+      setPropsMapId(null);
+
+      // Update local map info with new name
+      const updatedInfos = { ...project.map_infos };
+      if (updatedInfos[props.id]) {
+        updatedInfos[props.id] = { ...updatedInfos[props.id], name: props.name };
+      }
+      setProject({ ...project, map_infos: updatedInfos });
+
+      // Reload the map if it's currently open (tileset/dimensions may have changed)
+      if (currentMapId === props.id) {
+        await handleSelectMap(props.id, project.path);
+      }
+    },
+    [project, currentMapId, handleSelectMap]
+  );
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -243,6 +364,10 @@ function App() {
           mapInfos={project.map_infos}
           currentMapId={currentMapId}
           onSelectMap={(id) => handleSelectMap(id)}
+          onCreateMap={handleCreateMap}
+          onDeleteMap={handleDeleteMap}
+          onRenameMap={handleRenameMap}
+          onMapProperties={handleMapProperties}
         />
 
         {/* Center: Map editor */}
@@ -275,6 +400,28 @@ function App() {
           eventId={editingEvent.eventId}
           eventName={editingEvent.eventName}
           onClose={() => setEditingEvent(null)}
+        />
+      )}
+
+      {/* Map properties dialog */}
+      {propsMapId !== null && project && (
+        <MapPropertiesDialog
+          projectPath={project.path}
+          mapId={propsMapId}
+          tilesetCount={project.tileset_count}
+          onClose={() => setPropsMapId(null)}
+          onSaved={handleMapPropertiesSaved}
+        />
+      )}
+
+      {/* Create map dialog */}
+      {createMapParentId !== null && project && (
+        <CreateMapDialog
+          mapInfos={project.map_infos}
+          tilesetCount={project.tileset_count}
+          defaultParentId={createMapParentId}
+          onConfirm={handleConfirmCreateMap}
+          onClose={() => setCreateMapParentId(null)}
         />
       )}
 

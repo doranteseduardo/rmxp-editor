@@ -12,6 +12,7 @@ import {
   revertAction,
   type MapAction,
 } from "../../services/mapEditor";
+import { loadCharacterImage } from "../../services/imageLoader";
 import "./MapEditor.css";
 
 interface Props {
@@ -47,7 +48,6 @@ export function MapEditor({
 
   // Editor state
   const [showGrid, setShowGrid] = useState(true);
-  const [showEvents, setShowEvents] = useState(true);
   const [showLayers, _setShowLayers] = useState<[boolean, boolean, boolean]>([
     true,
     true,
@@ -72,6 +72,9 @@ export function MapEditor({
 
   // Force re-render trigger
   const [renderTick, setRenderTick] = useState(0);
+
+  // Character sprite cache: graphicName → HTMLImageElement
+  const [characterImages, setCharacterImages] = useState<Map<string, HTMLImageElement | null>>(new Map());
 
   // Initialize renderer — canvas is ALWAYS in the DOM now
   useEffect(() => {
@@ -114,6 +117,43 @@ export function MapEditor({
     rendererRef.current.setPriorities(tilesetInfo.priorities);
   }, [tilesetInfo]);
 
+  // Load character sprite images for events
+  useEffect(() => {
+    if (!mapData || !_projectPath) return;
+
+    // Collect unique character graphic names from events
+    const names = new Set<string>();
+    for (const evt of mapData.events) {
+      if (evt.graphic_name) names.add(evt.graphic_name);
+    }
+
+    if (names.size === 0) return;
+
+    // Load each character image (skip already-loaded ones)
+    const toLoad = [...names].filter((n) => !characterImages.has(n));
+    if (toLoad.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      const results = await Promise.all(
+        toLoad.map(async (name) => {
+          const img = await loadCharacterImage(_projectPath, name);
+          return [name, img] as [string, HTMLImageElement | null];
+        })
+      );
+      if (cancelled) return;
+      setCharacterImages((prev) => {
+        const next = new Map(prev);
+        for (const [name, img] of results) {
+          next.set(name, img);
+        }
+        return next;
+      });
+    })();
+
+    return () => { cancelled = true; };
+  }, [mapData, _projectPath]);
+
   // Animation loop — only runs when we have map data
   useEffect(() => {
     if (!rendererRef.current || !mapData) return;
@@ -123,6 +163,10 @@ export function MapEditor({
       name: e.name,
       x: e.x,
       y: e.y,
+      graphicName: e.graphic_name,
+      graphicDirection: e.graphic_direction,
+      graphicPattern: e.graphic_pattern,
+      graphicImage: e.graphic_name ? characterImages.get(e.graphic_name) : null,
     }));
 
     const animate = (time: number) => {
@@ -130,8 +174,9 @@ export function MapEditor({
         time,
         {
           showGrid,
-          showEvents,
+          showEvents: true,
           showLayer: showLayers,
+          activeLayer: selectedLayer,
           zoom,
           viewportX,
           viewportY,
@@ -146,12 +191,13 @@ export function MapEditor({
   }, [
     mapData,
     showGrid,
-    showEvents,
     showLayers,
+    selectedLayer,
     zoom,
     viewportX,
     viewportY,
     renderTick,
+    characterImages,
   ]);
 
   // Resize canvas to fill container
@@ -238,6 +284,7 @@ export function MapEditor({
   const doPaint = useCallback(
     (x: number, y: number) => {
       if (!mapData) return;
+      if (selectedLayer < 0 || selectedLayer > 2) return; // Can't paint on Events or All layer
 
       if (paintTool === "pencil") {
         const change = paintTile(mapData, x, y, selectedLayer, selectedTileId);
@@ -266,12 +313,26 @@ export function MapEditor({
     [mapData, paintTool, selectedLayer, selectedTileId]
   );
 
-  // Mouse wheel zoom
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    const factor = e.deltaY > 0 ? 0.9 : 1.1;
-    setZoom((z) => Math.max(0.25, Math.min(4, z * factor)));
-  }, []);
+  // Mouse wheel: scroll to pan, Ctrl+scroll (pinch-to-zoom) to zoom
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      e.preventDefault();
+
+      if (e.ctrlKey || e.metaKey) {
+        // Ctrl+scroll or pinch-to-zoom → zoom
+        const factor = e.deltaY > 0 ? 0.9 : 1.1;
+        setZoom((z) => Math.max(0.25, Math.min(4, z * factor)));
+      } else {
+        // Regular scroll → pan the viewport (in tile units)
+        const tilePixels = TILE_SIZE * zoom;
+        const dx = e.deltaX / tilePixels;
+        const dy = e.deltaY / tilePixels;
+        setViewportX((v) => v + dx);
+        setViewportY((v) => v + dy);
+      }
+    },
+    [zoom]
+  );
 
   // Mouse down: start painting or panning
   const handleMouseDown = useCallback(
@@ -287,6 +348,11 @@ export function MapEditor({
       if (e.button === 0 && mapData) {
         const pos = screenToTile(e.clientX, e.clientY);
         if (!pos) return;
+
+        // On Events layer, clicking is for event selection, not tile painting
+        if (selectedLayer === 3) {
+          return;
+        }
 
         if (paintTool === "bucket") {
           const changes = floodFill(
@@ -474,6 +540,21 @@ export function MapEditor({
                 L{l + 1}
               </button>
             ))}
+            <button
+              className={`toolbar-btn ${selectedLayer === 3 ? "active" : ""}`}
+              onClick={() => setSelectedLayer(3)}
+              title="Events layer — view and select events"
+              style={selectedLayer === 3 ? { borderColor: "#fab387", color: "#fab387" } : {}}
+            >
+              Ev
+            </button>
+            <button
+              className={`toolbar-btn ${selectedLayer === -1 ? "active" : ""}`}
+              onClick={() => setSelectedLayer(-1)}
+              title="Show all layers at full opacity"
+            >
+              All
+            </button>
           </div>
 
           <div className="toolbar-separator" />
@@ -486,14 +567,6 @@ export function MapEditor({
                 onChange={(e) => setShowGrid(e.target.checked)}
               />
               Grid
-            </label>
-            <label className="toolbar-check">
-              <input
-                type="checkbox"
-                checked={showEvents}
-                onChange={(e) => setShowEvents(e.target.checked)}
-              />
-              Events
             </label>
           </div>
 
@@ -550,6 +623,21 @@ export function MapEditor({
           }}
           onContextMenu={(e) => e.preventDefault()}
         />
+        {/* Scrollbar overlays */}
+        {mapData && (
+          <MapScrollbars
+            mapWidth={mapData.width}
+            mapHeight={mapData.height}
+            viewportX={viewportX}
+            viewportY={viewportY}
+            zoom={zoom}
+            canvasRef={canvasRef}
+            onViewportChange={(x, y) => {
+              setViewportX(x);
+              setViewportY(y);
+            }}
+          />
+        )}
         {/* Empty state overlay — shown ON TOP of the canvas */}
         {!mapData && (
           <div className="map-editor-empty-overlay">
@@ -570,9 +658,8 @@ export function MapEditor({
               ({cursorTile.x}, {cursorTile.y})
             </span>
           )}
-          <span>Layer {selectedLayer + 1}/3</span>
+          <span>{selectedLayer === -1 ? "All Layers" : selectedLayer === 3 ? `Events (${mapData.events.length})` : `Layer ${selectedLayer + 1}/3`}</span>
           <span>Tile: {selectedTileId}</span>
-          <span>Events: {mapData.events.length}</span>
           <span className="toolbar-right">
             {undoStackRef.current.canUndo() ? "Ctrl+Z: Undo" : ""}
             {undoStackRef.current.canRedo() ? " | Ctrl+Y: Redo" : ""}
@@ -580,5 +667,168 @@ export function MapEditor({
         </div>
       )}
     </div>
+  );
+}
+
+// --- Scrollbar overlay component ---
+
+function MapScrollbars({
+  mapWidth,
+  mapHeight,
+  viewportX,
+  viewportY,
+  zoom,
+  canvasRef,
+  onViewportChange,
+}: {
+  mapWidth: number;
+  mapHeight: number;
+  viewportX: number;
+  viewportY: number;
+  zoom: number;
+  canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  onViewportChange: (x: number, y: number) => void;
+}) {
+  const hDragRef = useRef(false);
+  const vDragRef = useRef(false);
+  const dragStartRef = useRef({ mouse: 0, viewport: 0 });
+
+  // Calculate visible tiles based on canvas size
+  const canvas = canvasRef.current;
+  const containerWidth = canvas ? canvas.clientWidth : 800;
+  const containerHeight = canvas ? canvas.clientHeight : 600;
+  const tilePixels = TILE_SIZE * zoom;
+  const visibleTilesX = containerWidth / tilePixels;
+  const visibleTilesY = containerHeight / tilePixels;
+
+  // Scrollbar thumb proportions
+  const hThumbRatio = Math.min(1, visibleTilesX / mapWidth);
+  const vThumbRatio = Math.min(1, visibleTilesY / mapHeight);
+
+  // Thumb positions (0-1 range)
+  const hThumbPos = mapWidth > visibleTilesX ? viewportX / (mapWidth - visibleTilesX) : 0;
+  const vThumbPos = mapHeight > visibleTilesY ? viewportY / (mapHeight - visibleTilesY) : 0;
+
+  // Clamp positions
+  const hPos = Math.max(0, Math.min(1 - hThumbRatio, hThumbPos * (1 - hThumbRatio)));
+  const vPos = Math.max(0, Math.min(1 - vThumbRatio, vThumbPos * (1 - vThumbRatio)));
+
+  const SCROLLBAR_SIZE = 10;
+  const TRACK_MARGIN = 2;
+
+  // Don't show if the whole map fits
+  const showH = hThumbRatio < 1;
+  const showV = vThumbRatio < 1;
+
+  const handleHMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      hDragRef.current = true;
+      dragStartRef.current = { mouse: e.clientX, viewport: viewportX };
+
+      const onMove = (me: MouseEvent) => {
+        if (!hDragRef.current) return;
+        const trackElem = (e.target as HTMLElement).parentElement;
+        if (!trackElem) return;
+        const trackWidth = trackElem.clientWidth - TRACK_MARGIN * 2;
+        const thumbWidth = trackWidth * hThumbRatio;
+        const availableTrack = trackWidth - thumbWidth;
+        if (availableTrack <= 0) return;
+        const delta = me.clientX - dragStartRef.current.mouse;
+        const posRatio = delta / availableTrack;
+        const maxScroll = mapWidth - visibleTilesX;
+        const newX = dragStartRef.current.viewport + posRatio * maxScroll;
+        onViewportChange(Math.max(0, Math.min(maxScroll, newX)), viewportY);
+      };
+
+      const onUp = () => {
+        hDragRef.current = false;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [viewportX, viewportY, mapWidth, visibleTilesX, hThumbRatio, onViewportChange]
+  );
+
+  const handleVMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      vDragRef.current = true;
+      dragStartRef.current = { mouse: e.clientY, viewport: viewportY };
+
+      const onMove = (me: MouseEvent) => {
+        if (!vDragRef.current) return;
+        const trackElem = (e.target as HTMLElement).parentElement;
+        if (!trackElem) return;
+        const trackHeight = trackElem.clientHeight - TRACK_MARGIN * 2;
+        const thumbHeight = trackHeight * vThumbRatio;
+        const availableTrack = trackHeight - thumbHeight;
+        if (availableTrack <= 0) return;
+        const delta = me.clientY - dragStartRef.current.mouse;
+        const posRatio = delta / availableTrack;
+        const maxScroll = mapHeight - visibleTilesY;
+        const newY = dragStartRef.current.viewport + posRatio * maxScroll;
+        onViewportChange(viewportX, Math.max(0, Math.min(maxScroll, newY)));
+      };
+
+      const onUp = () => {
+        vDragRef.current = false;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [viewportX, viewportY, mapHeight, visibleTilesY, vThumbRatio, onViewportChange]
+  );
+
+  return (
+    <>
+      {/* Horizontal scrollbar */}
+      {showH && (
+        <div
+          className="map-scrollbar map-scrollbar-h"
+          style={{
+            height: SCROLLBAR_SIZE,
+            bottom: showV ? SCROLLBAR_SIZE : 0,
+            right: showV ? SCROLLBAR_SIZE : 0,
+          }}
+        >
+          <div
+            className="map-scrollbar-thumb"
+            style={{
+              left: `${hPos * 100}%`,
+              width: `${hThumbRatio * 100}%`,
+            }}
+            onMouseDown={handleHMouseDown}
+          />
+        </div>
+      )}
+      {/* Vertical scrollbar */}
+      {showV && (
+        <div
+          className="map-scrollbar map-scrollbar-v"
+          style={{
+            width: SCROLLBAR_SIZE,
+            bottom: showH ? SCROLLBAR_SIZE : 0,
+          }}
+        >
+          <div
+            className="map-scrollbar-thumb"
+            style={{
+              top: `${vPos * 100}%`,
+              height: `${vThumbRatio * 100}%`,
+            }}
+            onMouseDown={handleVMouseDown}
+          />
+        </div>
+      )}
+    </>
   );
 }

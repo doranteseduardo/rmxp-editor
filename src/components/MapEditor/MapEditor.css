@@ -132,3 +132,46 @@
   color: #6c7086;
   flex-shrink: 0;
 }
+
+/* Custom scrollbars for map canvas */
+.map-scrollbar {
+  position: absolute;
+  background: rgba(17, 17, 27, 0.5);
+  z-index: 5;
+  padding: 2px;
+}
+
+.map-scrollbar-h {
+  left: 0;
+  right: 0;
+}
+
+.map-scrollbar-v {
+  top: 0;
+  right: 0;
+}
+
+.map-scrollbar-thumb {
+  position: absolute;
+  background: rgba(69, 71, 90, 0.7);
+  border-radius: 4px;
+  min-width: 20px;
+  min-height: 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.map-scrollbar-h .map-scrollbar-thumb {
+  top: 2px;
+  bottom: 2px;
+}
+
+.map-scrollbar-v .map-scrollbar-thumb {
+  left: 2px;
+  right: 2px;
+}
+
+.map-scrollbar-thumb:hover,
+.map-scrollbar-thumb:active {
+  background: rgba(137, 180, 250, 0.6);
+}

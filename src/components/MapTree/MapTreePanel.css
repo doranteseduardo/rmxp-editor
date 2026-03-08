@@ -6,6 +6,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 
 .map-tree-header {
@@ -15,6 +16,30 @@
   color: #cdd6f4;
   border-bottom: 1px solid #313244;
   background: #181825;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.map-tree-add-btn {
+  background: none;
+  border: 1px solid #45475a;
+  border-radius: 4px;
+  color: #a6e3a1;
+  font-size: 14px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.map-tree-add-btn:hover {
+  background: #313244;
+  color: #a6e3a1;
 }
 
 .map-tree-list {
@@ -72,4 +97,52 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Context menu */
+.map-tree-context-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+}
+
+.map-tree-context-menu {
+  position: fixed;
+  background: #1e1e2e;
+  border: 1px solid #45475a;
+  border-radius: 6px;
+  padding: 4px 0;
+  min-width: 160px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 901;
+}
+
+.map-tree-context-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 6px 12px;
+  color: #cdd6f4;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.map-tree-context-menu button:hover {
+  background: #313244;
+}
+
+.map-tree-context-danger {
+  color: #f38ba8 !important;
+}
+
+.map-tree-context-danger:hover {
+  background: #45233a !important;
+}
+
+.map-tree-context-separator {
+  height: 1px;
+  background: #313244;
+  margin: 4px 0;
 }

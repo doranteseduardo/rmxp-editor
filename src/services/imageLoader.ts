@@ -245,6 +245,28 @@ function createPlaceholderTileset(): HTMLImageElement {
   return img;
 }
 
+/**
+ * Load a character sprite image by character name.
+ * Character sprites are in Graphics/Characters/<name>.png
+ */
+export async function loadCharacterImage(
+  projectPath: string,
+  characterName: string
+): Promise<HTMLImageElement | null> {
+  if (!characterName) return null;
+
+  try {
+    const path = await getAssetPath(projectPath, "character", characterName);
+    console.log(`[imageLoader] Loading character: '${characterName}' → ${path}`);
+    const img = await loadImage(path);
+    console.log(`[imageLoader] ✓ Character '${characterName}' loaded: ${img.width}x${img.height}`);
+    return img;
+  } catch (err) {
+    console.warn(`[imageLoader] ✗ Failed to load character '${characterName}':`, err);
+    return null;
+  }
+}
+
 /** Clear the image cache. */
 export function clearImageCache() {
   imageCache.clear();
