@@ -345,6 +345,22 @@
   cursor: not-allowed;
 }
 
+.db-cancel-btn {
+  padding: 4px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  background: transparent;
+  color: #f38ba8;
+  border: 1px solid #f38ba8;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.db-cancel-btn:hover {
+  background: #f38ba8;
+  color: #1e1e2e;
+}
+
 /* Loading state */
 .db-loading {
   display: flex;

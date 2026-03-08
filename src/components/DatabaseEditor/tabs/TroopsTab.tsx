@@ -1,6 +1,7 @@
 import type { RpgTroop, RpgTroopMember } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
 import { useDatabaseNames } from "../DatabaseContext";
+import { useEditorRegistration } from "../../context/ProjectSaveContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
 import { IdSelect } from "../controls/IdSelect";
 import { TroopPositionEditor } from "../controls/TroopPositionEditor";
@@ -16,6 +17,7 @@ const DEFAULT: RpgTroop = {
 
 export function TroopsTab({ projectPath }: Props) {
   const db = useDatabase(projectPath, "Troops.rxdata");
+  useEditorRegistration("db-Troops.rxdata", db.save, db.cancel, db.dirty);
   const names = useDatabaseNames();
   const t = db.selected as RpgTroop | null;
   const [selMember, setSelMember] = useState(-1);
@@ -139,6 +141,7 @@ export function TroopsTab({ projectPath }: Props) {
       {db.dirty && (
         <div className="db-save-bar">
           <span className="db-dirty">Unsaved changes</span>
+          <button className="db-cancel-btn" onClick={db.cancel}>Cancel</button>
           <button className="db-save-btn" onClick={db.save} disabled={db.loading}>Save</button>
         </div>
       )}

@@ -1,6 +1,7 @@
 import type { RpgTileset } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
 import { DatabaseListPanel } from "../DatabaseListPanel";
+import { useEditorRegistration } from "../../context/ProjectSaveContext";
 import { AssetPicker } from "../controls/AssetPicker";
 
 interface Props { projectPath: string }
@@ -18,6 +19,7 @@ const DEFAULT: RpgTileset = {
 
 export function TilesetsTab({ projectPath }: Props) {
   const db = useDatabase(projectPath, "Tilesets.rxdata");
+  useEditorRegistration("db-Tilesets.rxdata", db.save, db.cancel, db.dirty);
   const t = db.selected as RpgTileset | null;
 
   if (db.loading) return <div className="db-loading">Loading Tilesets...</div>;
@@ -92,6 +94,7 @@ export function TilesetsTab({ projectPath }: Props) {
       {db.dirty && (
         <div className="db-save-bar">
           <span className="db-dirty">Unsaved changes</span>
+          <button className="db-cancel-btn" onClick={db.cancel}>Cancel</button>
           <button className="db-save-btn" onClick={db.save} disabled={db.loading}>Save</button>
         </div>
       )}

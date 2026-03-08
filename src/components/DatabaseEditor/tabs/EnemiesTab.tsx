@@ -1,6 +1,7 @@
 import type { RpgEnemy, RpgEnemyAction } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
 import { useDatabaseNames } from "../DatabaseContext";
+import { useEditorRegistration } from "../../context/ProjectSaveContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
 import { IdSelect } from "../controls/IdSelect";
 import { AssetPicker } from "../controls/AssetPicker";
@@ -25,6 +26,7 @@ const DEFAULT: RpgEnemy = {
 
 export function EnemiesTab({ projectPath }: Props) {
   const db = useDatabase(projectPath, "Enemies.rxdata");
+  useEditorRegistration("db-Enemies.rxdata", db.save, db.cancel, db.dirty);
   const names = useDatabaseNames();
   const e = db.selected as RpgEnemy | null;
   const [selAction, setSelAction] = useState(-1);
@@ -147,6 +149,7 @@ export function EnemiesTab({ projectPath }: Props) {
       {db.dirty && (
         <div className="db-save-bar">
           <span className="db-dirty">Unsaved changes</span>
+          <button className="db-cancel-btn" onClick={db.cancel}>Cancel</button>
           <button className="db-save-btn" onClick={db.save} disabled={db.loading}>Save</button>
         </div>
       )}

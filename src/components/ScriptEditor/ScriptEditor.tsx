@@ -7,6 +7,7 @@ import {
   createScript,
   deleteScript,
 } from "../../services/tauriApi";
+import { useEditorRegistration } from "../../context/ProjectSaveContext";
 import { ScriptListPanel } from "./ScriptListPanel";
 import { CodeEditorPanel } from "./CodeEditorPanel";
 import "./ScriptEditor.css";
@@ -152,6 +153,24 @@ export function ScriptEditor({ projectPath }: Props) {
     }
   }, [projectPath, scripts, selectedId, currentSource, dirtyIds]);
 
+  // Cancel all unsaved changes — restore dirty scripts from originals
+  const handleCancel = useCallback(() => {
+    for (const id of dirtyIds) {
+      const original = originalsRef.current.get(id);
+      if (original !== undefined) {
+        cacheRef.current.set(id, original);
+        // If this is the currently viewed script, update the editor
+        if (id === selectedId) {
+          setCurrentSource(original);
+        }
+      }
+    }
+    setDirtyIds(new Set());
+  }, [dirtyIds, selectedId]);
+
+  const isDirty = dirtyIds.size > 0;
+  useEditorRegistration("scripts", handleSave, handleCancel, isDirty);
+
   // Create a new script
   const handleCreate = useCallback(
     async (afterId: number) => {
@@ -249,6 +268,13 @@ export function ScriptEditor({ projectPath }: Props) {
         onSourceChange={handleSourceChange}
       />
       {saving && <div className="script-saving-indicator">Saving...</div>}
+      {isDirty && !saving && (
+        <div className="db-save-bar">
+          <span className="db-dirty">{dirtyIds.size} unsaved script(s)</span>
+          <button className="db-cancel-btn" onClick={handleCancel}>Cancel</button>
+          <button className="db-save-btn" onClick={handleSave}>Save All</button>
+        </div>
+      )}
     </div>
   );
 }

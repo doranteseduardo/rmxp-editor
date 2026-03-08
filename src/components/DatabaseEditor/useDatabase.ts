@@ -20,6 +20,8 @@ export interface UseDatabaseResult<T> {
   /** Replace the entire selected item */
   replace: (item: T) => void;
   save: () => Promise<void>;
+  /** Revert all changes to the last saved/loaded state */
+  cancel: () => void;
   /** Add a new entry at the end */
   addNew: (template: T) => void;
   /** Delete the selected entry (sets to null) */
@@ -41,6 +43,9 @@ export function useDatabase<K extends DatabaseFilename>(
   const [error, setError] = useState<string | null>(null);
   const filenameRef = useRef(filename);
 
+  // Snapshot of last saved/loaded state for cancel support
+  const snapshotRef = useRef<(T | null)[]>([]);
+
   // Load on mount or filename change
   useEffect(() => {
     filenameRef.current = filename;
@@ -54,6 +59,7 @@ export function useDatabase<K extends DatabaseFilename>(
       .then((data) => {
         if (cancelled) return;
         setItems(data);
+        snapshotRef.current = data;
         // Auto-select first real item
         for (let i = 1; i < data.length; i++) {
           if (data[i] != null) {
@@ -103,6 +109,7 @@ export function useDatabase<K extends DatabaseFilename>(
       setLoading(true);
       setError(null);
       await saveDatabase(projectPath, filenameRef.current, items);
+      snapshotRef.current = items; // update snapshot after successful save
       setDirty(false);
     } catch (err) {
       setError(`Save failed: ${err}`);
@@ -110,6 +117,11 @@ export function useDatabase<K extends DatabaseFilename>(
       setLoading(false);
     }
   }, [projectPath, items]);
+
+  const cancel = useCallback(() => {
+    setItems(snapshotRef.current);
+    setDirty(false);
+  }, []);
 
   const addNew = useCallback((template: T) => {
     setItems((prev) => {
@@ -144,6 +156,6 @@ export function useDatabase<K extends DatabaseFilename>(
 
   return {
     items, selectedId, selected, dirty, loading, error,
-    select, update, replace, save, addNew, deleteSelected, changeMaxEntries,
+    select, update, replace, save, cancel, addNew, deleteSelected, changeMaxEntries,
   };
 }

@@ -1,6 +1,7 @@
 import type { RpgState } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
 import { useDatabaseNames } from "../DatabaseContext";
+import { useEditorRegistration } from "../../context/ProjectSaveContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
 import { IdSelect } from "../controls/IdSelect";
 import { ElementSetEditor, SetEditor } from "../controls/SetEditor";
@@ -21,6 +22,7 @@ const DEFAULT: RpgState = {
 
 export function StatesTab({ projectPath }: Props) {
   const db = useDatabase(projectPath, "States.rxdata");
+  useEditorRegistration("db-States.rxdata", db.save, db.cancel, db.dirty);
   const names = useDatabaseNames();
   const s = db.selected as RpgState | null;
 
@@ -91,6 +93,7 @@ export function StatesTab({ projectPath }: Props) {
       {db.dirty && (
         <div className="db-save-bar">
           <span className="db-dirty">Unsaved changes</span>
+          <button className="db-cancel-btn" onClick={db.cancel}>Cancel</button>
           <button className="db-save-btn" onClick={db.save} disabled={db.loading}>Save</button>
         </div>
       )}

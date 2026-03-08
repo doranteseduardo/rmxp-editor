@@ -99,6 +99,56 @@ body,
   color: #fff;
 }
 
+/* Global save bar */
+.app-global-save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4px 16px;
+  background: #181825;
+  border-bottom: 1px solid #313244;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.app-global-save-count {
+  font-size: 11px;
+  color: #f9e2af;
+  margin-right: auto;
+}
+
+.app-global-save-btn {
+  padding: 3px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #a6e3a1;
+  border-radius: 3px;
+  background: #a6e3a1;
+  color: #1e1e2e;
+  cursor: pointer;
+}
+
+.app-global-save-btn:hover {
+  background: #94e2d5;
+  border-color: #94e2d5;
+}
+
+.app-global-discard-btn {
+  padding: 3px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #f38ba8;
+  border-radius: 3px;
+  background: transparent;
+  color: #f38ba8;
+  cursor: pointer;
+}
+
+.app-global-discard-btn:hover {
+  background: #f38ba8;
+  color: #1e1e2e;
+}
+
 /* Title bar button */
 .app-titlebar-btn {
   padding: 3px 10px;

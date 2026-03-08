@@ -1,6 +1,7 @@
 import type { RpgCommonEvent } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
 import { useDatabaseNames } from "../DatabaseContext";
+import { useEditorRegistration } from "../../context/ProjectSaveContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
 import { EventCommandList } from "../controls/EventCommandList";
 
@@ -16,6 +17,7 @@ const DEFAULT: RpgCommonEvent = {
 
 export function CommonEventsTab({ projectPath }: Props) {
   const db = useDatabase(projectPath, "CommonEvents.rxdata");
+  useEditorRegistration("db-CommonEvents.rxdata", db.save, db.cancel, db.dirty);
   const names = useDatabaseNames();
   const ce = db.selected as RpgCommonEvent | null;
 
@@ -66,6 +68,7 @@ export function CommonEventsTab({ projectPath }: Props) {
       {db.dirty && (
         <div className="db-save-bar">
           <span className="db-dirty">Unsaved changes</span>
+          <button className="db-cancel-btn" onClick={db.cancel}>Cancel</button>
           <button className="db-save-btn" onClick={db.save} disabled={db.loading}>Save</button>
         </div>
       )}

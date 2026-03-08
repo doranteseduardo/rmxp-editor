@@ -1,6 +1,7 @@
 import type { RpgAnimation, RpgAnimationTiming, RpgAudioFile } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
 import { DatabaseListPanel } from "../DatabaseListPanel";
+import { useEditorRegistration } from "../../context/ProjectSaveContext";
 import { AssetPicker } from "../controls/AssetPicker";
 import { AnimationFrameEditor } from "../controls/AnimationFrameEditor";
 import { useState } from "react";
@@ -18,6 +19,7 @@ const DEFAULT: RpgAnimation = {
 
 export function AnimationsTab({ projectPath }: Props) {
   const db = useDatabase(projectPath, "Animations.rxdata");
+  useEditorRegistration("db-Animations.rxdata", db.save, db.cancel, db.dirty);
   const a = db.selected as RpgAnimation | null;
   const [selTiming, setSelTiming] = useState(-1);
 
@@ -68,7 +70,7 @@ export function AnimationsTab({ projectPath }: Props) {
                 </div>
                 <div className="db-section">
                   <div className="db-section-title">Frame Data</div>
-                  <AnimationFrameEditor frames={a.frames} onChange={frames => u({ frames })} />
+                  <AnimationFrameEditor frames={a.frames} frameMax={a.frame_max} timings={a.timings} onChange={frames => u({ frames })} />
                 </div>
               </div>
               <div className="db-column">
@@ -117,6 +119,7 @@ export function AnimationsTab({ projectPath }: Props) {
       {db.dirty && (
         <div className="db-save-bar">
           <span className="db-dirty">Unsaved changes</span>
+          <button className="db-cancel-btn" onClick={db.cancel}>Cancel</button>
           <button className="db-save-btn" onClick={db.save} disabled={db.loading}>Save</button>
         </div>
       )}

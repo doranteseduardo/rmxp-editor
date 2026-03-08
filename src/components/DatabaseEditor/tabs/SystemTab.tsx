@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { RpgSystemData, RpgAudioFile } from "../../../types/rpgTypes";
 import { loadSystemData, saveSystemData } from "../../../services/tauriApi";
+import { useEditorRegistration } from "../../context/ProjectSaveContext";
 import { AssetPicker } from "../controls/AssetPicker";
 
 interface Props { projectPath: string }
@@ -24,6 +25,7 @@ export function SystemTab({ projectPath }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pathRef = useRef(projectPath);
+  const snapshotRef = useRef<RpgSystemData | null>(null);
 
   useEffect(() => {
     pathRef.current = projectPath;
@@ -33,7 +35,12 @@ export function SystemTab({ projectPath }: Props) {
     setDirty(false);
 
     loadSystemData(projectPath)
-      .then(data => { if (!cancelled) setSys(data); })
+      .then(data => {
+        if (!cancelled) {
+          setSys(data);
+          snapshotRef.current = data;
+        }
+      })
       .catch(err => { if (!cancelled) setError(String(err)); })
       .finally(() => { if (!cancelled) setLoading(false); });
 
@@ -55,6 +62,7 @@ export function SystemTab({ projectPath }: Props) {
       setLoading(true);
       setError(null);
       await saveSystemData(pathRef.current, sys);
+      snapshotRef.current = sys;
       setDirty(false);
     } catch (err) {
       setError(`Save failed: ${err}`);
@@ -62,6 +70,15 @@ export function SystemTab({ projectPath }: Props) {
       setLoading(false);
     }
   }, [sys]);
+
+  const cancel = useCallback(() => {
+    if (snapshotRef.current) {
+      setSys(snapshotRef.current);
+      setDirty(false);
+    }
+  }, []);
+
+  useEditorRegistration("db-System.rxdata", save, cancel, dirty);
 
   if (loading && !sys) return <div className="db-loading">Loading System...</div>;
   if (error && !sys) return <div className="db-loading" style={{ color: "#f38ba8" }}>{error}</div>;
@@ -140,6 +157,7 @@ export function SystemTab({ projectPath }: Props) {
       {dirty && (
         <div className="db-save-bar">
           <span className="db-dirty">Unsaved changes</span>
+          <button className="db-cancel-btn" onClick={cancel}>Cancel</button>
           <button className="db-save-btn" onClick={save} disabled={loading}>Save</button>
         </div>
       )}

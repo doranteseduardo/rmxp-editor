@@ -1,6 +1,7 @@
 import type { RpgWeapon } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
 import { useDatabaseNames } from "../DatabaseContext";
+import { useEditorRegistration } from "../../context/ProjectSaveContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
 import { IdSelect } from "../controls/IdSelect";
 import { AssetPicker } from "../controls/AssetPicker";
@@ -17,6 +18,7 @@ const DEFAULT: RpgWeapon = {
 
 export function WeaponsTab({ projectPath }: Props) {
   const db = useDatabase(projectPath, "Weapons.rxdata");
+  useEditorRegistration("db-Weapons.rxdata", db.save, db.cancel, db.dirty);
   const names = useDatabaseNames();
   const w = db.selected as RpgWeapon | null;
 
@@ -62,7 +64,7 @@ export function WeaponsTab({ projectPath }: Props) {
           </div>
         ) : <div className="db-detail-empty">Select a weapon</div>}
       </div>
-      {db.dirty && <div className="db-save-bar"><span className="db-dirty">Unsaved changes</span><button className="db-save-btn" onClick={db.save} disabled={db.loading}>Save</button></div>}
+      {db.dirty && <div className="db-save-bar"><span className="db-dirty">Unsaved changes</span><button className="db-cancel-btn" onClick={db.cancel}>Cancel</button><button className="db-save-btn" onClick={db.save} disabled={db.loading}>Save</button></div>}
     </>
   );
 }

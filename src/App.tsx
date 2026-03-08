@@ -22,6 +22,7 @@ import { MapPropertiesDialog } from "./components/MapProperties/MapPropertiesDia
 import { CreateMapDialog } from "./components/MapProperties/CreateMapDialog";
 import { ScriptEditor } from "./components/ScriptEditor/ScriptEditor";
 import { DatabaseEditor } from "./components/DatabaseEditor/DatabaseEditor";
+import { ProjectSaveProvider, useProjectSave } from "./context/ProjectSaveContext";
 import "./App.css";
 
 /** Try to open a native folder picker via Tauri dialog plugin. */
@@ -38,6 +39,20 @@ async function showFolderPicker(): Promise<string | null> {
     console.warn("Tauri dialog not available, falling back to prompt:", err);
     return window.prompt("Enter the path to your RMXP project folder:");
   }
+}
+
+function GlobalSaveBar() {
+  const { dirtyCount, saveAll, discardAll } = useProjectSave();
+  if (dirtyCount === 0) return null;
+  return (
+    <div className="app-global-save-bar">
+      <span className="app-global-save-count">
+        {dirtyCount} unsaved editor{dirtyCount > 1 ? "s" : ""}
+      </span>
+      <button className="app-global-discard-btn" onClick={discardAll}>Discard All</button>
+      <button className="app-global-save-btn" onClick={saveAll}>Save All</button>
+    </div>
+  );
 }
 
 function App() {
@@ -401,6 +416,7 @@ function App() {
   }
 
   return (
+    <ProjectSaveProvider>
     <div className="app">
       {/* Title bar */}
       <div className="app-titlebar">
@@ -436,6 +452,9 @@ function App() {
           {loading && <span className="app-loading">Loading...</span>}
         </div>
       </div>
+
+      {/* Global save bar */}
+      <GlobalSaveBar />
 
       {/* Main layout */}
       <div className="app-body">
@@ -523,6 +542,7 @@ function App() {
         </div>
       )}
     </div>
+    </ProjectSaveProvider>
   );
 }
 
