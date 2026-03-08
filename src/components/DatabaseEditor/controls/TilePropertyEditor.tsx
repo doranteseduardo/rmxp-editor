@@ -265,15 +265,17 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
                     </div>
                   ))}
                 </div>
-                {/* Autotile grid with single background */}
+                {/* Autotile grid with single background — same approach as regular tiles.
+                    The autotile image is placed once and stretched to fill the grid width,
+                    so the browser only holds one reference to the image. */}
                 <div style={{
                   position: "relative",
                   width: gridWidth,
                   height: slotRows * CELL_SIZE,
-                  // For autotiles, tile the representative 32×32 from top-left of the autotile image
                   backgroundImage: atBgUrl ?? undefined,
-                  backgroundSize: `${CELL_SIZE}px ${CELL_SIZE}px`,
-                  backgroundRepeat: "repeat",
+                  backgroundSize: `${gridWidth}px auto`,
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "0 0",
                   imageRendering: "pixelated" as React.CSSProperties["imageRendering"],
                 }}>
                   {/* Overlay cells with just badges + click handlers */}
