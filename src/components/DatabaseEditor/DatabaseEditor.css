@@ -361,6 +361,32 @@
   color: #1e1e2e;
 }
 
+/* Dirty dot on tab buttons */
+.db-tab-dirty {
+  color: #f9e2af;
+  font-size: 8px;
+  margin-left: 4px;
+  vertical-align: super;
+}
+
+/* Unified bottom bar (Apply/Cancel) */
+.db-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8px 16px;
+  border-top: 1px solid #313244;
+  background: #181825;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.db-bottom-bar .db-cancel-btn:disabled,
+.db-bottom-bar .db-save-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 /* Loading state */
 .db-loading {
   display: flex;

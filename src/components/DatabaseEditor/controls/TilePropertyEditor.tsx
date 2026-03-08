@@ -1,22 +1,21 @@
 /**
- * TilePropertyEditor — visual grid editor for tileset passages, priorities, and terrain tags.
+ * TilePropertyEditor — visual grid editor for tileset tile properties.
  *
- * Renders an 8-column grid representing all tileset tiles.
- * - IDs 0–383 are autotiles (8 slots × 48 patterns each, slot 0 is blank)
- * - IDs 384+ are regular tiles from the tileset image (8 columns wide)
- *
- * Uses the tileset image as a single CSS background on the regular-tiles
- * grid container — no per-cell slicing, no data URLs, minimal memory.
- * Autotile slots each show one representative image as background.
- *
- * Three modes:
- * - passages: bitfield (0=all pass, 15=impassable, individual direction bits)
- * - priorities: integer 0-5
+ * Matches the original RMXP editor's 6 property modes:
+ * - passage:      simple ○ (passable) / ✕ (impassable) toggle
+ * - passage_4dir: per-direction passability (↑↓←→ arrows)
+ * - priorities:   integer 0-5
+ * - bush_flag:    boolean on/off
+ * - counter_flag: boolean on/off
  * - terrain_tags: integer 0-7
+ *
+ * Autotile slots (IDs 0-383) are shown as one cell per slot (8 total),
+ * since all 48 patterns share the same property value.
+ * Regular tiles (IDs 384+) use the tileset image as a single CSS background.
  */
 import { useState, useRef, useCallback, useEffect } from "react";
 
-type PropertyMode = "passages" | "priorities" | "terrain_tags";
+export type PropertyMode = "passage" | "passage_4dir" | "priorities" | "bush_flag" | "counter_flag" | "terrain_tags";
 
 interface Props {
   /** Flat i16 data array from the Table */
@@ -32,7 +31,7 @@ interface Props {
 }
 
 const COLS = 8;
-const CELL_SIZE = 32; // Display cell size
+const CELL_SIZE = 32;
 const AUTOTILE_ID_COUNT = 384;
 const AUTOTILE_SLOT_SIZE = 48;
 
@@ -47,9 +46,26 @@ const PRIORITY_COLORS: Record<number, string> = {
   3: "#f9e2af", 4: "#fab387", 5: "#f38ba8",
 };
 
+// Pokémon Essentials v21.1 defines terrain tags 0-17:
+// 0=None, 1=Ledge, 2=Grass, 3=Sand, 4=Rock, 5=DeepWater, 6=StillWater,
+// 7=Water, 8=Waterfall, 9=WaterfallCrest, 10=TallGrass, 11=UnderwaterGrass,
+// 12=Ice, 13=Neutral, 14=SootGrass, 15=Bridge, 16=Puddle, 17=NoEffect
+const MAX_TERRAIN_TAG = 17;
+
 const TAG_COLORS: Record<number, string> = {
-  0: "#45475a", 1: "#89b4fa", 2: "#a6e3a1", 3: "#f9e2af",
-  4: "#fab387", 5: "#f38ba8", 6: "#cba6f7", 7: "#94e2d5",
+  0: "#45475a",  1: "#89b4fa",  2: "#a6e3a1",  3: "#f9e2af",
+  4: "#fab387",  5: "#f38ba8",  6: "#cba6f7",  7: "#94e2d5",
+  8: "#74c7ec",  9: "#89dceb", 10: "#b4befe", 11: "#a6e3a1",
+  12: "#bac2de", 13: "#6c7086", 14: "#f2cdcd", 15: "#eba0ac",
+  16: "#7f849c", 17: "#585b70",
+};
+
+const TAG_LABELS: Record<number, string> = {
+  0: "None", 1: "Ledge", 2: "Grass", 3: "Sand", 4: "Rock",
+  5: "DeepWater", 6: "StillWater", 7: "Water", 8: "Waterfall",
+  9: "WfCrest", 10: "TallGrass", 11: "UWGrass", 12: "Ice",
+  13: "Neutral", 14: "SootGrass", 15: "Bridge", 16: "Puddle",
+  17: "NoEffect",
 };
 
 /** Build a Tauri asset protocol URL */
@@ -60,27 +76,48 @@ function buildAssetUrl(projectPath: string, subdir: string, name: string): strin
 
 /* ─── Overlay badges ──────────────────────────────────────────── */
 
+/** Passage (simple): ○ passable, ✕ blocked */
 function PassageBadge({ value }: { value: number }) {
-  const blocked = value === 0x0F || value === 15;
+  const blocked = (value & 0x0F) === 0x0F;
+  return (
+    <div style={{
+      position: "absolute", inset: 0,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      background: blocked ? "rgba(243, 139, 168, 0.45)" : "rgba(166, 227, 161, 0.25)",
+      color: blocked ? "#f38ba8" : "#a6e3a1",
+      fontSize: 14, fontWeight: 700,
+      textShadow: "0 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6)",
+      pointerEvents: "none",
+    }}>
+      {blocked ? "✕" : "○"}
+    </div>
+  );
+}
+
+/** Passage 4-dir: shows blocked directions as arrows */
+function Passage4DirBadge({ value }: { value: number }) {
+  const allBlocked = (value & 0x0F) === 0x0F;
+  const allOpen = (value & 0x0F) === 0;
+  // Show arrows for the BLOCKED directions (bits that are set)
   const arrows: string[] = [];
-  if (!(value & DIR_UP))    arrows.push("↑");
-  if (!(value & DIR_DOWN))  arrows.push("↓");
-  if (!(value & DIR_LEFT))  arrows.push("←");
-  if (!(value & DIR_RIGHT)) arrows.push("→");
+  if (value & DIR_UP)    arrows.push("↑");
+  if (value & DIR_DOWN)  arrows.push("↓");
+  if (value & DIR_LEFT)  arrows.push("←");
+  if (value & DIR_RIGHT) arrows.push("→");
 
   return (
     <div style={{
       position: "absolute", inset: 0,
       display: "flex", alignItems: "center", justifyContent: "center",
-      background: blocked ? "rgba(243, 139, 168, 0.45)" : value === 0 ? "rgba(166, 227, 161, 0.25)" : "rgba(249, 226, 175, 0.35)",
-      color: blocked ? "#f38ba8" : "#a6e3a1",
-      fontSize: blocked || value === 0 ? 14 : 9,
+      background: allBlocked ? "rgba(243, 139, 168, 0.45)" : allOpen ? "rgba(166, 227, 161, 0.25)" : "rgba(249, 226, 175, 0.35)",
+      color: allBlocked ? "#f38ba8" : allOpen ? "#a6e3a1" : "#f9e2af",
+      fontSize: allBlocked || allOpen ? 14 : 9,
       fontWeight: 700,
       textShadow: "0 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6)",
       lineHeight: 1,
       pointerEvents: "none",
     }}>
-      {blocked ? "✕" : value === 0 ? "○" : arrows.join("")}
+      {allBlocked ? "✕" : allOpen ? "○" : arrows.join("")}
     </div>
   );
 }
@@ -101,46 +138,100 @@ function PriorityBadge({ value }: { value: number }) {
   );
 }
 
-function TagBadge({ value }: { value: number }) {
+/** Boolean flag badge (bush / counter) */
+function FlagBadge({ value, onColor }: { value: number; onColor: string }) {
+  const on = value !== 0;
   return (
     <div style={{
       position: "absolute", inset: 0,
       display: "flex", alignItems: "center", justifyContent: "center",
-      background: `${TAG_COLORS[value] ?? "#45475a"}55`,
-      color: TAG_COLORS[value] ?? "#a6adc8",
+      background: on ? `${onColor}55` : "rgba(69, 71, 90, 0.35)",
+      color: on ? onColor : "#585b70",
       fontSize: 14, fontWeight: 700,
       textShadow: "0 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6)",
       pointerEvents: "none",
     }}>
-      {value}
+      {on ? "●" : "·"}
+    </div>
+  );
+}
+
+function TagBadge({ value }: { value: number }) {
+  return (
+    <div style={{
+      position: "absolute", inset: 0,
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      background: `${TAG_COLORS[value] ?? "#45475a"}55`,
+      color: TAG_COLORS[value] ?? "#a6adc8",
+      fontWeight: 700,
+      textShadow: "0 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6)",
+      pointerEvents: "none",
+    }}>
+      <span style={{ fontSize: 12, lineHeight: 1 }}>{value}</span>
+      {value > 0 && (
+        <span style={{ fontSize: 5, lineHeight: 1, marginTop: 1, opacity: 0.85 }}>
+          {TAG_LABELS[value] ?? ""}
+        </span>
+      )}
     </div>
   );
 }
 
 function Badge({ mode, value }: { mode: PropertyMode; value: number }) {
-  if (mode === "passages") return <PassageBadge value={value} />;
-  if (mode === "priorities") return <PriorityBadge value={value} />;
-  return <TagBadge value={value} />;
+  switch (mode) {
+    case "passage":      return <PassageBadge value={value} />;
+    case "passage_4dir": return <Passage4DirBadge value={value} />;
+    case "priorities":   return <PriorityBadge value={value} />;
+    case "bush_flag":    return <FlagBadge value={value} onColor="#a6e3a1" />;
+    case "counter_flag": return <FlagBadge value={value} onColor="#89b4fa" />;
+    case "terrain_tags": return <TagBadge value={value} />;
+  }
 }
 
-/* ─── Autotile row header ──────────────────────────────────────── */
+/* ─── Value cycling helpers ───────────────────────────────────── */
 
-function AutotileHeader({ slot, name }: { slot: number; name: string }) {
-  return (
-    <div style={{
-      gridColumn: "1 / -1",
-      padding: "2px 6px",
-      fontSize: 9, fontWeight: 600,
-      color: "#6c7086", background: "#181825",
-      borderBottom: "1px solid #313244",
-      textTransform: "uppercase", letterSpacing: 0.5,
-    }}>
-      {slot === 0 ? "Autotile (blank)" : `Autotile ${slot}: ${name || "(none)"}`}
-    </div>
-  );
+const HINT_TEXT: Record<PropertyMode, string> = {
+  passage:      "Click: toggle ○ passable / ✕ impassable",
+  passage_4dir: "Click: toggle direction — Right-click: cycle all",
+  priorities:   "Click: cycle 0-5 — Right-click: cycle backwards",
+  bush_flag:    "Click: toggle bush flag on/off",
+  counter_flag: "Click: toggle counter flag on/off",
+  terrain_tags: `Click: cycle 0-${MAX_TERRAIN_TAG} — Right-click: cycle backwards`,
+};
+
+/** Forward-cycle a value for left-click */
+function cycleForward(mode: PropertyMode, val: number): number {
+  switch (mode) {
+    case "passage":      return (val & 0x0F) === 0x0F ? 0 : 0x0F;
+    case "passage_4dir": return (val & 0x0F) === 0x0F ? 0 : 0x0F; // toggle all
+    case "priorities":   return ((val ?? 0) + 1) % 6;
+    case "bush_flag":    return val ? 0 : 1;
+    case "counter_flag": return val ? 0 : 1;
+    case "terrain_tags": return ((val ?? 0) + 1) % (MAX_TERRAIN_TAG + 1);
+  }
 }
 
-/* ─── Hook: get tileset image dimensions (no slicing!) ─────────── */
+/** Backward-cycle a value for right-click */
+function cycleBackward(mode: PropertyMode, val: number): number {
+  switch (mode) {
+    case "passage":      return (val & 0x0F) === 0x0F ? 0 : 0x0F;
+    case "passage_4dir": {
+      // Cycle individual direction bits: toggle each direction one at a time
+      const cycle = [0, DIR_DOWN, DIR_LEFT, DIR_RIGHT, DIR_UP,
+                     DIR_DOWN | DIR_LEFT, DIR_DOWN | DIR_RIGHT, DIR_UP | DIR_LEFT, DIR_UP | DIR_RIGHT,
+                     DIR_DOWN | DIR_UP, DIR_LEFT | DIR_RIGHT, 0x0F];
+      const idx = cycle.indexOf(val & 0x0F);
+      return cycle[(idx + 1) % cycle.length];
+    }
+    case "priorities":   return ((val ?? 0) - 1 + 6) % 6;
+    case "bush_flag":    return val ? 0 : 1;
+    case "counter_flag": return val ? 0 : 1;
+    case "terrain_tags": return ((val ?? 0) - 1 + MAX_TERRAIN_TAG + 1) % (MAX_TERRAIN_TAG + 1);
+  }
+}
+
+/* ─── Hook: get tileset image dimensions ──────────────────────── */
 
 function useTilesetSize(projectPath?: string, tilesetName?: string) {
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -158,6 +249,12 @@ function useTilesetSize(projectPath?: string, tilesetName?: string) {
   return size;
 }
 
+/* ─── 4-Dir click handler for individual direction toggling ───── */
+
+function toggle4Dir(val: number, dir: number): number {
+  return val ^ dir; // XOR toggles the individual direction bit
+}
+
 /* ─── Main Component ───────────────────────────────────────────── */
 
 export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autotileNames, onChange }: Props) {
@@ -168,44 +265,57 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
   const regularTileStartRow = Math.floor(AUTOTILE_ID_COUNT / COLS);
   const regularTileRows = Math.max(0, rows - regularTileStartRow);
 
-  // Only need tileset dimensions to know how many rows exist — the image itself
-  // is used as a single CSS background, no slicing or data URLs at all.
   const tilesetSize = useTilesetSize(projectPath, tilesetName);
 
-  // Build the tileset background URL (just one string, not per-cell)
   const tilesetBgUrl = (projectPath && tilesetName)
     ? `url("${buildAssetUrl(projectPath, "Tilesets", tilesetName)}")`
     : undefined;
 
-  // Build autotile background URLs (just 7 URL strings max)
   const autotileBgUrls = (projectPath && autotileNames)
     ? autotileNames.map(name => name ? `url("${buildAssetUrl(projectPath, "Autotiles", name)}")` : null)
     : [];
 
+  /** Left-click handler for regular tiles */
   const handleClick = useCallback((index: number) => {
     const copy = [...data];
-    if (mode === "passages") {
-      copy[index] = copy[index] === 0 ? 0x0F : 0;
-    } else if (mode === "priorities") {
-      copy[index] = ((copy[index] ?? 0) + 1) % 6;
+    if (mode === "passage_4dir") {
+      // In 4-dir mode, left-click cycles through individual directions
+      copy[index] = cycleBackward(mode, copy[index] ?? 0);
     } else {
-      copy[index] = ((copy[index] ?? 0) + 1) % 8;
+      copy[index] = cycleForward(mode, copy[index] ?? 0);
     }
     onChange(copy);
   }, [data, mode, onChange]);
 
+  /** Right-click handler for regular tiles */
   const handleRightClick = useCallback((e: React.MouseEvent, index: number) => {
     e.preventDefault();
     const copy = [...data];
-    if (mode === "passages") {
-      const val = copy[index] ?? 0;
-      const cycle = [0, DIR_DOWN, DIR_LEFT, DIR_RIGHT, DIR_UP, 0x0F];
-      const idx = cycle.indexOf(val);
-      copy[index] = cycle[(idx + 1) % cycle.length];
-    } else if (mode === "priorities") {
-      copy[index] = ((copy[index] ?? 0) - 1 + 6) % 6;
-    } else {
-      copy[index] = ((copy[index] ?? 0) - 1 + 8) % 8;
+    copy[index] = cycleBackward(mode, copy[index] ?? 0);
+    onChange(copy);
+  }, [data, mode, onChange]);
+
+  /** Left-click for autotile slots — updates all 48 entries */
+  const handleAutotileClick = useCallback((slot: number) => {
+    const copy = [...data];
+    const startIdx = slot * AUTOTILE_SLOT_SIZE;
+    const newVal = mode === "passage_4dir"
+      ? cycleBackward(mode, copy[startIdx] ?? 0)
+      : cycleForward(mode, copy[startIdx] ?? 0);
+    for (let i = startIdx; i < startIdx + AUTOTILE_SLOT_SIZE && i < copy.length; i++) {
+      copy[i] = newVal;
+    }
+    onChange(copy);
+  }, [data, mode, onChange]);
+
+  /** Right-click for autotile slots — updates all 48 entries */
+  const handleAutotileRightClick = useCallback((e: React.MouseEvent, slot: number) => {
+    e.preventDefault();
+    const copy = [...data];
+    const startIdx = slot * AUTOTILE_SLOT_SIZE;
+    const newVal = cycleBackward(mode, copy[startIdx] ?? 0);
+    for (let i = startIdx; i < startIdx + AUTOTILE_SLOT_SIZE && i < copy.length; i++) {
+      copy[i] = newVal;
     }
     onChange(copy);
   }, [data, mode, onChange]);
@@ -214,105 +324,75 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
     return <div style={{ fontSize: 11, color: "#6c7086", padding: 4 }}>No tile data available</div>;
   }
 
-  // The regular tiles grid: 8 columns × N rows, with the tileset PNG as a single
-  // background image. Each cell is a transparent overlay with just the property badge.
-  // The background-size forces the tileset to exactly COLS*CELL_SIZE wide, so tiles
-  // align pixel-perfectly with the grid cells.
-
   const gridWidth = COLS * CELL_SIZE;
 
   return (
     <div>
       <div style={{ fontSize: 10, color: "#6c7086", marginBottom: 4 }}>
-        {mode === "passages" && "Click: toggle pass/block — Right-click: cycle directions"}
-        {mode === "priorities" && "Click: cycle priority 0-5 — Right-click: cycle backwards"}
-        {mode === "terrain_tags" && "Click: cycle tag 0-7 — Right-click: cycle backwards"}
+        {HINT_TEXT[mode]}
       </div>
       <div
         ref={containerRef}
         style={{
-          maxHeight: 14 * (CELL_SIZE) + 2,
+          maxHeight: 14 * CELL_SIZE + 2,
           overflowY: "auto",
           border: "1px solid #313244",
           borderRadius: 3,
           background: "#11111b",
         }}
       >
-        {/* Autotile sections — each slot gets its autotile image as background */}
-        {Array.from({ length: Math.min(8, Math.ceil(Math.min(data.length, AUTOTILE_ID_COUNT) / AUTOTILE_SLOT_SIZE)) }, (_, slot) => {
-          const startIdx = slot * AUTOTILE_SLOT_SIZE;
-          const endIdx = Math.min(startIdx + AUTOTILE_SLOT_SIZE, data.length, AUTOTILE_ID_COUNT);
-          if (startIdx >= data.length) return null;
-          const slotRows = Math.ceil((endIdx - startIdx) / COLS);
-          const atName = slot === 0 ? "" : (autotileNames?.[slot - 1] ?? "");
-          // Use the autotile image as background for this slot section
-          const atBgUrl = slot > 0 ? autotileBgUrls[slot - 1] : null;
+        {/* Autotile section — one cell per slot */}
+        <div style={{
+          padding: "2px 6px",
+          fontSize: 9, fontWeight: 600,
+          color: "#6c7086", background: "#181825",
+          borderBottom: "1px solid #313244",
+          textTransform: "uppercase", letterSpacing: 0.5,
+        }}>
+          Autotiles
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 0 }}>
+          {Array.from({ length: Math.min(8, Math.ceil(Math.min(data.length, AUTOTILE_ID_COUNT) / AUTOTILE_SLOT_SIZE)) }, (_, slot) => {
+            const startIdx = slot * AUTOTILE_SLOT_SIZE;
+            if (startIdx >= data.length) return null;
+            const val = data[startIdx] ?? 0;
+            const atName = slot === 0 ? "" : (autotileNames?.[slot - 1] ?? "");
+            const atBgUrl = slot > 0 ? autotileBgUrls[slot - 1] : null;
+            const isHovered = hoveredIdx === -(slot + 1);
 
-          return (
-            <div key={`at-${slot}`}>
-              <AutotileHeader slot={slot} name={atName} />
-              <div style={{ display: "flex" }}>
-                {/* Row number gutter */}
-                <div style={{ flexShrink: 0, width: 28 }}>
-                  {Array.from({ length: slotRows }, (_, ri) => (
-                    <div key={ri} style={{
-                      width: 28, height: CELL_SIZE,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 7, color: "#585b70",
-                      borderRight: "1px solid #313244",
-                    }}>
-                      {Math.floor((startIdx + ri * COLS) / COLS)}
-                    </div>
-                  ))}
+            return (
+              <div key={slot} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div
+                  onClick={() => handleAutotileClick(slot)}
+                  onContextMenu={(e) => handleAutotileRightClick(e, slot)}
+                  onMouseEnter={() => setHoveredIdx(-(slot + 1))}
+                  onMouseLeave={() => setHoveredIdx(null)}
+                  style={{
+                    width: CELL_SIZE, height: CELL_SIZE,
+                    position: "relative", cursor: "pointer",
+                    border: isHovered ? "1px solid #89b4fa" : "1px solid #313244",
+                    boxSizing: "border-box",
+                    backgroundImage: atBgUrl ?? undefined,
+                    backgroundSize: `${CELL_SIZE}px ${CELL_SIZE}px`,
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: "0 0",
+                    imageRendering: "pixelated" as React.CSSProperties["imageRendering"],
+                  }}
+                >
+                  <Badge mode={mode} value={val} />
                 </div>
-                {/* Autotile grid with single background — same approach as regular tiles.
-                    The autotile image is placed once and stretched to fill the grid width,
-                    so the browser only holds one reference to the image. */}
                 <div style={{
-                  position: "relative",
-                  width: gridWidth,
-                  height: slotRows * CELL_SIZE,
-                  backgroundImage: atBgUrl ?? undefined,
-                  backgroundSize: `${gridWidth}px auto`,
-                  backgroundRepeat: "no-repeat",
-                  backgroundPosition: "0 0",
-                  imageRendering: "pixelated" as React.CSSProperties["imageRendering"],
+                  fontSize: 7, color: "#585b70",
+                  textAlign: "center", width: CELL_SIZE,
+                  overflow: "hidden", textOverflow: "ellipsis",
+                  whiteSpace: "nowrap", padding: "1px 0",
                 }}>
-                  {/* Overlay cells with just badges + click handlers */}
-                  {Array.from({ length: slotRows * COLS }, (_, ci) => {
-                    const index = startIdx + ci;
-                    if (index >= endIdx) return null;
-                    const col = ci % COLS;
-                    const row = Math.floor(ci / COLS);
-                    const val = data[index] ?? 0;
-                    const isHovered = hoveredIdx === index;
-                    return (
-                      <div
-                        key={ci}
-                        onClick={() => handleClick(index)}
-                        onContextMenu={(e) => handleRightClick(e, index)}
-                        onMouseEnter={() => setHoveredIdx(index)}
-                        onMouseLeave={() => setHoveredIdx(null)}
-                        style={{
-                          position: "absolute",
-                          left: col * CELL_SIZE,
-                          top: row * CELL_SIZE,
-                          width: CELL_SIZE,
-                          height: CELL_SIZE,
-                          cursor: "pointer",
-                          border: isHovered ? "1px solid #89b4fa" : "1px solid rgba(49,50,68,0.5)",
-                          boxSizing: "border-box",
-                        }}
-                      >
-                        <Badge mode={mode} value={val} />
-                      </div>
-                    );
-                  })}
+                  {slot === 0 ? "—" : (atName || `AT${slot}`)}
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
 
         {/* Regular tiles section — tileset as single background */}
         {data.length > AUTOTILE_ID_COUNT && (
@@ -347,14 +427,11 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
                 width: gridWidth,
                 height: regularTileRows * CELL_SIZE,
                 backgroundImage: tilesetBgUrl,
-                // The tileset is 256px (8×32) wide — force it to gridWidth so each
-                // tile column is exactly CELL_SIZE. Height scales proportionally.
                 backgroundSize: `${gridWidth}px auto`,
                 backgroundRepeat: "no-repeat",
                 backgroundPosition: "0 0",
                 imageRendering: "pixelated" as React.CSSProperties["imageRendering"],
               }}>
-                {/* Overlay cells — transparent, just badges + interaction */}
                 {Array.from({ length: regularTileRows * COLS }, (_, ci) => {
                   const index = AUTOTILE_ID_COUNT + ci;
                   if (index >= data.length) return null;
@@ -373,8 +450,7 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
                         position: "absolute",
                         left: col * CELL_SIZE,
                         top: row * CELL_SIZE,
-                        width: CELL_SIZE,
-                        height: CELL_SIZE,
+                        width: CELL_SIZE, height: CELL_SIZE,
                         cursor: "pointer",
                         border: isHovered ? "1px solid #89b4fa" : "1px solid rgba(49,50,68,0.5)",
                         boxSizing: "border-box",
@@ -393,13 +469,16 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
       {/* Status bar */}
       <div style={{ fontSize: 10, color: "#6c7086", marginTop: 2, display: "flex", justifyContent: "space-between" }}>
         <span>{data.length} tiles ({rows} rows × {COLS} cols)</span>
-        {hoveredIdx !== null && (
+        {hoveredIdx !== null && hoveredIdx < 0 && (
+          <span>
+            Autotile {-(hoveredIdx + 1)}
+            {" = "}{data[-(hoveredIdx + 1) * AUTOTILE_SLOT_SIZE] ?? 0}
+          </span>
+        )}
+        {hoveredIdx !== null && hoveredIdx >= AUTOTILE_ID_COUNT && (
           <span>
             ID {hoveredIdx}
-            {hoveredIdx >= AUTOTILE_ID_COUNT
-              ? ` — Tile (${(hoveredIdx - AUTOTILE_ID_COUNT) % COLS}, ${Math.floor((hoveredIdx - AUTOTILE_ID_COUNT) / COLS)})`
-              : ` — AT${Math.floor(hoveredIdx / AUTOTILE_SLOT_SIZE)}`
-            }
+            {` — Tile (${(hoveredIdx - AUTOTILE_ID_COUNT) % COLS}, ${Math.floor((hoveredIdx - AUTOTILE_ID_COUNT) / COLS)})`}
             {" = "}{data[hoveredIdx] ?? 0}
           </span>
         )}

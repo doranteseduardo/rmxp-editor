@@ -399,9 +399,9 @@ export interface RpgTileset {
   fog_sx: number;
   fog_sy: number;
   battleback_name: string;
-  passages: RpgTable;         // Table(384)
-  priorities: RpgTable;       // Table(384)
-  terrain_tags: RpgTable;     // Table(384)
+  passages: RpgTable;         // Table — bits 0-3: direction flags, bit 6 (0x40): bush, bit 7 (0x80): counter
+  priorities: RpgTable;       // Table — priority values 0-5
+  terrain_tags: RpgTable;     // Table — terrain tag values 0-17 (PE v21.1)
 }
 
 // ── System ──────────────────────────────────────────────────────

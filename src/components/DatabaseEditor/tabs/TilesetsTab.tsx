@@ -1,15 +1,24 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import type { RpgTileset } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
 import { DatabaseListPanel } from "../DatabaseListPanel";
 import { useEditorRegistration } from "../../../context/ProjectSaveContext";
 import { AssetPicker } from "../controls/AssetPicker";
-import { TilePropertyEditor } from "../controls/TilePropertyEditor";
+import { TilePropertyEditor, type PropertyMode } from "../controls/TilePropertyEditor";
 
 interface Props { projectPath: string }
 
 const BLEND_TYPES = ["Normal", "Add", "Sub"];
-type TileDataTab = "passages" | "priorities" | "terrain_tags";
+
+/** All 6 property modes matching the original RMXP editor */
+const TILE_TABS: { mode: PropertyMode; label: string }[] = [
+  { mode: "passage",      label: "Passage" },
+  { mode: "passage_4dir", label: "Passage (4 Dir)" },
+  { mode: "priorities",   label: "Priority" },
+  { mode: "bush_flag",    label: "Bush Flag" },
+  { mode: "counter_flag", label: "Counter Flag" },
+  { mode: "terrain_tags", label: "Terrain Tag" },
+];
 
 const DEFAULT: RpgTileset = {
   __class: "RPG::Tileset", id: 0, name: "New Tileset",
@@ -20,11 +29,83 @@ const DEFAULT: RpgTileset = {
   passages: { __class: "Table" }, priorities: { __class: "Table" }, terrain_tags: { __class: "Table" },
 };
 
+// In RMXP, the passages table encodes multiple properties per tile:
+// Bits 0-3 (0x0F): directional passage flags (down=0x01, left=0x02, right=0x04, up=0x08)
+// Bit 6   (0x40): bush flag
+// Bit 7   (0x80): counter flag
+const BUSH_BIT    = 0x40;
+const COUNTER_BIT = 0x80;
+
+/**
+ * Extract a virtual boolean array from a bit mask in the passages table.
+ * Returns 1 if the bit is set, 0 if not.
+ */
+function extractBitFlags(passages: number[], bit: number): number[] {
+  return passages.map(v => (v & bit) ? 1 : 0);
+}
+
+/**
+ * Write boolean flag changes back into the passages table by setting/clearing a bit.
+ */
+function applyBitFlags(passages: number[], flagData: number[], bit: number): number[] {
+  return passages.map((v, i) => {
+    const flag = flagData[i] ?? 0;
+    return flag ? (v | bit) : (v & ~bit);
+  });
+}
+
+/**
+ * Get the data array for the TilePropertyEditor based on the current mode.
+ * For passage/passage_4dir: the raw passages table.
+ * For bush_flag/counter_flag: extracted boolean array from passages bits.
+ * For priorities/terrain_tags: their own tables.
+ */
+function getTableData(t: RpgTileset, mode: PropertyMode): number[] {
+  const passages = t.passages?.data ?? [];
+  switch (mode) {
+    case "passage":
+    case "passage_4dir":
+      return passages;
+    case "priorities":
+      return t.priorities?.data ?? [];
+    case "bush_flag":
+      return extractBitFlags(passages, BUSH_BIT);
+    case "counter_flag":
+      return extractBitFlags(passages, COUNTER_BIT);
+    case "terrain_tags":
+      return t.terrain_tags?.data ?? [];
+  }
+}
+
+/**
+ * Build an update patch for the correct table field when the editor changes data.
+ * For bush_flag/counter_flag, we merge the boolean changes back into passages bits.
+ */
+function makeTablePatch(t: RpgTileset, mode: PropertyMode, data: number[]): Partial<RpgTileset> {
+  switch (mode) {
+    case "passage":
+    case "passage_4dir":
+      return { passages: { ...t.passages, data } };
+    case "priorities":
+      return { priorities: { ...t.priorities, data } };
+    case "bush_flag": {
+      const passages = t.passages?.data ?? [];
+      return { passages: { ...t.passages, data: applyBitFlags(passages, data, BUSH_BIT) } };
+    }
+    case "counter_flag": {
+      const passages = t.passages?.data ?? [];
+      return { passages: { ...t.passages, data: applyBitFlags(passages, data, COUNTER_BIT) } };
+    }
+    case "terrain_tags":
+      return { terrain_tags: { ...t.terrain_tags, data } };
+  }
+}
+
 export function TilesetsTab({ projectPath }: Props) {
   const db = useDatabase(projectPath, "Tilesets.rxdata");
   useEditorRegistration("db-Tilesets.rxdata", db.save, db.cancel, db.dirty);
   const t = db.selected as RpgTileset | null;
-  const [tileTab, setTileTab] = useState<TileDataTab>("passages");
+  const [tileTab, setTileTab] = useState<PropertyMode>("passage");
 
   if (db.loading) return <div className="db-loading">Loading Tilesets...</div>;
   if (db.error) return <div className="db-loading" style={{ color: "#f38ba8" }}>{db.error}</div>;
@@ -38,9 +119,7 @@ export function TilesetsTab({ projectPath }: Props) {
     u({ autotile_names: copy });
   };
 
-  const passagesData: number[] = t?.passages?.data ?? [];
-  const prioritiesData: number[] = t?.priorities?.data ?? [];
-  const terrainTagsData: number[] = t?.terrain_tags?.data ?? [];
+  const currentData = t ? getTableData(t, tileTab) : [];
 
   return (
     <>
@@ -87,46 +166,37 @@ export function TilesetsTab({ projectPath }: Props) {
               <div className="db-column">
                 <div className="db-section">
                   <div className="db-section-title">Tile Properties</div>
-                  <div style={{ display: "flex", gap: 2, marginBottom: 6 }}>
-                    {(["passages", "priorities", "terrain_tags"] as TileDataTab[]).map(tab => (
+                  <div style={{ display: "flex", gap: 2, marginBottom: 6, flexWrap: "wrap" }}>
+                    {TILE_TABS.map(({ mode, label }) => (
                       <button
-                        key={tab}
-                        onClick={() => setTileTab(tab)}
+                        key={mode}
+                        onClick={() => setTileTab(mode)}
                         style={{
-                          padding: "3px 10px",
-                          fontSize: 11,
-                          fontWeight: tileTab === tab ? 600 : 400,
-                          background: tileTab === tab ? "#89b4fa" : "#313244",
-                          color: tileTab === tab ? "#1e1e2e" : "#a6adc8",
-                          border: "1px solid " + (tileTab === tab ? "#89b4fa" : "#45475a"),
+                          padding: "3px 8px",
+                          fontSize: 10,
+                          fontWeight: tileTab === mode ? 600 : 400,
+                          background: tileTab === mode ? "#89b4fa" : "#313244",
+                          color: tileTab === mode ? "#1e1e2e" : "#a6adc8",
+                          border: "1px solid " + (tileTab === mode ? "#89b4fa" : "#45475a"),
                           borderRadius: 3,
                           cursor: "pointer",
                         }}
                       >
-                        {tab === "passages" ? "Passages" : tab === "priorities" ? "Priorities" : "Terrain Tags"}
+                        {label}
                       </button>
                     ))}
                   </div>
-                  {tileTab === "passages" && (
-                    passagesData.length > 0 ? (
-                      <TilePropertyEditor data={passagesData} mode="passages"
-                        projectPath={projectPath} tilesetName={t.tileset_name} autotileNames={t.autotile_names}
-                        onChange={data => u({ passages: { ...t.passages, data } })} />
-                    ) : <div style={{ fontSize: 11, color: "#6c7086" }}>No passage data available</div>
-                  )}
-                  {tileTab === "priorities" && (
-                    prioritiesData.length > 0 ? (
-                      <TilePropertyEditor data={prioritiesData} mode="priorities"
-                        projectPath={projectPath} tilesetName={t.tileset_name} autotileNames={t.autotile_names}
-                        onChange={data => u({ priorities: { ...t.priorities, data } })} />
-                    ) : <div style={{ fontSize: 11, color: "#6c7086" }}>No priority data available</div>
-                  )}
-                  {tileTab === "terrain_tags" && (
-                    terrainTagsData.length > 0 ? (
-                      <TilePropertyEditor data={terrainTagsData} mode="terrain_tags"
-                        projectPath={projectPath} tilesetName={t.tileset_name} autotileNames={t.autotile_names}
-                        onChange={data => u({ terrain_tags: { ...t.terrain_tags, data } })} />
-                    ) : <div style={{ fontSize: 11, color: "#6c7086" }}>No terrain tag data available</div>
+                  {currentData.length > 0 ? (
+                    <TilePropertyEditor
+                      data={currentData}
+                      mode={tileTab}
+                      projectPath={projectPath}
+                      tilesetName={t.tileset_name}
+                      autotileNames={t.autotile_names}
+                      onChange={data => u(makeTablePatch(t, tileTab, data))}
+                    />
+                  ) : (
+                    <div style={{ fontSize: 11, color: "#6c7086" }}>No data available for this property</div>
                   )}
                 </div>
               </div>
@@ -136,13 +206,6 @@ export function TilesetsTab({ projectPath }: Props) {
           <div className="db-detail-empty">Select a tileset</div>
         )}
       </div>
-      {db.dirty && (
-        <div className="db-save-bar">
-          <span className="db-dirty">Unsaved changes</span>
-          <button className="db-cancel-btn" onClick={db.cancel}>Cancel</button>
-          <button className="db-save-btn" onClick={db.save} disabled={db.loading}>Save</button>
-        </div>
-      )}
     </>
   );
 }

@@ -22,7 +22,7 @@ import { MapPropertiesDialog } from "./components/MapProperties/MapPropertiesDia
 import { CreateMapDialog } from "./components/MapProperties/CreateMapDialog";
 import { ScriptEditor } from "./components/ScriptEditor/ScriptEditor";
 import { DatabaseEditor } from "./components/DatabaseEditor/DatabaseEditor";
-import { ProjectSaveProvider, useProjectSave } from "./context/ProjectSaveContext";
+import { ProjectSaveProvider } from "./context/ProjectSaveContext";
 import "./App.css";
 
 /** Try to open a native folder picker via Tauri dialog plugin. */
@@ -39,20 +39,6 @@ async function showFolderPicker(): Promise<string | null> {
     console.warn("Tauri dialog not available, falling back to prompt:", err);
     return window.prompt("Enter the path to your RMXP project folder:");
   }
-}
-
-function GlobalSaveBar() {
-  const { dirtyCount, saveAll, discardAll } = useProjectSave();
-  if (dirtyCount === 0) return null;
-  return (
-    <div className="app-global-save-bar">
-      <span className="app-global-save-count">
-        {dirtyCount} unsaved editor{dirtyCount > 1 ? "s" : ""}
-      </span>
-      <button className="app-global-discard-btn" onClick={discardAll}>Discard All</button>
-      <button className="app-global-save-btn" onClick={saveAll}>Save All</button>
-    </div>
-  );
 }
 
 function App() {
@@ -88,8 +74,9 @@ function App() {
   // Tileset names cache (loaded once when project opens)
   const [tilesetNames, setTilesetNames] = useState<Array<[number, string]>>([]);
 
-  // Editor mode: map editor, script editor, or database editor
-  const [editorMode, setEditorMode] = useState<"map" | "script" | "database">("map");
+  // Modal editor windows (like EventEditor)
+  const [showDatabase, setShowDatabase] = useState(false);
+  const [showScripts, setShowScripts] = useState(false);
 
   // Open a project by path
   const handleOpenProject = useCallback(
@@ -426,26 +413,12 @@ function App() {
           {isDirty ? " *" : ""}
         </span>
         <div className="app-titlebar-right">
-          <div className="app-mode-toggle">
-            <button
-              className={`app-mode-btn${editorMode === "map" ? " active" : ""}`}
-              onClick={() => setEditorMode("map")}
-            >
-              Maps
-            </button>
-            <button
-              className={`app-mode-btn${editorMode === "database" ? " active" : ""}`}
-              onClick={() => setEditorMode("database")}
-            >
-              Database
-            </button>
-            <button
-              className={`app-mode-btn${editorMode === "script" ? " active" : ""}`}
-              onClick={() => setEditorMode("script")}
-            >
-              Scripts
-            </button>
-          </div>
+          <button className="app-titlebar-btn" onClick={() => setShowDatabase(true)}>
+            Database
+          </button>
+          <button className="app-titlebar-btn" onClick={() => setShowScripts(true)}>
+            Scripts
+          </button>
           <button className="app-titlebar-btn" onClick={handleBrowseProject}>
             Open...
           </button>
@@ -453,53 +426,60 @@ function App() {
         </div>
       </div>
 
-      {/* Global save bar */}
-      <GlobalSaveBar />
-
-      {/* Main layout */}
+      {/* Main layout — map editor always visible */}
       <div className="app-body">
-        {editorMode === "map" ? (
-          <>
-            {/* Left: Map tree */}
-            <MapTreePanel
-              mapInfos={project.map_infos}
-              currentMapId={currentMapId}
-              onSelectMap={(id) => handleSelectMap(id)}
-              onCreateMap={handleCreateMap}
-              onDeleteMap={handleDeleteMap}
-              onRenameMap={handleRenameMap}
-              onMapProperties={handleMapProperties}
-            />
+        {/* Left: Map tree */}
+        <MapTreePanel
+          mapInfos={project.map_infos}
+          currentMapId={currentMapId}
+          onSelectMap={(id) => handleSelectMap(id)}
+          onCreateMap={handleCreateMap}
+          onDeleteMap={handleDeleteMap}
+          onRenameMap={handleRenameMap}
+          onMapProperties={handleMapProperties}
+        />
 
-            {/* Center: Map editor */}
-            <MapEditor
-              mapData={mapData}
-              tilesetInfo={tilesetInfo}
-              tilesetImage={tilesetImage}
-              autotileImages={autotileImages}
-              projectPath={project?.path ?? ""}
-              selectedTileId={selectedTileId}
-              onMapDirty={handleMapDirty}
-              onOpenEvent={handleOpenEvent}
-              onCreateEvent={handleCreateEvent}
-              onDeleteEvent={handleDeleteEvent}
-            />
+        {/* Center: Map editor */}
+        <MapEditor
+          mapData={mapData}
+          tilesetInfo={tilesetInfo}
+          tilesetImage={tilesetImage}
+          autotileImages={autotileImages}
+          projectPath={project?.path ?? ""}
+          selectedTileId={selectedTileId}
+          onMapDirty={handleMapDirty}
+          onOpenEvent={handleOpenEvent}
+          onCreateEvent={handleCreateEvent}
+          onDeleteEvent={handleDeleteEvent}
+        />
 
-            {/* Right: Tileset palette */}
-            <TilesetPalette
-              tilesetInfo={tilesetInfo}
-              tilesetImage={tilesetImage}
-              autotileImages={autotileImages}
-              selectedTileId={selectedTileId}
-              onSelectTile={setSelectedTileId}
-            />
-          </>
-        ) : editorMode === "database" ? (
-          <DatabaseEditor projectPath={project.path} />
-        ) : (
-          <ScriptEditor projectPath={project.path} />
-        )}
+        {/* Right: Tileset palette */}
+        <TilesetPalette
+          tilesetInfo={tilesetInfo}
+          tilesetImage={tilesetImage}
+          autotileImages={autotileImages}
+          selectedTileId={selectedTileId}
+          onSelectTile={setSelectedTileId}
+        />
       </div>
+
+      {/* Database editor modal */}
+      {showDatabase && (
+        <div className="editor-modal-overlay">
+          <div className="editor-modal">
+            <DatabaseEditor projectPath={project.path} onClose={() => setShowDatabase(false)} />
+          </div>
+        </div>
+      )}
+
+      {/* Script editor modal */}
+      {showScripts && (
+        <div className="editor-modal-overlay">
+          <div className="editor-modal">
+            <ScriptEditor projectPath={project.path} onClose={() => setShowScripts(false)} />
+          </div>
+        </div>
+      )}
 
       {/* Event editor modal */}
       {editingEvent && project && currentMapId && (

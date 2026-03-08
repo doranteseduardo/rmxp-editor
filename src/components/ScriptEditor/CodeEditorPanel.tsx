@@ -120,6 +120,8 @@ export function CodeEditorPanel({ source, loading, onSourceChange }: Props) {
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onSourceChange);
   onChangeRef.current = onSourceChange;
+  // Flag to suppress onChange during programmatic doc swaps
+  const suppressChangeRef = useRef(false);
 
   // Create the editor when container is available
   // We track whether the editor has been created to avoid double-creation
@@ -129,7 +131,7 @@ export function CodeEditorPanel({ source, loading, onSourceChange }: Props) {
     if (!containerRef.current || editorCreated.current) return;
 
     const updateListener = EditorView.updateListener.of((update) => {
-      if (update.docChanged) {
+      if (update.docChanged && !suppressChangeRef.current) {
         onChangeRef.current(update.state.doc.toString());
       }
     });
@@ -188,6 +190,7 @@ export function CodeEditorPanel({ source, loading, onSourceChange }: Props) {
 
     const currentDoc = view.state.doc.toString();
     if (currentDoc !== source) {
+      suppressChangeRef.current = true;
       view.dispatch({
         changes: {
           from: 0,
@@ -195,6 +198,7 @@ export function CodeEditorPanel({ source, loading, onSourceChange }: Props) {
           insert: source,
         },
       });
+      suppressChangeRef.current = false;
     }
   }, [source]);
 

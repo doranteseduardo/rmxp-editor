@@ -197,13 +197,6 @@ export function SystemTab({ projectPath }: Props) {
           </div>
         </div>
       </div>
-      {dirty && (
-        <div className="db-save-bar">
-          <span className="db-dirty">Unsaved changes</span>
-          <button className="db-cancel-btn" onClick={cancel}>Cancel</button>
-          <button className="db-save-btn" onClick={save} disabled={loading}>Save</button>
-        </div>
-      )}
     </>
   );
 }

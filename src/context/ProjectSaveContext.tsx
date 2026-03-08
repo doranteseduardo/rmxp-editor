@@ -20,10 +20,14 @@ interface EditorEntry extends EditorCallbacks {
 interface ProjectSaveContextType {
   /** Number of editors with unsaved changes */
   dirtyCount: number;
-  /** Save all dirty editors */
-  saveAll: () => Promise<void>;
-  /** Discard all unsaved changes */
-  discardAll: () => void;
+  /** Save all dirty editors, optionally filtered by ID prefix */
+  saveAll: (prefix?: string) => Promise<void>;
+  /** Discard all unsaved changes, optionally filtered by ID prefix */
+  discardAll: (prefix?: string) => void;
+  /** Check if any editor matching a prefix is dirty */
+  isDirtyByPrefix: (prefix: string) => boolean;
+  /** Get the set of dirty editor IDs */
+  dirtyIds: Set<string>;
   /** Register an editor (call from useEditorRegistration) */
   register: (id: string, entry: EditorEntry) => void;
   /** Unregister an editor */
@@ -36,6 +40,8 @@ const ProjectSaveContext = createContext<ProjectSaveContextType>({
   dirtyCount: 0,
   saveAll: async () => {},
   discardAll: () => {},
+  isDirtyByPrefix: () => false,
+  dirtyIds: new Set(),
   register: () => {},
   unregister: () => {},
   updateDirty: () => {},
@@ -81,11 +87,16 @@ export function useEditorRegistration(
 export function ProjectSaveProvider({ children }: { children: ReactNode }) {
   const editorsRef = useRef(new Map<string, EditorEntry>());
   const [dirtyCount, setDirtyCount] = useState(0);
+  const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
 
   const recalcDirty = useCallback(() => {
     let count = 0;
-    editorsRef.current.forEach((e) => { if (e.isDirty) count++; });
+    const ids = new Set<string>();
+    editorsRef.current.forEach((e, id) => {
+      if (e.isDirty) { count++; ids.add(id); }
+    });
     setDirtyCount(count);
+    setDirtyIds(ids);
   }, []);
 
   const register = useCallback((id: string, entry: EditorEntry) => {
@@ -106,24 +117,35 @@ export function ProjectSaveProvider({ children }: { children: ReactNode }) {
     }
   }, [recalcDirty]);
 
-  const saveAll = useCallback(async () => {
+  const saveAll = useCallback(async (prefix?: string) => {
     const promises: Promise<void>[] = [];
-    editorsRef.current.forEach((entry) => {
-      if (entry.isDirty) promises.push(entry.save());
+    editorsRef.current.forEach((entry, id) => {
+      if (entry.isDirty && (!prefix || id.startsWith(prefix))) {
+        promises.push(entry.save());
+      }
     });
     await Promise.all(promises);
     recalcDirty();
   }, [recalcDirty]);
 
-  const discardAll = useCallback(() => {
-    editorsRef.current.forEach((entry) => {
-      if (entry.isDirty) entry.cancel();
+  const discardAll = useCallback((prefix?: string) => {
+    editorsRef.current.forEach((entry, id) => {
+      if (entry.isDirty && (!prefix || id.startsWith(prefix))) {
+        entry.cancel();
+      }
     });
     recalcDirty();
   }, [recalcDirty]);
 
+  const isDirtyByPrefix = useCallback((prefix: string) => {
+    for (const [id, entry] of editorsRef.current) {
+      if (id.startsWith(prefix) && entry.isDirty) return true;
+    }
+    return false;
+  }, []);
+
   return (
-    <ProjectSaveContext.Provider value={{ dirtyCount, saveAll, discardAll, register, unregister, updateDirty }}>
+    <ProjectSaveContext.Provider value={{ dirtyCount, dirtyIds, saveAll, discardAll, isDirtyByPrefix, register, unregister, updateDirty }}>
       {children}
     </ProjectSaveContext.Provider>
   );

@@ -14,9 +14,10 @@ import "./ScriptEditor.css";
 
 interface Props {
   projectPath: string;
+  onClose?: () => void;
 }
 
-export function ScriptEditor({ projectPath }: Props) {
+export function ScriptEditor({ projectPath, onClose }: Props) {
   const [scripts, setScripts] = useState<ScriptEntry[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [currentSource, setCurrentSource] = useState<string | null>(null);
@@ -252,29 +253,36 @@ export function ScriptEditor({ projectPath }: Props) {
   }
 
   return (
-    <div className="script-editor">
-      <ScriptListPanel
-        scripts={scripts}
-        selectedId={selectedId}
-        dirtyIds={dirtyIds}
-        onSelect={handleSelect}
-        onCreate={handleCreate}
-        onDelete={handleDelete}
-        onRename={handleRename}
-      />
-      <CodeEditorPanel
-        source={currentSource}
-        loading={loadingSource}
-        onSourceChange={handleSourceChange}
-      />
-      {saving && <div className="script-saving-indicator">Saving...</div>}
-      {isDirty && !saving && (
-        <div className="db-save-bar">
-          <span className="db-dirty">{dirtyIds.size} unsaved script(s)</span>
-          <button className="db-cancel-btn" onClick={handleCancel}>Cancel</button>
-          <button className="db-save-btn" onClick={handleSave}>Save All</button>
-        </div>
-      )}
+    <div className="script-editor-wrapper">
+      <div className="script-editor">
+        <ScriptListPanel
+          scripts={scripts}
+          selectedId={selectedId}
+          dirtyIds={dirtyIds}
+          onSelect={handleSelect}
+          onCreate={handleCreate}
+          onDelete={handleDelete}
+          onRename={handleRename}
+        />
+        <CodeEditorPanel
+          source={currentSource}
+          loading={loadingSource}
+          onSourceChange={handleSourceChange}
+        />
+        {saving && <div className="script-saving-indicator">Saving...</div>}
+      </div>
+      {/* Unified OK / Cancel / Apply bar */}
+      <div className="db-bottom-bar">
+        <button className="db-save-btn" onClick={async () => { await handleSave(); onClose?.(); }} disabled={saving}>
+          OK
+        </button>
+        <button className="db-cancel-btn" onClick={() => { handleCancel(); onClose?.(); }}>
+          Cancel
+        </button>
+        <button className="db-save-btn" onClick={handleSave} disabled={!isDirty || saving}>
+          {saving ? "Saving..." : "Apply"}
+        </button>
+      </div>
     </div>
   );
 }

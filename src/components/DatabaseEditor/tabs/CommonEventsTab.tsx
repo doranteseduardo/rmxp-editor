@@ -65,13 +65,6 @@ export function CommonEventsTab({ projectPath }: Props) {
           <div className="db-detail-empty">Select a common event</div>
         )}
       </div>
-      {db.dirty && (
-        <div className="db-save-bar">
-          <span className="db-dirty">Unsaved changes</span>
-          <button className="db-cancel-btn" onClick={db.cancel}>Cancel</button>
-          <button className="db-save-btn" onClick={db.save} disabled={db.loading}>Save</button>
-        </div>
-      )}
     </>
   );
 }
