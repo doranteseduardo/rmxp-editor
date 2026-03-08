@@ -1,0 +1,26 @@
+[package]
+name = "rmxp-editor"
+version = "0.1.0"
+edition = "2021"
+description = "A modern RPG Maker XP editor for Pokémon Essentials"
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset"] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+flate2 = "1"          # zlib compression for Scripts.rxdata
+notify = "6"          # File watching
+image = "0.25"        # PNG loading
+base64 = "0.22"
+tokio = { version = "1", features = ["full"] }
+log = "0.4"
+env_logger = "0.11"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[lib]
+name = "rmxp_editor_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
