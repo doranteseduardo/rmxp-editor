@@ -482,6 +482,8 @@ impl EventCommand {
             353 => "Game Over",
             354 => "Return to Title Screen",
             355 => "Script",
+            105 => "Button Input Processing",
+            106 => "Wait",
             401 => "(text continuation)",
             402 => "When [Choice]",
             403 => "When Cancel",
@@ -494,6 +496,8 @@ impl EventCommand {
             602 => "If Escape",
             603 => "If Lose",
             604 => "(battle branch end)",
+            509 => "(move command)",
+            605 => "(shop item)",
             655 => "(script continuation)",
             _ => "Unknown Command",
         }

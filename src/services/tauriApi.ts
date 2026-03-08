@@ -15,6 +15,9 @@ import type {
   MapInfo,
   ScriptEntry,
   ScriptData,
+  DatabaseFilename,
+  DatabaseFiles,
+  RpgSystemData,
 } from "../types";
 
 // Lazy-loaded Tauri invoke — resolved on first call
@@ -338,6 +341,49 @@ export async function deleteScript(
   });
 }
 
+// ── Database commands ────────────────────────────────────────────
+
+/**
+ * Load a database .rxdata file as a typed array.
+ * Index 0 is typically null, actual data starts at index 1.
+ */
+export async function loadDatabase<K extends DatabaseFilename>(
+  projectPath: string,
+  filename: K
+): Promise<Array<DatabaseFiles[K] | null>> {
+  return await invoke("load_database", { projectPath, filename }) as Array<DatabaseFiles[K] | null>;
+}
+
+/**
+ * Save a database .rxdata file from a typed array.
+ */
+export async function saveDatabase<K extends DatabaseFilename>(
+  projectPath: string,
+  filename: K,
+  data: Array<DatabaseFiles[K] | null>
+): Promise<void> {
+  await invoke("save_database", { projectPath, filename, data });
+}
+
+/**
+ * Load the full System.rxdata with all fields.
+ */
+export async function loadSystemData(
+  projectPath: string
+): Promise<RpgSystemData> {
+  return await invoke("load_system", { projectPath }) as RpgSystemData;
+}
+
+/**
+ * Save the full System.rxdata.
+ */
+export async function saveSystemData(
+  projectPath: string,
+  data: RpgSystemData
+): Promise<void> {
+  await invoke("save_system", { projectPath, data });
+}
+
 /**
  * Mock invoke for development without Tauri runtime.
  */
@@ -575,6 +621,65 @@ async function mockInvoke(
       return [
         { id: 1, title: "Game_Temp" }, { id: 8, title: "Main" },
       ] satisfies ScriptEntry[];
+
+    case "load_database":
+      // Return minimal mock array with null at index 0
+      return [null, { __class: "RPG::Actor", id: 1, name: "Mock Actor" }];
+
+    case "save_database":
+      console.log("[mock] Saved database:", args?.filename);
+      return;
+
+    case "load_system":
+      return {
+        magic_number: 0,
+        party_members: [1],
+        elements: ["", ""],
+        switches: ["", ""],
+        variables: ["", ""],
+        windowskin_name: "",
+        title_name: "",
+        gameover_name: "",
+        battle_transition: "",
+        title_bgm: { name: "", volume: 100, pitch: 100 },
+        battle_bgm: { name: "", volume: 100, pitch: 100 },
+        battle_end_me: { name: "", volume: 100, pitch: 100 },
+        gameover_me: { name: "", volume: 100, pitch: 100 },
+        cursor_se: { name: "", volume: 80, pitch: 100 },
+        decision_se: { name: "", volume: 80, pitch: 100 },
+        cancel_se: { name: "", volume: 80, pitch: 100 },
+        buzzer_se: { name: "", volume: 80, pitch: 100 },
+        equip_se: { name: "", volume: 80, pitch: 100 },
+        shop_se: { name: "", volume: 80, pitch: 100 },
+        save_se: { name: "", volume: 80, pitch: 100 },
+        load_se: { name: "", volume: 80, pitch: 100 },
+        battle_start_se: { name: "", volume: 80, pitch: 100 },
+        escape_se: { name: "", volume: 80, pitch: 100 },
+        actor_collapse_se: { name: "", volume: 80, pitch: 100 },
+        enemy_collapse_se: { name: "", volume: 80, pitch: 100 },
+        words: {
+          gold: "G", hp: "HP", sp: "SP",
+          str: "STR", dex: "DEX", agi: "AGI", int: "INT",
+          atk: "ATK", pdef: "PDEF", mdef: "MDEF",
+          weapon: "Weapon", armor1: "Shield", armor2: "Helmet",
+          armor3: "Body Armor", armor4: "Accessory",
+          attack: "Attack", skill: "Skill", guard: "Guard",
+          item: "Item", equip: "Equip",
+        },
+        start_map_id: 1,
+        start_x: 0,
+        start_y: 0,
+        test_battlers: [],
+        test_troop_id: 1,
+        battleback_name: "",
+        battler_name: "",
+        battler_hue: 0,
+        edit_map_id: 1,
+      };
+
+    case "save_system":
+      console.log("[mock] Saved system data");
+      return;
 
     default:
       throw new Error(`Unknown mock command: ${cmd}`);

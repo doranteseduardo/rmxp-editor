@@ -35,6 +35,10 @@ pub fn run() {
             save_all_scripts,
             create_script,
             delete_script,
+            load_database,
+            save_database,
+            load_system,
+            save_system,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

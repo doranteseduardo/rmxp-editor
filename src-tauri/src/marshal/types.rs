@@ -173,7 +173,41 @@ impl RubyValue {
                 }
                 Value::Object(map)
             }
-            RubyValue::UserDefined { class_name, .. } => {
+            RubyValue::UserDefined { class_name, data } => {
+                // Color and Tone are 4 f64 values (32 bytes) — decode to JSON object
+                if (class_name == "Color" || class_name == "Tone") && data.len() >= 32 {
+                    let r = f64::from_le_bytes(data[0..8].try_into().unwrap_or([0; 8]));
+                    let g = f64::from_le_bytes(data[8..16].try_into().unwrap_or([0; 8]));
+                    let b = f64::from_le_bytes(data[16..24].try_into().unwrap_or([0; 8]));
+                    let a = f64::from_le_bytes(data[24..32].try_into().unwrap_or([0; 8]));
+                    let mut map = serde_json::Map::new();
+                    map.insert("__class".into(), Value::String(class_name.clone()));
+                    map.insert("red".into(), serde_json::Number::from_f64(r).map(Value::Number).unwrap_or(Value::Null));
+                    map.insert("green".into(), serde_json::Number::from_f64(g).map(Value::Number).unwrap_or(Value::Null));
+                    map.insert("blue".into(), serde_json::Number::from_f64(b).map(Value::Number).unwrap_or(Value::Null));
+                    if class_name == "Color" {
+                        map.insert("alpha".into(), serde_json::Number::from_f64(a).map(Value::Number).unwrap_or(Value::Null));
+                    } else {
+                        map.insert("gray".into(), serde_json::Number::from_f64(a).map(Value::Number).unwrap_or(Value::Null));
+                    }
+                    return Value::Object(map);
+                }
+                // Table — return metadata since the data is large binary
+                if class_name == "Table" {
+                    let mut map = serde_json::Map::new();
+                    map.insert("__class".into(), Value::String("Table".into()));
+                    if data.len() >= 20 {
+                        let dims = i32::from_le_bytes(data[0..4].try_into().unwrap_or([0; 4]));
+                        let x = i32::from_le_bytes(data[4..8].try_into().unwrap_or([0; 4]));
+                        let y = i32::from_le_bytes(data[8..12].try_into().unwrap_or([0; 4]));
+                        let z = i32::from_le_bytes(data[12..16].try_into().unwrap_or([0; 4]));
+                        map.insert("dims".into(), Value::Number(serde_json::Number::from(dims)));
+                        map.insert("x_size".into(), Value::Number(serde_json::Number::from(x)));
+                        map.insert("y_size".into(), Value::Number(serde_json::Number::from(y)));
+                        map.insert("z_size".into(), Value::Number(serde_json::Number::from(z)));
+                    }
+                    return Value::Object(map);
+                }
                 Value::String(format!("#<{}>", class_name))
             }
             RubyValue::UserMarshal { class_name, data } => {
@@ -226,8 +260,30 @@ impl RubyValue {
                 RubyValue::Array(arr.iter().map(RubyValue::from_json_value).collect())
             }
             Value::Object(map) => {
-                // If it has __class, reconstruct as RubyObject
+                // If it has __class, reconstruct appropriately
                 if let Some(Value::String(class_name)) = map.get("__class") {
+                    // Color/Tone → UserDefined binary (4 f64 = 32 bytes)
+                    if class_name == "Color" || class_name == "Tone" {
+                        let r = map.get("red").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                        let g = map.get("green").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                        let b = map.get("blue").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                        let a = if class_name == "Color" {
+                            map.get("alpha").and_then(|v| v.as_f64()).unwrap_or(255.0)
+                        } else {
+                            map.get("gray").and_then(|v| v.as_f64()).unwrap_or(0.0)
+                        };
+                        let mut data = Vec::with_capacity(32);
+                        data.extend_from_slice(&r.to_le_bytes());
+                        data.extend_from_slice(&g.to_le_bytes());
+                        data.extend_from_slice(&b.to_le_bytes());
+                        data.extend_from_slice(&a.to_le_bytes());
+                        return RubyValue::UserDefined {
+                            class_name: class_name.clone(),
+                            data,
+                        };
+                    }
+                    // Table → keep as-is (Table is handled separately via Table struct)
+                    // Other __class → reconstruct as RubyObject
                     let mut obj = RubyObject::new(class_name.clone());
                     for (k, v) in map {
                         if k == "__class" { continue; }

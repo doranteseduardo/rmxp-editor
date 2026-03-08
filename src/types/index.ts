@@ -1,3 +1,18 @@
+// Re-export all RPG data types
+export type {
+  RpgColor, RpgTone, RpgTable, RpgAudioFile,
+  RpgActor, RpgClass, RpgClassLearning,
+  RpgSkill, RpgItem, RpgWeapon, RpgArmor,
+  RpgEnemy, RpgEnemyAction, RpgState,
+  RpgAnimation, RpgAnimationFrame, RpgAnimationTiming,
+  RpgCommonEvent,
+  RpgTroop, RpgTroopMember, RpgTroopPage, RpgTroopPageCondition,
+  RpgTileset as RpgTilesetFull,
+  RpgSystemData, RpgSystemWords, RpgTestBattler,
+  RpgMapData, RpgMapInfo as RpgMapInfoFull,
+  DatabaseFiles, DatabaseFilename,
+} from "./rpgTypes";
+
 // --- Project types ---
 
 export interface ProjectInfo {

@@ -166,6 +166,7 @@ export const COMMAND_DEFS: CommandDef[] = [
   { code: 602, name: "If Escape", category: "Battle", description: "", isContinuation: true },
   { code: 603, name: "If Lose", category: "Battle", description: "", isContinuation: true },
   { code: 604, name: "(battle end)", category: "Battle", description: "", isBranchEnd: true },
+  { code: 509, name: "(move command)", category: "Character", description: "", isContinuation: true },
   { code: 605, name: "(shop item)", category: "Battle", description: "", isContinuation: true },
   { code: 655, name: "(script continuation)", category: "Other", description: "", isContinuation: true },
 ];
@@ -324,6 +325,32 @@ export function summarizeCommand(code: number, params: unknown[]): string {
     case 207: return `${_charTarget(params[0])}, Animation [${params[1]}]`;
     case 208: return _n(params[0]) === 0 ? "Transparent" : "Normal";
     case 209: return `Target: ${_charTarget(params[0])}`;
+    case 509: {
+      // Move command continuation — params[0] is RPG::MoveCommand object
+      const mc = params[0];
+      if (mc && typeof mc === "object" && !Array.isArray(mc)) {
+        const obj = mc as Record<string, unknown>;
+        const moveCode = _n(obj.code);
+        const moveName = MOVE_COMMAND_NAMES[moveCode] ?? `Move(${moveCode})`;
+        const moveParams = (obj.parameters ?? []) as unknown[];
+        if (moveCode === 14) return `◇ ${moveName}: (${moveParams[0] ?? 0}, ${moveParams[1] ?? 0})`;
+        if (moveCode === 15) return `◇ Wait: ${moveParams[0] ?? 0} frames`;
+        if (moveCode === 27) return `◇ Switch ON [${moveParams[0] ?? 0}]`;
+        if (moveCode === 28) return `◇ Switch OFF [${moveParams[0] ?? 0}]`;
+        if (moveCode === 29) return `◇ Speed: ${moveParams[0] ?? 0}`;
+        if (moveCode === 30) return `◇ Freq: ${moveParams[0] ?? 0}`;
+        if (moveCode === 41) return `◇ Graphic: "${moveParams[0] ?? ""}"`;
+        if (moveCode === 42) return `◇ Opacity: ${moveParams[0] ?? 0}`;
+        if (moveCode === 43) return `◇ Blend: ${moveParams[0] ?? 0}`;
+        if (moveCode === 44) {
+          const se = moveParams[0] as Record<string, unknown> | undefined;
+          return `◇ Play SE: ${se ? _s(se.name) || "(none)" : "(none)"}`;
+        }
+        if (moveCode === 45) return `◇ Script: ${_s(moveParams[0])}`;
+        return `◇ ${moveName}`;
+      }
+      return "◇ (move command)";
+    }
 
     // --- Screen Effects ---
     case 222: return params[0] ? `"${params[0]}"` : "(default fade)";
@@ -405,7 +432,18 @@ export function summarizeCommand(code: number, params: unknown[]): string {
           if (p === null || p === undefined) return "nil";
           if (typeof p === "object" && !Array.isArray(p)) {
             const obj = p as Record<string, unknown>;
+            // Handle well-known RPG classes
+            if (obj.__class === "RPG::MoveCommand") {
+              const mc = _n(obj.code);
+              return MOVE_COMMAND_NAMES[mc] ?? `Move(${mc})`;
+            }
+            if (obj.__class === "RPG::MoveRoute") return "(move route)";
+            if (obj.__class === "RPG::AudioFile") return _s(obj.name) || "(none)";
             if (obj.__class) return `${obj.__class}${obj.name ? `: ${obj.name}` : ""}`;
+            // Handle Tone/Color objects
+            if ("red" in obj && "green" in obj && "blue" in obj) {
+              return `(${_n(obj.red)},${_n(obj.green)},${_n(obj.blue)})`;
+            }
             return JSON.stringify(p);
           }
           return JSON.stringify(p);
