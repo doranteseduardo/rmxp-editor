@@ -11,6 +11,7 @@ import {
   renameMap,
   createEvent,
   deleteEvent,
+  listTilesetNames,
 } from "./services/tauriApi";
 import { loadAllTilesetImages } from "./services/imageLoader";
 import { MapTreePanel } from "./components/MapTree/MapTreePanel";
@@ -67,6 +68,9 @@ function App() {
   // Create map dialog state
   const [createMapParentId, setCreateMapParentId] = useState<number | null>(null);
 
+  // Tileset names cache (loaded once when project opens)
+  const [tilesetNames, setTilesetNames] = useState<Array<[number, string]>>([]);
+
   // Open a project by path
   const handleOpenProject = useCallback(
     async (path: string) => {
@@ -81,6 +85,14 @@ function App() {
         setAutotileImages([null, null, null, null, null, null, null]);
         setCurrentMapId(null);
         setIsDirty(false);
+
+        // Load tileset names for dialogs
+        try {
+          const names = await listTilesetNames(proj.path);
+          setTilesetNames(names);
+        } catch (err) {
+          console.warn("Failed to load tileset names:", err);
+        }
 
         // Auto-open the last edited map
         if (proj.edit_map_id) {
@@ -453,7 +465,7 @@ function App() {
         <MapPropertiesDialog
           projectPath={project.path}
           mapId={propsMapId}
-          tilesetCount={project.tileset_count}
+          tilesetNames={tilesetNames}
           onClose={() => setPropsMapId(null)}
           onSaved={handleMapPropertiesSaved}
         />
@@ -463,7 +475,7 @@ function App() {
       {createMapParentId !== null && project && (
         <CreateMapDialog
           mapInfos={project.map_infos}
-          tilesetCount={project.tileset_count}
+          tilesetNames={tilesetNames}
           defaultParentId={createMapParentId}
           onConfirm={handleConfirmCreateMap}
           onClose={() => setCreateMapParentId(null)}

@@ -258,6 +258,15 @@ export async function renameMap(
   });
 }
 
+/** List all tileset names (id → name) from Tilesets.rxdata. */
+export async function listTilesetNames(
+  projectPath: string
+): Promise<Array<[number, string]>> {
+  return await invoke<Array<[number, string]>>("list_tileset_names", {
+    projectPath,
+  });
+}
+
 /**
  * Mock invoke for development without Tauri runtime.
  */
@@ -450,6 +459,9 @@ async function mockInvoke(
 
     case "get_asset_path":
       return `/mock/Graphics/${args?.assetType}/${args?.assetName}.png`;
+
+    case "list_tileset_names":
+      return [[1, "Outside"], [2, "Inside"], [3, "Cave"], [4, "Water"], [5, "Forest"], [6, "Desert"], [7, "Snow"], [8, "Trainer"]];
 
     default:
       throw new Error(`Unknown mock command: ${cmd}`);

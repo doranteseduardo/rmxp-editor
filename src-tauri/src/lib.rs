@@ -24,6 +24,7 @@ pub fn run() {
             create_map,
             delete_map,
             rename_map,
+            list_tileset_names,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

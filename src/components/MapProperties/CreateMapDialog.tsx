@@ -4,7 +4,7 @@ import "./MapPropertiesDialog.css";
 
 interface Props {
   mapInfos: Record<number, MapInfo>;
-  tilesetCount: number;
+  tilesetNames: Array<[number, string]>;
   defaultParentId: number;
   onConfirm: (name: string, parentId: number, width: number, height: number, tilesetId: number) => void;
   onClose: () => void;
@@ -15,7 +15,7 @@ interface Props {
  */
 export function CreateMapDialog({
   mapInfos,
-  tilesetCount,
+  tilesetNames,
   defaultParentId,
   onConfirm,
   onClose,
@@ -103,9 +103,9 @@ export function CreateMapDialog({
               value={tilesetId}
               onChange={(e) => setTilesetId(Number(e.target.value))}
             >
-              {Array.from({ length: tilesetCount }, (_, i) => i + 1).map((id) => (
+              {tilesetNames.map(([id, name]) => (
                 <option key={id} value={id}>
-                  Tileset {id}
+                  {String(id).padStart(3, "0")}: {name || `Tileset ${id}`}
                 </option>
               ))}
             </select>

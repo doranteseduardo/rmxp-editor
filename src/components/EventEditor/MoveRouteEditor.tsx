@@ -1,8 +1,10 @@
 import { useState, useCallback } from "react";
 import type { MoveRoute, MoveCommand } from "../../types";
 import { MOVE_COMMAND_NAMES } from "../../services/eventCommands";
+import { AssetPicker } from "../shared/AssetPicker";
 
 interface Props {
+  projectPath: string;
   moveRoute: MoveRoute;
   onChange: (route: MoveRoute) => void;
   onClose: () => void;
@@ -22,7 +24,7 @@ const MOVE_COMMAND_CATEGORIES: { name: string; commands: number[] }[] = [
  * Modal dialog for editing a move route.
  * Supports add/delete/reorder move commands and toggling route options.
  */
-export function MoveRouteEditor({ moveRoute, onChange, onClose }: Props) {
+export function MoveRouteEditor({ projectPath, moveRoute, onChange, onClose }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [showPicker, setShowPicker] = useState(false);
 
@@ -169,6 +171,7 @@ export function MoveRouteEditor({ moveRoute, onChange, onClose }: Props) {
           {selectedCmd && selectedCmd.code !== 0 && hasMoveParams(selectedCmd.code) && (
             <div className="move-route-param-editor">
               <MoveParamEditor
+                projectPath={projectPath}
                 command={selectedCmd}
                 onChange={(paramIdx, value) =>
                   handleParamEdit(selectedIndex, paramIdx, value)
@@ -360,9 +363,11 @@ function hasMoveParams(code: number): boolean {
 }
 
 function MoveParamEditor({
+  projectPath,
   command,
   onChange,
 }: {
+  projectPath: string;
   command: MoveCommand;
   onChange: (paramIndex: number, value: unknown) => void;
 }) {
@@ -423,8 +428,13 @@ function MoveParamEditor({
         <>
           <div className="cmd-param-row">
             <span className="cmd-param-label">Graphic:</span>
-            <input className="event-command-edit-input" value={String(p[0] ?? "")}
-              onChange={(e) => onChange(0, e.target.value)} style={{ flex: 1 }} />
+            <AssetPicker
+              projectPath={projectPath}
+              assetType="character"
+              value={String(p[0] ?? "")}
+              onChange={(v) => onChange(0, v)}
+              noneLabel="(None)"
+            />
           </div>
           <div className="cmd-param-row">
             <span className="cmd-param-label">Hue:</span>

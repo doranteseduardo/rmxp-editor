@@ -21,6 +21,7 @@ import { EventCommandPicker } from "./EventCommandPicker";
 import { CommandParamEditor, hasParamEditor } from "./CommandParamEditor";
 import { MoveRouteEditor } from "./MoveRouteEditor";
 import { CharacterPicker } from "./CharacterPicker";
+import { AssetPicker } from "../shared/AssetPicker";
 import "./EventEditor.css";
 
 interface Props {
@@ -524,13 +525,14 @@ function PageProperties({ page, onUpdatePage, projectPath }: { page: EventPage; 
             />
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
-              <input
-                className="prop-text-input"
+            <div style={{ display: "flex", gap: 4, marginBottom: 4, alignItems: "center" }}>
+              <AssetPicker
+                projectPath={projectPath}
+                assetType="character"
                 value={page.graphic.character_name}
-                onChange={(e) => updateGraphic("character_name", e.target.value)}
-                placeholder="(no graphic)"
-                style={{ flex: 1 }}
+                onChange={(v) => updateGraphic("character_name", v)}
+                noneLabel="(no graphic)"
+                className="prop-select"
               />
               <button
                 className="event-editor-btn"
@@ -628,6 +630,7 @@ function PageProperties({ page, onUpdatePage, projectPath }: { page: EventPage; 
             )}
             {showMoveRoute && (
               <MoveRouteEditor
+                projectPath={projectPath}
                 moveRoute={page.move_route}
                 onChange={(route) => onUpdatePage((p) => ({ ...p, move_route: route }))}
                 onClose={() => setShowMoveRoute(false)}

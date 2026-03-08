@@ -308,22 +308,29 @@ pub async fn list_asset_files(
     project_path: String,
     asset_type: String,
 ) -> Result<Vec<String>, String> {
-    let base = PathBuf::from(&project_path).join("Graphics");
+    let base = PathBuf::from(&project_path);
 
-    let dir = match asset_type.as_str() {
-        "tileset" => "Tilesets",
-        "autotile" => "Autotiles",
-        "character" => "Characters",
-        "panorama" => "Panoramas",
-        "fog" => "Fogs",
-        "battleback" => "Battlebacks",
-        "picture" => "Pictures",
-        "animation" => "Animations",
-        "icon" => "Icons",
+    // Determine base directory and subdirectory, plus valid extensions
+    let (base_dir, dir, extensions): (&str, &str, &[&str]) = match asset_type.as_str() {
+        // Graphics
+        "tileset" => ("Graphics", "Tilesets", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "autotile" => ("Graphics", "Autotiles", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "character" => ("Graphics", "Characters", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "panorama" => ("Graphics", "Panoramas", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "fog" => ("Graphics", "Fogs", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "battleback" => ("Graphics", "Battlebacks", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "picture" => ("Graphics", "Pictures", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "animation" => ("Graphics", "Animations", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "icon" => ("Graphics", "Icons", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        // Audio
+        "bgm" => ("Audio", "BGM", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
+        "bgs" => ("Audio", "BGS", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
+        "me" => ("Audio", "ME", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
+        "se" => ("Audio", "SE", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
         _ => return Err(format!("Unknown asset type: {}", asset_type)),
     };
 
-    let dir_path = base.join(dir);
+    let dir_path = base.join(base_dir).join(dir);
     if !dir_path.exists() {
         return Ok(Vec::new());
     }
@@ -337,7 +344,7 @@ pub async fn list_asset_files(
         let path = entry.path();
         if path.is_file() {
             if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                if ["png", "jpg", "jpeg", "bmp", "gif"].contains(&ext.to_lowercase().as_str()) {
+                if extensions.contains(&ext.to_lowercase().as_str()) {
                     if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
                         names.push(stem.to_string());
                     }
@@ -1031,4 +1038,30 @@ fn count_tilesets(path: &Path) -> Option<usize> {
     let value = marshal::load_file(path).ok()?;
     let arr = value.as_array()?;
     Some(arr.len().saturating_sub(1)) // First element is nil
+}
+
+/// List all tileset names (id → name).
+#[tauri::command]
+pub async fn list_tileset_names(project_path: String) -> Result<Vec<(i64, String)>, String> {
+    let path = PathBuf::from(&project_path);
+    let tilesets_path = path.join("Data").join("Tilesets.rxdata");
+
+    let value = marshal::load_file(&tilesets_path)
+        .map_err(|e| format!("Failed to parse Tilesets.rxdata: {}", e))?;
+    let arr = value
+        .as_array()
+        .ok_or_else(|| "Tilesets.rxdata is not an array".to_string())?;
+
+    let mut result = Vec::new();
+    // Index 0 is nil, tilesets start at index 1
+    for (i, item) in arr.iter().enumerate().skip(1) {
+        if let marshal::types::RubyValue::Object(ref obj) = item {
+            let name = obj
+                .get("@name")
+                .and_then(|v| v.as_string())
+                .unwrap_or_default();
+            result.push((i as i64, name));
+        }
+    }
+    Ok(result)
 }

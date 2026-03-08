@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import type { MapProperties } from "../../types";
 import { getMapProperties, saveMapProperties } from "../../services/tauriApi";
+import { AssetPicker } from "../shared/AssetPicker";
 import "./MapPropertiesDialog.css";
 
 interface Props {
   projectPath: string;
   mapId: number;
-  tilesetCount: number;
+  tilesetNames: Array<[number, string]>;
   onClose: () => void;
   onSaved: (props: MapProperties) => void;
 }
@@ -25,7 +26,7 @@ const SCROLL_TYPES: Record<number, string> = {
 export function MapPropertiesDialog({
   projectPath,
   mapId,
-  tilesetCount,
+  tilesetNames,
   onClose,
   onSaved,
 }: Props) {
@@ -113,9 +114,9 @@ export function MapPropertiesDialog({
                 value={props.tileset_id}
                 onChange={(e) => update("tileset_id", Number(e.target.value))}
               >
-                {Array.from({ length: tilesetCount }, (_, i) => i + 1).map((id) => (
+                {tilesetNames.map(([id, name]) => (
                   <option key={id} value={id}>
-                    Tileset {id}
+                    {String(id).padStart(3, "0")}: {name || `Tileset ${id}`}
                   </option>
                 ))}
               </select>
@@ -181,11 +182,12 @@ export function MapPropertiesDialog({
               <>
                 <div className="map-props-row">
                   <label>File</label>
-                  <input
-                    type="text"
+                  <AssetPicker
+                    projectPath={projectPath}
+                    assetType="bgm"
                     value={props.bgm_name}
-                    onChange={(e) => update("bgm_name", e.target.value)}
-                    placeholder="BGM filename"
+                    onChange={(v) => update("bgm_name", v)}
+                    noneLabel="(None)"
                   />
                 </div>
                 <div className="map-props-row-pair">
@@ -230,11 +232,12 @@ export function MapPropertiesDialog({
               <>
                 <div className="map-props-row">
                   <label>File</label>
-                  <input
-                    type="text"
+                  <AssetPicker
+                    projectPath={projectPath}
+                    assetType="bgs"
                     value={props.bgs_name}
-                    onChange={(e) => update("bgs_name", e.target.value)}
-                    placeholder="BGS filename"
+                    onChange={(v) => update("bgs_name", v)}
+                    noneLabel="(None)"
                   />
                 </div>
                 <div className="map-props-row-pair">
@@ -283,11 +286,12 @@ export function MapPropertiesDialog({
             <legend>Parallax Background</legend>
             <div className="map-props-row">
               <label>Image</label>
-              <input
-                type="text"
+              <AssetPicker
+                projectPath={projectPath}
+                assetType="panorama"
                 value={props.parallax_name}
-                onChange={(e) => update("parallax_name", e.target.value)}
-                placeholder="Panorama filename"
+                onChange={(v) => update("parallax_name", v)}
+                noneLabel="(None)"
               />
             </div>
             <div className="map-props-row">
