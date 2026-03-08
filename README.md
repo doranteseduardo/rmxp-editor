@@ -2,11 +2,14 @@
 
 A modern, cross-platform editor for **RPG Maker XP** projects, built specifically with **Pokémon Essentials v21.1** support in mind.
 
+![Editor Screenshot](screenshot.png)
+
 Built with [Tauri v2](https://v2.tauri.app/) + React + TypeScript for a native desktop experience on macOS, Windows, and Linux.
 
 ## Features
 
 ### Map Editor
+
 - Visual tile-based map editing with a real-time canvas renderer
 - Full 3-layer support (matching RMXP's layer system)
 - Tileset palette with clickable tile grid and autotile previews
@@ -17,6 +20,7 @@ Built with [Tauri v2](https://v2.tauri.app/) + React + TypeScript for a native d
 - DPR-aware rendering for Retina/HiDPI displays
 
 ### Event System
+
 - Event viewer with markers on the map canvas
 - Full event editor with page management (add, delete, copy pages)
 - Double-click events on the map to open the editor
@@ -26,6 +30,7 @@ Built with [Tauri v2](https://v2.tauri.app/) + React + TypeScript for a native d
 - Sprite preview with character sheet rendering
 
 ### Database Editor
+
 - Full tabbed interface covering all 13 RMXP data categories:
   - **Actors** — stats, exp curves, equipment, class assignment
   - **Classes** — learnable skills, stat growth curves, element/state rank tables
@@ -43,16 +48,19 @@ Built with [Tauri v2](https://v2.tauri.app/) + React + TypeScript for a native d
 - Shared controls: asset pickers (graphics + audio with preview/playback), ID selectors, set editors, parameter curve editors
 
 ### Script Editor
+
 - Full script list panel with search, reorder, add/delete
 - Code editor with syntax highlighting
 - Script content editing and saving
 
 ### Tileset Support
+
 - Loads RMXP tileset images via Tauri's asset protocol
 - 7-slot autotile system with animated autotile rendering
 - Tile property editor with tileset graphics as background overlay (memory-efficient single-image approach)
 
 ### Project Management
+
 - Native folder picker to open any RMXP project
 - Parses `Game.rxproj`, `MapInfos.rxdata`, `Tilesets.rxdata`, and individual map files
 - Reads and writes all database `.rxdata` files (Actors, Classes, Skills, Items, Weapons, Armors, Enemies, Troops, States, Animations, CommonEvents, System)
