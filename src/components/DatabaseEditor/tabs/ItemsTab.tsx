@@ -1,6 +1,10 @@
 import type { RpgItem } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
+import { useDatabaseNames } from "../DatabaseContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
+import { IdSelect } from "../controls/IdSelect";
+import { AssetPicker } from "../controls/AssetPicker";
+import { ElementSetEditor, SetEditor } from "../controls/SetEditor";
 
 interface Props { projectPath: string }
 
@@ -20,6 +24,7 @@ const DEFAULT_ITEM: RpgItem = {
 
 export function ItemsTab({ projectPath }: Props) {
   const db = useDatabase(projectPath, "Items.rxdata");
+  const names = useDatabaseNames();
   const item = db.selected as RpgItem | null;
 
   if (db.loading) return <div className="db-loading">Loading Items...</div>;
@@ -30,8 +35,7 @@ export function ItemsTab({ projectPath }: Props) {
   return (
     <>
       <div className="db-content">
-        <DatabaseListPanel items={db.items as any} selectedId={db.selectedId} onSelect={db.select}
-          onAdd={() => db.addNew(DEFAULT_ITEM)} label="items" />
+        <DatabaseListPanel items={db.items as any} selectedId={db.selectedId} onSelect={db.select} onAdd={() => db.addNew(DEFAULT_ITEM)} label="items" />
         {item ? (
           <div className="db-detail-panel">
             <div className="db-columns">
@@ -39,22 +43,16 @@ export function ItemsTab({ projectPath }: Props) {
                 <div className="db-section">
                   <div className="db-section-title">General</div>
                   <div className="db-field"><span className="db-field-label">Name</span><input type="text" value={item.name} onChange={e => u({ name: e.target.value })} /></div>
-                  <div className="db-field"><span className="db-field-label">Icon</span><input type="text" value={item.icon_name} onChange={e => u({ icon_name: e.target.value })} /></div>
+                  <div className="db-field"><span className="db-field-label">Icon</span><AssetPicker projectPath={projectPath} assetType="Icons" value={item.icon_name} onChange={v => u({ icon_name: v })} /></div>
                   <div className="db-field"><span className="db-field-label">Description</span><input type="text" value={item.description} onChange={e => u({ description: e.target.value })} /></div>
-                  <div className="db-field"><span className="db-field-label">Scope</span>
-                    <select value={item.scope} onChange={e => u({ scope: +e.target.value })}>{SCOPES.map((l, i) => <option key={i} value={i}>{l}</option>)}</select>
-                  </div>
-                  <div className="db-field"><span className="db-field-label">Occasion</span>
-                    <select value={item.occasion} onChange={e => u({ occasion: +e.target.value })}>{OCCASIONS.map((l, i) => <option key={i} value={i}>{l}</option>)}</select>
-                  </div>
+                  <div className="db-field"><span className="db-field-label">Scope</span><select value={item.scope} onChange={e => u({ scope: +e.target.value })}>{SCOPES.map((l, i) => <option key={i} value={i}>{l}</option>)}</select></div>
+                  <div className="db-field"><span className="db-field-label">Occasion</span><select value={item.occasion} onChange={e => u({ occasion: +e.target.value })}>{OCCASIONS.map((l, i) => <option key={i} value={i}>{l}</option>)}</select></div>
                   <div className="db-field"><span className="db-field-label">Price</span><input type="number" value={item.price} min={0} onChange={e => u({ price: +e.target.value })} /></div>
-                  <div className="db-field"><span className="db-field-label">Consumable</span>
-                    <label className="db-check-label"><input type="checkbox" checked={item.consumable} onChange={e => u({ consumable: e.target.checked })} /> Yes</label>
-                  </div>
-                  <div className="db-field"><span className="db-field-label">Common Event</span><input type="number" value={item.common_event_id} min={0} onChange={e => u({ common_event_id: +e.target.value })} /></div>
+                  <div className="db-field"><span className="db-field-label">Consumable</span><label className="db-check-label"><input type="checkbox" checked={item.consumable} onChange={e => u({ consumable: e.target.checked })} /> Yes</label></div>
+                  <div className="db-field"><span className="db-field-label">Common Event</span><IdSelect value={item.common_event_id} entries={names.commonEvents} onChange={id => u({ common_event_id: id })} allowNone /></div>
+                  <div className="db-field"><span className="db-field-label">User Anim</span><IdSelect value={item.animation1_id} entries={names.animations} onChange={id => u({ animation1_id: id })} allowNone /></div>
+                  <div className="db-field"><span className="db-field-label">Target Anim</span><IdSelect value={item.animation2_id} entries={names.animations} onChange={id => u({ animation2_id: id })} allowNone /></div>
                 </div>
-              </div>
-              <div className="db-column">
                 <div className="db-section">
                   <div className="db-section-title">Recovery</div>
                   <div className="db-field"><span className="db-field-label">HP Rate %</span><input type="number" value={item.recover_hp_rate} onChange={e => u({ recover_hp_rate: +e.target.value })} /></div>
@@ -64,9 +62,7 @@ export function ItemsTab({ projectPath }: Props) {
                 </div>
                 <div className="db-section">
                   <div className="db-section-title">Parameter Change</div>
-                  <div className="db-field"><span className="db-field-label">Parameter</span>
-                    <select value={item.parameter_type} onChange={e => u({ parameter_type: +e.target.value })}>{PARAM_TYPES.map((l, i) => <option key={i} value={i}>{l}</option>)}</select>
-                  </div>
+                  <div className="db-field"><span className="db-field-label">Parameter</span><select value={item.parameter_type} onChange={e => u({ parameter_type: +e.target.value })}>{PARAM_TYPES.map((l, i) => <option key={i} value={i}>{l}</option>)}</select></div>
                   <div className="db-field"><span className="db-field-label">Points</span><input type="number" value={item.parameter_points} onChange={e => u({ parameter_points: +e.target.value })} /></div>
                 </div>
                 <div className="db-section">
@@ -77,18 +73,16 @@ export function ItemsTab({ projectPath }: Props) {
                   <div className="db-field"><span className="db-field-label">Variance</span><input type="number" value={item.variance} min={0} onChange={e => u({ variance: +e.target.value })} /></div>
                 </div>
               </div>
+              <div className="db-column">
+                <div className="db-section"><div className="db-section-title">Elements</div><ElementSetEditor value={item.element_set} elements={names.elements} onChange={v => u({ element_set: v })} /></div>
+                <div className="db-section"><div className="db-section-title">Add State</div><SetEditor value={item.plus_state_set} entries={names.states} onChange={v => u({ plus_state_set: v })} /></div>
+                <div className="db-section"><div className="db-section-title">Remove State</div><SetEditor value={item.minus_state_set} entries={names.states} onChange={v => u({ minus_state_set: v })} /></div>
+              </div>
             </div>
           </div>
-        ) : (
-          <div className="db-detail-empty">Select an item</div>
-        )}
+        ) : <div className="db-detail-empty">Select an item</div>}
       </div>
-      {db.dirty && (
-        <div className="db-save-bar">
-          <span className="db-dirty">Unsaved changes</span>
-          <button className="db-save-btn" onClick={db.save} disabled={db.loading}>Save</button>
-        </div>
-      )}
+      {db.dirty && <div className="db-save-bar"><span className="db-dirty">Unsaved changes</span><button className="db-save-btn" onClick={db.save} disabled={db.loading}>Save</button></div>}
     </>
   );
 }

@@ -1,6 +1,10 @@
 import type { RpgEnemy, RpgEnemyAction } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
+import { useDatabaseNames } from "../DatabaseContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
+import { IdSelect } from "../controls/IdSelect";
+import { AssetPicker } from "../controls/AssetPicker";
+import { RankTableEditor } from "../controls/RankTableEditor";
 import { useState } from "react";
 
 interface Props { projectPath: string }
@@ -21,6 +25,7 @@ const DEFAULT: RpgEnemy = {
 
 export function EnemiesTab({ projectPath }: Props) {
   const db = useDatabase(projectPath, "Enemies.rxdata");
+  const names = useDatabaseNames();
   const e = db.selected as RpgEnemy | null;
   const [selAction, setSelAction] = useState(-1);
 
@@ -42,6 +47,10 @@ export function EnemiesTab({ projectPath }: Props) {
     u({ actions: copy });
   };
 
+  // Extract rank arrays from Table objects
+  const elementRanks: number[] = (e?.element_ranks as unknown as { data?: number[] })?.data ?? [];
+  const stateRanks: number[] = (e?.state_ranks as unknown as { data?: number[] })?.data ?? [];
+
   return (
     <>
       <div className="db-content">
@@ -54,8 +63,10 @@ export function EnemiesTab({ projectPath }: Props) {
                 <div className="db-section">
                   <div className="db-section-title">General</div>
                   <div className="db-field"><span className="db-field-label">Name</span><input type="text" value={e.name} onChange={ev => u({ name: ev.target.value })} /></div>
-                  <div className="db-field"><span className="db-field-label">Battler</span><input type="text" value={e.battler_name} onChange={ev => u({ battler_name: ev.target.value })} /></div>
+                  <div className="db-field"><span className="db-field-label">Battler</span><AssetPicker projectPath={projectPath} assetType="Battlers" value={e.battler_name} onChange={v => u({ battler_name: v })} /></div>
                   <div className="db-field"><span className="db-field-label">Battler Hue</span><input type="number" value={e.battler_hue} min={0} max={360} onChange={ev => u({ battler_hue: +ev.target.value })} /></div>
+                  <div className="db-field"><span className="db-field-label">User Anim</span><IdSelect value={e.animation1_id} entries={names.animations} onChange={id => u({ animation1_id: id })} allowNone /></div>
+                  <div className="db-field"><span className="db-field-label">Target Anim</span><IdSelect value={e.animation2_id} entries={names.animations} onChange={id => u({ animation2_id: id })} allowNone /></div>
                 </div>
                 <div className="db-section">
                   <div className="db-section-title">Stats</div>
@@ -70,23 +81,23 @@ export function EnemiesTab({ projectPath }: Props) {
                   <div className="db-field"><span className="db-field-label">MDEF</span><input type="number" value={e.mdef} onChange={ev => u({ mdef: +ev.target.value })} /></div>
                   <div className="db-field"><span className="db-field-label">EVA</span><input type="number" value={e.eva} onChange={ev => u({ eva: +ev.target.value })} /></div>
                 </div>
-              </div>
-              <div className="db-column">
                 <div className="db-section">
                   <div className="db-section-title">Treasure</div>
                   <div className="db-field"><span className="db-field-label">EXP</span><input type="number" value={e.exp} min={0} onChange={ev => u({ exp: +ev.target.value })} /></div>
                   <div className="db-field"><span className="db-field-label">Gold</span><input type="number" value={e.gold} min={0} onChange={ev => u({ gold: +ev.target.value })} /></div>
-                  <div className="db-field"><span className="db-field-label">Item ID</span><input type="number" value={e.item_id} min={0} onChange={ev => u({ item_id: +ev.target.value })} /></div>
-                  <div className="db-field"><span className="db-field-label">Weapon ID</span><input type="number" value={e.weapon_id} min={0} onChange={ev => u({ weapon_id: +ev.target.value })} /></div>
-                  <div className="db-field"><span className="db-field-label">Armor ID</span><input type="number" value={e.armor_id} min={0} onChange={ev => u({ armor_id: +ev.target.value })} /></div>
+                  <div className="db-field"><span className="db-field-label">Item</span><IdSelect value={e.item_id} entries={names.items} onChange={id => u({ item_id: id })} allowNone /></div>
+                  <div className="db-field"><span className="db-field-label">Weapon</span><IdSelect value={e.weapon_id} entries={names.weapons} onChange={id => u({ weapon_id: id })} allowNone /></div>
+                  <div className="db-field"><span className="db-field-label">Armor</span><IdSelect value={e.armor_id} entries={names.armors} onChange={id => u({ armor_id: id })} allowNone /></div>
                   <div className="db-field"><span className="db-field-label">Probability %</span><input type="number" value={e.treasure_prob} min={0} max={100} onChange={ev => u({ treasure_prob: +ev.target.value })} /></div>
                 </div>
+              </div>
+              <div className="db-column">
                 <div className="db-section">
                   <div className="db-section-title">Actions</div>
                   <div className="db-sublist">
                     {e.actions.map((act, i) => (
                       <div key={i} className={`db-sublist-item${selAction === i ? " selected" : ""}`} onClick={() => setSelAction(i)}>
-                        {act.kind === 0 ? BASIC_ACTIONS[act.basic] ?? "Basic" : `Skill #${act.skill_id}`} (R:{act.rating})
+                        {act.kind === 0 ? BASIC_ACTIONS[act.basic] ?? "Basic" : `Skill: ${names.skills.find(s => s.id === act.skill_id)?.name ?? `#${act.skill_id}`}`} (R:{act.rating})
                       </div>
                     ))}
                   </div>
@@ -105,11 +116,26 @@ export function EnemiesTab({ projectPath }: Props) {
                         </div>
                       )}
                       {e.actions[selAction].kind === 1 && (
-                        <div className="db-field"><span className="db-field-label">Skill ID</span><input type="number" value={e.actions[selAction].skill_id} min={1} onChange={ev => updateAction(selAction, { skill_id: +ev.target.value })} /></div>
+                        <div className="db-field"><span className="db-field-label">Skill</span><IdSelect value={e.actions[selAction].skill_id} entries={names.skills} onChange={id => updateAction(selAction, { skill_id: id })} /></div>
                       )}
                       <div className="db-field"><span className="db-field-label">Rating</span><input type="number" value={e.actions[selAction].rating} min={1} max={10} onChange={ev => updateAction(selAction, { rating: +ev.target.value })} /></div>
+                      <div className="db-field"><span className="db-field-label">Turn A</span><input type="number" value={e.actions[selAction].condition_turn_a} min={0} onChange={ev => updateAction(selAction, { condition_turn_a: +ev.target.value })} /></div>
+                      <div className="db-field"><span className="db-field-label">Turn B</span><input type="number" value={e.actions[selAction].condition_turn_b} min={0} onChange={ev => updateAction(selAction, { condition_turn_b: +ev.target.value })} /></div>
+                      <div className="db-field"><span className="db-field-label">HP ≤ %</span><input type="number" value={e.actions[selAction].condition_hp} min={0} max={100} onChange={ev => updateAction(selAction, { condition_hp: +ev.target.value })} /></div>
+                      <div className="db-field"><span className="db-field-label">Level ≥</span><input type="number" value={e.actions[selAction].condition_level} min={1} onChange={ev => updateAction(selAction, { condition_level: +ev.target.value })} /></div>
+                      <div className="db-field"><span className="db-field-label">Switch</span><input type="number" value={e.actions[selAction].condition_switch_id} min={0} onChange={ev => updateAction(selAction, { condition_switch_id: +ev.target.value })} /></div>
                     </div>
                   )}
+                </div>
+                <div className="db-section">
+                  <div className="db-section-title">Element Ranks</div>
+                  <RankTableEditor ranks={elementRanks} labels={names.elements.slice(1)} onChange={() => {}} />
+                  {elementRanks.length === 0 && <div style={{ fontSize: 10, color: "#6c7086" }}>Binary Table data preserved on save</div>}
+                </div>
+                <div className="db-section">
+                  <div className="db-section-title">State Ranks</div>
+                  <RankTableEditor ranks={stateRanks} labels={names.states.map(s => s.name)} onChange={() => {}} />
+                  {stateRanks.length === 0 && <div style={{ fontSize: 10, color: "#6c7086" }}>Binary Table data preserved on save</div>}
                 </div>
               </div>
             </div>

@@ -1,6 +1,8 @@
 import type { RpgCommonEvent } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
+import { useDatabaseNames } from "../DatabaseContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
+import { EventCommandList } from "../controls/EventCommandList";
 
 interface Props { projectPath: string }
 
@@ -14,12 +16,19 @@ const DEFAULT: RpgCommonEvent = {
 
 export function CommonEventsTab({ projectPath }: Props) {
   const db = useDatabase(projectPath, "CommonEvents.rxdata");
+  const names = useDatabaseNames();
   const ce = db.selected as RpgCommonEvent | null;
 
   if (db.loading) return <div className="db-loading">Loading Common Events...</div>;
   if (db.error) return <div className="db-loading" style={{ color: "#f38ba8" }}>{db.error}</div>;
 
   const u = (patch: Partial<RpgCommonEvent>) => db.update(patch);
+
+  // Build switch name for display
+  const switchName = (id: number) => {
+    const name = names.switches[id];
+    return name ? `[${String(id).padStart(4, "0")}] ${name}` : `Switch ${String(id).padStart(4, "0")}`;
+  };
 
   return (
     <>
@@ -35,23 +44,18 @@ export function CommonEventsTab({ projectPath }: Props) {
                 <select value={ce.trigger} onChange={e => u({ trigger: +e.target.value })}>{TRIGGERS.map((t, i) => <option key={i} value={i}>{t}</option>)}</select>
               </div>
               {ce.trigger > 0 && (
-                <div className="db-field"><span className="db-field-label">Condition Switch</span><input type="number" value={ce.switch_id} min={1} onChange={e => u({ switch_id: +e.target.value })} /></div>
+                <div className="db-field">
+                  <span className="db-field-label">Condition Switch</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input type="number" value={ce.switch_id} min={1} style={{ width: 60 }} onChange={e => u({ switch_id: +e.target.value })} />
+                    <span style={{ fontSize: 10, color: "#a6adc8" }}>{switchName(ce.switch_id)}</span>
+                  </div>
+                </div>
               )}
             </div>
             <div className="db-section">
               <div className="db-section-title">Event Commands</div>
-              <div className="db-sublist" style={{ maxHeight: 400 }}>
-                {ce.list.map((cmd, i) => {
-                  if (cmd.code === 0) return null;
-                  const indent = "  ".repeat(cmd.indent);
-                  return (
-                    <div key={i} className="db-sublist-item" style={{ fontFamily: "monospace", fontSize: 10 }}>
-                      {indent}[{cmd.code}] {cmd.parameters.length > 0 ? JSON.stringify(cmd.parameters).slice(0, 60) : ""}
-                    </div>
-                  );
-                })}
-                {ce.list.length <= 1 && <div style={{ padding: 4, fontSize: 11, color: "#6c7086" }}>Empty event list</div>}
-              </div>
+              <EventCommandList commands={ce.list} maxHeight={400} />
               <div style={{ fontSize: 10, color: "#6c7086", marginTop: 4 }}>{ce.list.length} command(s)</div>
             </div>
           </div>

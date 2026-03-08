@@ -1,6 +1,9 @@
 import type { RpgState } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
+import { useDatabaseNames } from "../DatabaseContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
+import { IdSelect } from "../controls/IdSelect";
+import { ElementSetEditor, SetEditor } from "../controls/SetEditor";
 
 interface Props { projectPath: string }
 
@@ -18,6 +21,7 @@ const DEFAULT: RpgState = {
 
 export function StatesTab({ projectPath }: Props) {
   const db = useDatabase(projectPath, "States.rxdata");
+  const names = useDatabaseNames();
   const s = db.selected as RpgState | null;
 
   if (db.loading) return <div className="db-loading">Loading States...</div>;
@@ -37,7 +41,7 @@ export function StatesTab({ projectPath }: Props) {
                 <div className="db-section">
                   <div className="db-section-title">General</div>
                   <div className="db-field"><span className="db-field-label">Name</span><input type="text" value={s.name} onChange={e => u({ name: e.target.value })} /></div>
-                  <div className="db-field"><span className="db-field-label">Animation ID</span><input type="number" value={s.animation_id} min={0} onChange={e => u({ animation_id: +e.target.value })} /></div>
+                  <div className="db-field"><span className="db-field-label">Animation</span><IdSelect value={s.animation_id} entries={names.animations} onChange={id => u({ animation_id: id })} allowNone /></div>
                   <div className="db-field"><span className="db-field-label">Restriction</span>
                     <select value={s.restriction} onChange={e => u({ restriction: +e.target.value })}>{RESTRICTIONS.map((r, i) => <option key={i} value={i}>{r}</option>)}</select>
                   </div>
@@ -74,6 +78,9 @@ export function StatesTab({ projectPath }: Props) {
                   <div className="db-field"><span className="db-field-label">MDEF</span><input type="number" value={s.mdef_rate} onChange={e => u({ mdef_rate: +e.target.value })} /></div>
                   <div className="db-field"><span className="db-field-label">EVA</span><input type="number" value={s.eva} onChange={e => u({ eva: +e.target.value })} /></div>
                 </div>
+                <div className="db-section"><div className="db-section-title">Guard Elements</div><ElementSetEditor value={s.guard_element_set} elements={names.elements} onChange={v => u({ guard_element_set: v })} /></div>
+                <div className="db-section"><div className="db-section-title">Add State</div><SetEditor value={s.plus_state_set} entries={names.states} onChange={v => u({ plus_state_set: v })} /></div>
+                <div className="db-section"><div className="db-section-title">Remove State</div><SetEditor value={s.minus_state_set} entries={names.states} onChange={v => u({ minus_state_set: v })} /></div>
               </div>
             </div>
           </div>

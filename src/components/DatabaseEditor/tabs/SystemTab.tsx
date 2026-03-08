@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { RpgSystemData, RpgAudioFile } from "../../../types/rpgTypes";
 import { loadSystemData, saveSystemData } from "../../../services/tauriApi";
+import { AssetPicker } from "../controls/AssetPicker";
 
 interface Props { projectPath: string }
 
@@ -74,12 +75,12 @@ export function SystemTab({ projectPath }: Props) {
             <div className="db-column">
               <div className="db-section">
                 <div className="db-section-title">General</div>
-                <div className="db-field"><span className="db-field-label wide">Windowskin</span><input type="text" value={sys.windowskin_name} onChange={e => u({ windowskin_name: e.target.value })} /></div>
-                <div className="db-field"><span className="db-field-label wide">Title Screen</span><input type="text" value={sys.title_name} onChange={e => u({ title_name: e.target.value })} /></div>
-                <div className="db-field"><span className="db-field-label wide">Game Over</span><input type="text" value={sys.gameover_name} onChange={e => u({ gameover_name: e.target.value })} /></div>
-                <div className="db-field"><span className="db-field-label wide">Battle Transition</span><input type="text" value={sys.battle_transition} onChange={e => u({ battle_transition: e.target.value })} /></div>
-                <div className="db-field"><span className="db-field-label wide">Battleback</span><input type="text" value={sys.battleback_name} onChange={e => u({ battleback_name: e.target.value })} /></div>
-                <div className="db-field"><span className="db-field-label wide">Battler Graphic</span><input type="text" value={sys.battler_name} onChange={e => u({ battler_name: e.target.value })} /></div>
+                <div className="db-field"><span className="db-field-label wide">Windowskin</span><AssetPicker projectPath={projectPath} assetType="Windowskins" value={sys.windowskin_name} onChange={v => u({ windowskin_name: v })} /></div>
+                <div className="db-field"><span className="db-field-label wide">Title Screen</span><AssetPicker projectPath={projectPath} assetType="Titles" value={sys.title_name} onChange={v => u({ title_name: v })} /></div>
+                <div className="db-field"><span className="db-field-label wide">Game Over</span><AssetPicker projectPath={projectPath} assetType="Gameovers" value={sys.gameover_name} onChange={v => u({ gameover_name: v })} /></div>
+                <div className="db-field"><span className="db-field-label wide">Battle Transition</span><AssetPicker projectPath={projectPath} assetType="Transitions" value={sys.battle_transition} onChange={v => u({ battle_transition: v })} /></div>
+                <div className="db-field"><span className="db-field-label wide">Battleback</span><AssetPicker projectPath={projectPath} assetType="Battlebacks" value={sys.battleback_name} onChange={v => u({ battleback_name: v })} /></div>
+                <div className="db-field"><span className="db-field-label wide">Battler Graphic</span><AssetPicker projectPath={projectPath} assetType="Battlers" value={sys.battler_name} onChange={v => u({ battler_name: v })} /></div>
                 <div className="db-field"><span className="db-field-label wide">Battler Hue</span><input type="number" value={sys.battler_hue} min={0} max={360} onChange={e => u({ battler_hue: +e.target.value })} /></div>
               </div>
               <div className="db-section">

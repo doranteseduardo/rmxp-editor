@@ -1,6 +1,10 @@
 import type { RpgSkill } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
+import { useDatabaseNames } from "../DatabaseContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
+import { IdSelect } from "../controls/IdSelect";
+import { AssetPicker } from "../controls/AssetPicker";
+import { ElementSetEditor, SetEditor } from "../controls/SetEditor";
 
 interface Props { projectPath: string }
 
@@ -18,6 +22,7 @@ const DEFAULT_SKILL: RpgSkill = {
 
 export function SkillsTab({ projectPath }: Props) {
   const db = useDatabase(projectPath, "Skills.rxdata");
+  const names = useDatabaseNames();
   const s = db.selected as RpgSkill | null;
 
   if (db.loading) return <div className="db-loading">Loading Skills...</div>;
@@ -28,8 +33,7 @@ export function SkillsTab({ projectPath }: Props) {
   return (
     <>
       <div className="db-content">
-        <DatabaseListPanel items={db.items as any} selectedId={db.selectedId} onSelect={db.select}
-          onAdd={() => db.addNew(DEFAULT_SKILL)} label="skills" />
+        <DatabaseListPanel items={db.items as any} selectedId={db.selectedId} onSelect={db.select} onAdd={() => db.addNew(DEFAULT_SKILL)} label="skills" />
         {s ? (
           <div className="db-detail-panel">
             <div className="db-columns">
@@ -37,24 +41,15 @@ export function SkillsTab({ projectPath }: Props) {
                 <div className="db-section">
                   <div className="db-section-title">General</div>
                   <div className="db-field"><span className="db-field-label">Name</span><input type="text" value={s.name} onChange={e => u({ name: e.target.value })} /></div>
-                  <div className="db-field"><span className="db-field-label">Icon</span><input type="text" value={s.icon_name} onChange={e => u({ icon_name: e.target.value })} /></div>
+                  <div className="db-field"><span className="db-field-label">Icon</span><AssetPicker projectPath={projectPath} assetType="Icons" value={s.icon_name} onChange={v => u({ icon_name: v })} /></div>
                   <div className="db-field"><span className="db-field-label">Description</span><input type="text" value={s.description} onChange={e => u({ description: e.target.value })} /></div>
-                  <div className="db-field"><span className="db-field-label">Scope</span>
-                    <select value={s.scope} onChange={e => u({ scope: +e.target.value })}>{SCOPES.map((l, i) => <option key={i} value={i}>{l}</option>)}</select>
-                  </div>
-                  <div className="db-field"><span className="db-field-label">Occasion</span>
-                    <select value={s.occasion} onChange={e => u({ occasion: +e.target.value })}>{OCCASIONS.map((l, i) => <option key={i} value={i}>{l}</option>)}</select>
-                  </div>
+                  <div className="db-field"><span className="db-field-label">Scope</span><select value={s.scope} onChange={e => u({ scope: +e.target.value })}>{SCOPES.map((l, i) => <option key={i} value={i}>{l}</option>)}</select></div>
+                  <div className="db-field"><span className="db-field-label">Occasion</span><select value={s.occasion} onChange={e => u({ occasion: +e.target.value })}>{OCCASIONS.map((l, i) => <option key={i} value={i}>{l}</option>)}</select></div>
                   <div className="db-field"><span className="db-field-label">SP Cost</span><input type="number" value={s.sp_cost} min={0} onChange={e => u({ sp_cost: +e.target.value })} /></div>
-                  <div className="db-field"><span className="db-field-label">Common Event</span><input type="number" value={s.common_event_id} min={0} onChange={e => u({ common_event_id: +e.target.value })} /></div>
+                  <div className="db-field"><span className="db-field-label">Common Event</span><IdSelect value={s.common_event_id} entries={names.commonEvents} onChange={id => u({ common_event_id: id })} allowNone /></div>
+                  <div className="db-field"><span className="db-field-label">User Anim</span><IdSelect value={s.animation1_id} entries={names.animations} onChange={id => u({ animation1_id: id })} allowNone /></div>
+                  <div className="db-field"><span className="db-field-label">Target Anim</span><IdSelect value={s.animation2_id} entries={names.animations} onChange={id => u({ animation2_id: id })} allowNone /></div>
                 </div>
-                <div className="db-section">
-                  <div className="db-section-title">Animation</div>
-                  <div className="db-field"><span className="db-field-label">User Anim</span><input type="number" value={s.animation1_id} min={0} onChange={e => u({ animation1_id: +e.target.value })} /></div>
-                  <div className="db-field"><span className="db-field-label">Target Anim</span><input type="number" value={s.animation2_id} min={0} onChange={e => u({ animation2_id: +e.target.value })} /></div>
-                </div>
-              </div>
-              <div className="db-column">
                 <div className="db-section">
                   <div className="db-section-title">Power</div>
                   <div className="db-field"><span className="db-field-label">Power</span><input type="number" value={s.power} onChange={e => u({ power: +e.target.value })} /></div>
@@ -70,18 +65,25 @@ export function SkillsTab({ projectPath }: Props) {
                   <div className="db-field"><span className="db-field-label">MDEF F</span><input type="number" value={s.mdef_f} onChange={e => u({ mdef_f: +e.target.value })} /></div>
                 </div>
               </div>
+              <div className="db-column">
+                <div className="db-section">
+                  <div className="db-section-title">Elements</div>
+                  <ElementSetEditor value={s.element_set} elements={names.elements} onChange={v => u({ element_set: v })} />
+                </div>
+                <div className="db-section">
+                  <div className="db-section-title">Add State</div>
+                  <SetEditor value={s.plus_state_set} entries={names.states} onChange={v => u({ plus_state_set: v })} />
+                </div>
+                <div className="db-section">
+                  <div className="db-section-title">Remove State</div>
+                  <SetEditor value={s.minus_state_set} entries={names.states} onChange={v => u({ minus_state_set: v })} />
+                </div>
+              </div>
             </div>
           </div>
-        ) : (
-          <div className="db-detail-empty">Select a skill</div>
-        )}
+        ) : <div className="db-detail-empty">Select a skill</div>}
       </div>
-      {db.dirty && (
-        <div className="db-save-bar">
-          <span className="db-dirty">Unsaved changes</span>
-          <button className="db-save-btn" onClick={db.save} disabled={db.loading}>Save</button>
-        </div>
-      )}
+      {db.dirty && <div className="db-save-bar"><span className="db-dirty">Unsaved changes</span><button className="db-save-btn" onClick={db.save} disabled={db.loading}>Save</button></div>}
     </>
   );
 }

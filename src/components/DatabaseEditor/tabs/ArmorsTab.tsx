@@ -1,9 +1,12 @@
 import type { RpgArmor } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
+import { useDatabaseNames } from "../DatabaseContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
+import { IdSelect } from "../controls/IdSelect";
+import { AssetPicker } from "../controls/AssetPicker";
+import { ElementSetEditor, SetEditor } from "../controls/SetEditor";
 
 interface Props { projectPath: string }
-
 const KINDS = ["Shield", "Helmet", "Body Armor", "Accessory"];
 
 const DEFAULT: RpgArmor = {
@@ -15,6 +18,7 @@ const DEFAULT: RpgArmor = {
 
 export function ArmorsTab({ projectPath }: Props) {
   const db = useDatabase(projectPath, "Armors.rxdata");
+  const names = useDatabaseNames();
   const a = db.selected as RpgArmor | null;
 
   if (db.loading) return <div className="db-loading">Loading Armors...</div>;
@@ -25,8 +29,7 @@ export function ArmorsTab({ projectPath }: Props) {
   return (
     <>
       <div className="db-content">
-        <DatabaseListPanel items={db.items as any} selectedId={db.selectedId} onSelect={db.select}
-          onAdd={() => db.addNew(DEFAULT)} label="armors" />
+        <DatabaseListPanel items={db.items as any} selectedId={db.selectedId} onSelect={db.select} onAdd={() => db.addNew(DEFAULT)} label="armors" />
         {a ? (
           <div className="db-detail-panel">
             <div className="db-columns">
@@ -34,16 +37,12 @@ export function ArmorsTab({ projectPath }: Props) {
                 <div className="db-section">
                   <div className="db-section-title">General</div>
                   <div className="db-field"><span className="db-field-label">Name</span><input type="text" value={a.name} onChange={e => u({ name: e.target.value })} /></div>
-                  <div className="db-field"><span className="db-field-label">Icon</span><input type="text" value={a.icon_name} onChange={e => u({ icon_name: e.target.value })} /></div>
+                  <div className="db-field"><span className="db-field-label">Icon</span><AssetPicker projectPath={projectPath} assetType="Icons" value={a.icon_name} onChange={v => u({ icon_name: v })} /></div>
                   <div className="db-field"><span className="db-field-label">Description</span><input type="text" value={a.description} onChange={e => u({ description: e.target.value })} /></div>
-                  <div className="db-field"><span className="db-field-label">Kind</span>
-                    <select value={a.kind} onChange={e => u({ kind: +e.target.value })}>{KINDS.map((k, i) => <option key={i} value={i}>{k}</option>)}</select>
-                  </div>
+                  <div className="db-field"><span className="db-field-label">Kind</span><select value={a.kind} onChange={e => u({ kind: +e.target.value })}>{KINDS.map((k, i) => <option key={i} value={i}>{k}</option>)}</select></div>
                   <div className="db-field"><span className="db-field-label">Price</span><input type="number" value={a.price} min={0} onChange={e => u({ price: +e.target.value })} /></div>
-                  <div className="db-field"><span className="db-field-label">Auto State ID</span><input type="number" value={a.auto_state_id} min={0} onChange={e => u({ auto_state_id: +e.target.value })} /></div>
+                  <div className="db-field"><span className="db-field-label">Auto State</span><IdSelect value={a.auto_state_id} entries={names.states} onChange={id => u({ auto_state_id: id })} allowNone /></div>
                 </div>
-              </div>
-              <div className="db-column">
                 <div className="db-section">
                   <div className="db-section-title">Stats</div>
                   <div className="db-field"><span className="db-field-label">PDEF</span><input type="number" value={a.pdef} onChange={e => u({ pdef: +e.target.value })} /></div>
@@ -55,18 +54,15 @@ export function ArmorsTab({ projectPath }: Props) {
                   <div className="db-field"><span className="db-field-label">INT+</span><input type="number" value={a.int_plus} onChange={e => u({ int_plus: +e.target.value })} /></div>
                 </div>
               </div>
+              <div className="db-column">
+                <div className="db-section"><div className="db-section-title">Guard Elements</div><ElementSetEditor value={a.guard_element_set} elements={names.elements} onChange={v => u({ guard_element_set: v })} /></div>
+                <div className="db-section"><div className="db-section-title">Guard States</div><SetEditor value={a.guard_state_set} entries={names.states} onChange={v => u({ guard_state_set: v })} /></div>
+              </div>
             </div>
           </div>
-        ) : (
-          <div className="db-detail-empty">Select an armor</div>
-        )}
+        ) : <div className="db-detail-empty">Select an armor</div>}
       </div>
-      {db.dirty && (
-        <div className="db-save-bar">
-          <span className="db-dirty">Unsaved changes</span>
-          <button className="db-save-btn" onClick={db.save} disabled={db.loading}>Save</button>
-        </div>
-      )}
+      {db.dirty && <div className="db-save-bar"><span className="db-dirty">Unsaved changes</span><button className="db-save-btn" onClick={db.save} disabled={db.loading}>Save</button></div>}
     </>
   );
 }

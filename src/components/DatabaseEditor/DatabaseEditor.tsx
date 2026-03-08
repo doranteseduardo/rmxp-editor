@@ -6,6 +6,7 @@
  * States, Animations, Tilesets, Common Events, System.
  */
 import { useState } from "react";
+import { DatabaseNamesProvider } from "./DatabaseContext";
 import { ActorsTab } from "./tabs/ActorsTab";
 import { ClassesTab } from "./tabs/ClassesTab";
 import { SkillsTab } from "./tabs/SkillsTab";
@@ -55,19 +56,21 @@ export function DatabaseEditor({ projectPath }: Props) {
   };
 
   return (
-    <div className="db-editor">
-      <div className="db-tabs">
-        {TABS.map((tab) => (
-          <button
-            key={tab}
-            className={`db-tab${activeTab === tab ? " active" : ""}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab}
-          </button>
-        ))}
+    <DatabaseNamesProvider projectPath={projectPath}>
+      <div className="db-editor">
+        <div className="db-tabs">
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              className={`db-tab${activeTab === tab ? " active" : ""}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+        {renderTab()}
       </div>
-      {renderTab()}
-    </div>
+    </DatabaseNamesProvider>
   );
 }
