@@ -207,10 +207,22 @@ export class MapRenderer {
     const img = this.autotileImages[atIndex];
 
     if (!img) {
-      // Fallback for missing autotile images
+      // Fallback for missing autotile images — bright colors to make them obvious
       const hue = (atIndex * 50 + 200) % 360;
-      this.ctx.fillStyle = `hsl(${hue}, 50%, 25%)`;
+      this.ctx.fillStyle = `hsl(${hue}, 60%, 35%)`;
       this.ctx.fillRect(screenX, screenY, tileSize, tileSize);
+      // Draw "AT#" label to show which autotile slot is missing
+      this.ctx.strokeStyle = `hsl(${hue}, 80%, 60%)`;
+      this.ctx.lineWidth = 1;
+      this.ctx.strokeRect(screenX + 1, screenY + 1, tileSize - 2, tileSize - 2);
+      if (tileSize >= 16) {
+        const dpr = window.devicePixelRatio || 1;
+        this.ctx.fillStyle = `hsl(${hue}, 90%, 75%)`;
+        this.ctx.font = `${Math.max(8, tileSize * 0.35)}px monospace`;
+        this.ctx.textAlign = "center";
+        this.ctx.fillText(`AT${atIndex}`, screenX + tileSize / 2, screenY + tileSize / 2 + 3);
+        this.ctx.textAlign = "start";
+      }
       return;
     }
 

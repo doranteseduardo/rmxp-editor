@@ -1,73 +1,104 @@
-# React + TypeScript + Vite
+# RMXP Editor
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, cross-platform editor for **RPG Maker XP** projects, built specifically with **Pokémon Essentials v21.1** support in mind.
 
-Currently, two official plugins are available:
+Built with [Tauri v2](https://v2.tauri.app/) + React + TypeScript for a native desktop experience on macOS, Windows, and Linux.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
 
-## React Compiler
+### Map Editor
+- Visual tile-based map editing with a real-time canvas renderer
+- Full 3-layer support (matching RMXP's layer system)
+- Tileset palette with clickable tile grid and autotile previews
+- Drawing tools: Pencil, Rectangle, Flood Fill, Eraser
+- Undo/Redo with full history stack
+- Zoom and pan navigation
+- Grid and event marker overlays
+- DPR-aware rendering for Retina/HiDPI displays
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Event System
+- Event viewer with markers on the map canvas
+- Event editor with full page/command inspection
+- Double-click events on the map to open the editor
+- Displays all RMXP event commands with human-readable descriptions
 
-## Expanding the ESLint configuration
+### Tileset Support
+- Loads RMXP tileset images via Tauri's asset protocol
+- 7-slot autotile system with animated autotile rendering
+- Tile property viewer (passage, priority, terrain tags)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Project Management
+- Native folder picker to open any RMXP project
+- Parses `Game.rxproj`, `MapInfos.rxdata`, `Tilesets.rxdata`, and individual map files
+- Hierarchical map tree with parent/child relationships
+- Auto-opens the last edited map on project load
+- Save modified maps back to `.rxdata` format
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Tech Stack
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- **Frontend:** React 19, TypeScript, Vite
+- **Backend:** Rust (Tauri v2)
+- **Binary parsing:** Custom Ruby Marshal v4.8 deserializer (reads `.rxdata` files directly)
+- **Rendering:** HTML5 Canvas with requestAnimationFrame loop
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Architecture
+
+```
+src/                        # React frontend
+├── components/
+│   ├── MapEditor/          # Canvas-based map editor with drawing tools
+│   ├── MapTree/            # Hierarchical map list panel
+│   ├── TilesetPalette/     # Tileset/autotile selector
+│   └── EventEditor/        # Event page and command viewer
+├── services/
+│   ├── tauriApi.ts         # Tauri IPC command wrappers
+│   ├── imageLoader.ts      # Asset protocol image loading with caching
+│   ├── mapRenderer.ts      # Canvas tile renderer (regular + autotile)
+│   ├── mapEditor.ts        # Paint operations and undo/redo
+│   └── autotileData.ts     # 48-pattern autotile lookup table
+└── types/                  # TypeScript type definitions and RMXP constants
+
+src-tauri/                  # Rust backend
+├── src/
+│   ├── commands/           # Tauri IPC command handlers
+│   ├── marshal/            # Ruby Marshal v4.8 binary format parser
+│   └── models/             # RMXP data structures (Map, Tileset, Event, Table)
+└── Cargo.toml
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Getting Started
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Prerequisites
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- [Node.js](https://nodejs.org/) (v18+)
+- [Rust](https://www.rust-lang.org/tools/install) (latest stable)
+- [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform
+
+### Development
+
+```bash
+# Install frontend dependencies
+npm install
+
+# Run in development mode (starts both Vite dev server and Tauri)
+cargo tauri dev
 ```
+
+### Build
+
+```bash
+# Create a production build
+cargo tauri build
+```
+
+## Roadmap
+
+- [x] **Phase 1** — Project loading, Ruby Marshal parser, map tree
+- [x] **Phase 2** — Map editor with tile rendering, drawing tools, undo/redo
+- [x] **Phase 3** — Event system viewer and editor
+- [ ] **Phase 4** — PBS file parser and database editors (species, moves, items, etc.)
+- [ ] **Phase 5** — Script editor with syntax highlighting and mkxp-z integration
+
+## License
+
+This project is not affiliated with Enterbrain, Maruno, or the Pokémon Essentials team.
