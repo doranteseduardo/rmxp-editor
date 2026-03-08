@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TilesetRenderInfo } from "../../types";
 import { TILE_SIZE, FIRST_REGULAR_TILE } from "../../types";
+import { renderAutotilePattern } from "../../services/autotileData";
 import "./TilesetPalette.css";
 
 interface Props {
@@ -281,7 +282,7 @@ export function TilesetPalette({
   );
 }
 
-/** Renders a 32×32 preview of an autotile's first frame. */
+/** Renders a 32×32 preview of autotile pattern 0 (all neighbors match). */
 function AutotilePreview({ image }: { image: HTMLImageElement }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -294,9 +295,8 @@ function AutotilePreview({ image }: { image: HTMLImageElement }) {
     canvas.width = 32;
     canvas.height = 32;
 
-    // Draw the center tile (pattern 0 = all same neighbors)
-    // The "full" tile is at position (32, 64) in the autotile bitmap
-    ctx.drawImage(image, 32, 64, 32, 32, 0, 0, 32, 32);
+    // Composite 4 mini-tiles for pattern 0 using the AUTOTILE_RECTS lookup
+    renderAutotilePattern(ctx, image, 0, 0, 0);
   }, [image]);
 
   return <canvas ref={canvasRef} className="autotile-canvas" />;

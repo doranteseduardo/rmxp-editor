@@ -299,9 +299,9 @@ export function MapEditor({
       if (selectedLayer < 0 || selectedLayer > 2) return; // Can't paint on Events or All layer
 
       if (paintTool === "pencil") {
-        const change = paintTile(mapData, x, y, selectedLayer, selectedTileId);
-        if (change) {
-          paintChanges.current.push(change);
+        const changes = paintTile(mapData, x, y, selectedLayer, selectedTileId);
+        if (changes.length > 0) {
+          paintChanges.current.push(...changes);
           rendererRef.current?.setMapData(
             mapData.tiles,
             mapData.width,
@@ -310,9 +310,9 @@ export function MapEditor({
           setRenderTick((t) => t + 1);
         }
       } else if (paintTool === "eraser") {
-        const change = eraseTile(mapData, x, y, selectedLayer);
-        if (change) {
-          paintChanges.current.push(change);
+        const changes = eraseTile(mapData, x, y, selectedLayer);
+        if (changes.length > 0) {
+          paintChanges.current.push(...changes);
           rendererRef.current?.setMapData(
             mapData.tiles,
             mapData.width,

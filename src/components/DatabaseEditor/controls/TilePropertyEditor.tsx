@@ -13,7 +13,8 @@
  * since all 48 patterns share the same property value.
  * Regular tiles (IDs 384+) use the tileset image as a single CSS background.
  */
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { autotilePreviewDataUrl } from "../../../services/autotileData";
 
 export type PropertyMode = "passage" | "passage_4dir" | "priorities" | "bush_flag" | "counter_flag" | "terrain_tags";
 
@@ -249,6 +250,37 @@ function useTilesetSize(projectPath?: string, tilesetName?: string) {
   return size;
 }
 
+/**
+ * Hook: load autotile images and pre-render pattern-0 previews as data URLs.
+ * Returns an array of 7 data URLs (or null for empty/missing slots).
+ */
+function useAutotilePreviews(projectPath?: string, autotileNames?: string[]): (string | null)[] {
+  const [previews, setPreviews] = useState<(string | null)[]>([]);
+
+  useEffect(() => {
+    if (!projectPath || !autotileNames) { setPreviews([]); return; }
+    let cancelled = false;
+
+    const promises = autotileNames.map((name) => {
+      if (!name) return Promise.resolve(null);
+      return new Promise<string | null>((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(cancelled ? null : autotilePreviewDataUrl(img));
+        img.onerror = () => resolve(null);
+        img.src = buildAssetUrl(projectPath, "Autotiles", name);
+      });
+    });
+
+    Promise.all(promises).then((urls) => {
+      if (!cancelled) setPreviews(urls);
+    });
+
+    return () => { cancelled = true; };
+  }, [projectPath, autotileNames?.join(",")]);
+
+  return previews;
+}
+
 /* ─── 4-Dir click handler for individual direction toggling ───── */
 
 function toggle4Dir(val: number, dir: number): number {
@@ -266,14 +298,11 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
   const regularTileRows = Math.max(0, rows - regularTileStartRow);
 
   const tilesetSize = useTilesetSize(projectPath, tilesetName);
+  const autotilePreviews = useAutotilePreviews(projectPath, autotileNames);
 
   const tilesetBgUrl = (projectPath && tilesetName)
     ? `url("${buildAssetUrl(projectPath, "Tilesets", tilesetName)}")`
     : undefined;
-
-  const autotileBgUrls = (projectPath && autotileNames)
-    ? autotileNames.map(name => name ? `url("${buildAssetUrl(projectPath, "Autotiles", name)}")` : null)
-    : [];
 
   /** Left-click handler for regular tiles */
   const handleClick = useCallback((index: number) => {
@@ -357,7 +386,7 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
             if (startIdx >= data.length) return null;
             const val = data[startIdx] ?? 0;
             const atName = slot === 0 ? "" : (autotileNames?.[slot - 1] ?? "");
-            const atBgUrl = slot > 0 ? autotileBgUrls[slot - 1] : null;
+            const atPreview = slot > 0 ? autotilePreviews[slot - 1] : null;
             const isHovered = hoveredIdx === -(slot + 1);
 
             return (
@@ -372,7 +401,7 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
                     position: "relative", cursor: "pointer",
                     border: isHovered ? "1px solid #89b4fa" : "1px solid #313244",
                     boxSizing: "border-box",
-                    backgroundImage: atBgUrl ?? undefined,
+                    backgroundImage: atPreview ? `url("${atPreview}")` : undefined,
                     backgroundSize: `${CELL_SIZE}px ${CELL_SIZE}px`,
                     backgroundRepeat: "no-repeat",
                     backgroundPosition: "0 0",
