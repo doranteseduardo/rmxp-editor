@@ -489,6 +489,7 @@ function App() {
           eventId={editingEvent.eventId}
           eventName={editingEvent.eventName}
           onClose={() => setEditingEvent(null)}
+          mapInfos={project.map_infos}
         />
       )}
 

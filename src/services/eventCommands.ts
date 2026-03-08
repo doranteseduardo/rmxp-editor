@@ -227,8 +227,9 @@ const _dirName: Record<number, string> = { 0: "Retain", 2: "Down", 4: "Left", 6:
 
 /**
  * Generate a human-readable summary of an event command's parameters.
+ * @param mapInfos Optional map name lookup for commands referencing map IDs.
  */
-export function summarizeCommand(code: number, params: unknown[]): string {
+export function summarizeCommand(code: number, params: unknown[], mapInfos?: Record<number, { name: string }>): string {
   switch (code) {
     // --- Message ---
     case 101: return params[0] ? String(params[0]) : "(empty text)";
@@ -308,8 +309,13 @@ export function summarizeCommand(code: number, params: unknown[]): string {
     case 136: return _n(params[0]) === 0 ? "Disable" : "Enable";
 
     // --- Map ---
-    case 201:
-      return _n(params[0]) === 0 ? `Map [${params[1]}] (${params[2]}, ${params[3]}) ${_dirName[_n(params[4])] ?? ""}` : `Variable-based transfer`;
+    case 201: {
+      if (_n(params[0]) !== 0) return "Variable-based transfer";
+      const mapId201 = _n(params[1]);
+      const mapName201 = mapInfos?.[mapId201]?.name;
+      const mapLabel = mapName201 ? `[${String(mapId201).padStart(3, "0")}] ${mapName201}` : `Map [${mapId201}]`;
+      return `${mapLabel} (${params[2]}, ${params[3]}) ${_dirName[_n(params[4])] ?? ""}`;
+    }
     case 202: {
       const t = _n(params[1]);
       if (t === 2) return `Event [${params[0]}] ↔ Event [${params[2]}]`;

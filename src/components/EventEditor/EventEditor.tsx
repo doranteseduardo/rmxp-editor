@@ -31,6 +31,7 @@ interface Props {
   /** Initial event name from EventInfo (shown before full data loads) */
   eventName: string;
   onClose: () => void;
+  mapInfos?: Record<number, import("../../types").MapInfo>;
 }
 
 export function EventEditor({
@@ -39,6 +40,7 @@ export function EventEditor({
   eventId,
   eventName,
   onClose,
+  mapInfos,
 }: Props) {
   const { value: event, set: setEvent, setWithoutHistory, resetHistory, undo, redo, canUndo, canRedo } = useUndoable<RpgEvent>(null);
   const [activePage, setActivePage] = useState(0);
@@ -381,6 +383,7 @@ export function EventEditor({
                         handleUpdateCommandParam(i, paramIdx, value)
                       }
                       onStopEditing={() => setEditingCommand(null)}
+                      mapInfos={mapInfos}
                     />
                   ))}
                 </div>
@@ -852,6 +855,7 @@ function CommandRow({
   onDoubleClick,
   onParamChange,
   onStopEditing,
+  mapInfos,
 }: {
   command: EventCommand;
   index: number;
@@ -861,9 +865,10 @@ function CommandRow({
   onDoubleClick: () => void;
   onParamChange: (paramIndex: number, value: unknown) => void;
   onStopEditing: () => void;
+  mapInfos?: Record<number, import("../../types").MapInfo>;
 }) {
   const def = getCommandDef(command.code);
-  const summary = summarizeCommand(command.code, command.parameters);
+  const summary = summarizeCommand(command.code, command.parameters, mapInfos);
 
   let rowClass = "event-command-row";
   if (selected) rowClass += " selected";
@@ -936,6 +941,7 @@ function CommandRow({
           command={command}
           onChange={onParamChange}
           onDone={onStopEditing}
+          mapInfos={mapInfos}
         />
       </div>
     );

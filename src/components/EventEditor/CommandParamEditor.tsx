@@ -4,12 +4,13 @@
  * Covers all 90 official RMXP event command types.
  */
 
-import type { EventCommand } from "../../types";
+import type { EventCommand, MapInfo } from "../../types";
 
 interface Props {
   command: EventCommand;
   onChange: (paramIndex: number, value: unknown) => void;
   onDone: () => void;
+  mapInfos?: Record<number, MapInfo>;
 }
 
 /** All command codes that have a dedicated parameter editor. */
@@ -36,7 +37,7 @@ export function hasParamEditor(code: number): boolean {
 /**
  * Renders a parameter editor for the given command.
  */
-export function CommandParamEditor({ command, onChange, onDone }: Props) {
+export function CommandParamEditor({ command, onChange, onDone, mapInfos }: Props) {
   const p = command.parameters;
 
   switch (command.code) {
@@ -67,7 +68,7 @@ export function CommandParamEditor({ command, onChange, onDone }: Props) {
     case 135: return <ToggleEditor title="Change Menu Access" onLabel="Enable" offLabel="Disable" params={p} onChange={onChange} onDone={onDone} />;
     case 136: return <ToggleEditor title="Change Encounter" onLabel="Enable" offLabel="Disable" params={p} onChange={onChange} onDone={onDone} />;
     // --- Map ---
-    case 201: return <TransferPlayerEditor params={p} onChange={onChange} onDone={onDone} />;
+    case 201: return <TransferPlayerEditor params={p} onChange={onChange} onDone={onDone} mapInfos={mapInfos} />;
     case 202: return <SetEventLocationEditor params={p} onChange={onChange} onDone={onDone} />;
     case 203: return <ScrollMapEditor params={p} onChange={onChange} onDone={onDone} />;
     case 204: return <ChangeMapSettingsEditor params={p} onChange={onChange} onDone={onDone} />;
@@ -804,8 +805,16 @@ function FadeOutEditor({ title, params, onChange, onDone }: EditorProps & { titl
 // ══════════════════════════════════════════════════════════
 
 // --- Transfer Player (201) ---
-function TransferPlayerEditor({ params, onChange, onDone }: EditorProps) {
+function TransferPlayerEditor({ params, onChange, onDone, mapInfos }: EditorProps & { mapInfos?: Record<number, MapInfo> }) {
   const direct = num(params[0]) === 0;
+
+  // Build sorted map list for the dropdown
+  const mapEntries = mapInfos
+    ? Object.entries(mapInfos)
+        .map(([id, info]) => ({ id: Number(id), name: info.name }))
+        .sort((a, b) => a.id - b.id)
+    : [];
+
   return (
     <EditorShell title="Transfer Player" onDone={onDone}>
       <div className="cmd-param-row">
@@ -815,7 +824,25 @@ function TransferPlayerEditor({ params, onChange, onDone }: EditorProps) {
         </select>
       </div>
       <div className="cmd-param-row">
-        <NInput label={direct ? "Map:" : "Map Var:"} value={num(params[1])} onChange={(v) => onChange(1, v)} min={direct ? 1 : 1} />
+        {direct && mapEntries.length > 0 ? (
+          <>
+            <span className="cmd-param-label">Map:</span>
+            <select
+              className="prop-select"
+              value={num(params[1])}
+              onChange={(e) => onChange(1, Number(e.target.value))}
+              style={{ flex: 1 }}
+            >
+              {mapEntries.map((m) => (
+                <option key={m.id} value={m.id}>
+                  [{String(m.id).padStart(3, "0")}] {m.name}
+                </option>
+              ))}
+            </select>
+          </>
+        ) : (
+          <NInput label={direct ? "Map:" : "Map Var:"} value={num(params[1])} onChange={(v) => onChange(1, v)} min={1} />
+        )}
       </div>
       <div className="cmd-param-row">
         <NInput label={direct ? "X:" : "X Var:"} value={num(params[2])} onChange={(v) => onChange(2, v)} min={0} />
