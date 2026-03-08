@@ -3,11 +3,13 @@ pub mod marshal;
 pub mod models;
 
 use commands::*;
+use std::sync::Mutex;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .manage(Mutex::new(AudioHandle::new()))
         .invoke_handler(tauri::generate_handler![
             open_project,
             load_map,
@@ -25,6 +27,9 @@ pub fn run() {
             delete_map,
             rename_map,
             list_tileset_names,
+            preview_audio,
+            stop_audio,
+            is_audio_playing,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

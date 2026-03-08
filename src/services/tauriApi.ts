@@ -267,6 +267,26 @@ export async function listTilesetNames(
   });
 }
 
+/** Preview an audio asset through the native audio backend. */
+export async function previewAudio(
+  projectPath: string,
+  assetType: string,
+  assetName: string,
+  volume: number = 0.8
+): Promise<void> {
+  await invoke("preview_audio", { projectPath, assetType, assetName, volume });
+}
+
+/** Stop the currently playing audio preview. */
+export async function stopAudio(): Promise<void> {
+  await invoke("stop_audio", {});
+}
+
+/** Check if audio is currently playing. */
+export async function isAudioPlaying(): Promise<boolean> {
+  return await invoke<boolean>("is_audio_playing", {});
+}
+
 /**
  * Mock invoke for development without Tauri runtime.
  */
@@ -462,6 +482,15 @@ async function mockInvoke(
 
     case "list_tileset_names":
       return [[1, "Outside"], [2, "Inside"], [3, "Cave"], [4, "Water"], [5, "Forest"], [6, "Desert"], [7, "Snow"], [8, "Trainer"]];
+
+    case "preview_audio":
+      console.log(`[mock] Preview audio: ${args?.assetType}/${args?.assetName}`);
+      return;
+    case "stop_audio":
+      console.log("[mock] Stop audio");
+      return;
+    case "is_audio_playing":
+      return false;
 
     default:
       throw new Error(`Unknown mock command: ${cmd}`);

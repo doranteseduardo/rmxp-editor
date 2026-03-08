@@ -253,32 +253,38 @@ pub async fn load_tileset(
     })
 }
 
-/// Get the file path for a tileset or autotile image.
+/// Get the file path for any project asset (graphics or audio).
 #[tauri::command]
 pub async fn get_asset_path(
     project_path: String,
     asset_type: String,
     asset_name: String,
 ) -> Result<String, String> {
-    let base = PathBuf::from(&project_path).join("Graphics");
+    let project = PathBuf::from(&project_path);
 
-    let dir = match asset_type.as_str() {
-        "tileset" => "Tilesets",
-        "autotile" => "Autotiles",
-        "character" => "Characters",
-        "panorama" => "Panoramas",
-        "fog" => "Fogs",
-        "battleback" => "Battlebacks",
-        "picture" => "Pictures",
-        "animation" => "Animations",
-        "icon" => "Icons",
+    let (base_dir, dir, extensions): (&str, &str, &[&str]) = match asset_type.as_str() {
+        // Graphics
+        "tileset" => ("Graphics", "Tilesets", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "autotile" => ("Graphics", "Autotiles", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "character" => ("Graphics", "Characters", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "panorama" => ("Graphics", "Panoramas", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "fog" => ("Graphics", "Fogs", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "battleback" => ("Graphics", "Battlebacks", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "picture" => ("Graphics", "Pictures", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "animation" => ("Graphics", "Animations", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "icon" => ("Graphics", "Icons", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        // Audio
+        "bgm" => ("Audio", "BGM", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
+        "bgs" => ("Audio", "BGS", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
+        "me" => ("Audio", "ME", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
+        "se" => ("Audio", "SE", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
         _ => return Err(format!("Unknown asset type: {}", asset_type)),
     };
 
-    // Try common image extensions
-    let base_path = base.join(dir).join(&asset_name);
+    let base_path = project.join(base_dir).join(dir).join(&asset_name);
     eprintln!("[get_asset_path] Looking for {}/{} at base: {:?}", asset_type, asset_name, base_path);
-    for ext in &["png", "jpg", "jpeg", "bmp", "gif"] {
+
+    for ext in extensions {
         let path = base_path.with_extension(ext);
         let exists = path.exists();
         eprintln!("[get_asset_path]   Try {:?} → exists={}", path, exists);
