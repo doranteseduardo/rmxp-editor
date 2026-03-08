@@ -259,3 +259,16 @@ export function getTile(
   const offset = layer * width * height + y * width + x;
   return tiles[offset] ?? 0;
 }
+
+// ── Script types ──────────────────────────────────────────────────
+
+export interface ScriptEntry {
+  id: number;
+  title: string;
+}
+
+export interface ScriptData {
+  id: number;
+  title: string;
+  source: string;
+}

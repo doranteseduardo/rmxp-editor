@@ -13,6 +13,8 @@ import type {
   EventInfo,
   MapProperties,
   MapInfo,
+  ScriptEntry,
+  ScriptData,
 } from "../types";
 
 // Lazy-loaded Tauri invoke — resolved on first call
@@ -287,6 +289,55 @@ export async function isAudioPlaying(): Promise<boolean> {
   return await invoke<boolean>("is_audio_playing", {});
 }
 
+// ── Script commands ─────────────────────────────────────────────
+
+/** Load the script list (id + title only). */
+export async function loadScriptList(
+  projectPath: string
+): Promise<ScriptEntry[]> {
+  return await invoke<ScriptEntry[]>("load_script_list", { projectPath });
+}
+
+/** Load the decompressed source of a single script. */
+export async function loadScriptSource(
+  projectPath: string,
+  scriptId: number
+): Promise<string> {
+  return await invoke<string>("load_script_source", { projectPath, scriptId });
+}
+
+/** Save all scripts back to Scripts.rxdata. */
+export async function saveAllScripts(
+  projectPath: string,
+  scripts: ScriptData[]
+): Promise<void> {
+  await invoke("save_all_scripts", { projectPath, scripts });
+}
+
+/** Create a new script after the given script ID. Returns updated list. */
+export async function createScript(
+  projectPath: string,
+  title: string,
+  afterId: number
+): Promise<ScriptEntry[]> {
+  return await invoke<ScriptEntry[]>("create_script", {
+    projectPath,
+    title,
+    afterId,
+  });
+}
+
+/** Delete a script by ID. Returns updated list. */
+export async function deleteScript(
+  projectPath: string,
+  scriptId: number
+): Promise<ScriptEntry[]> {
+  return await invoke<ScriptEntry[]>("delete_script", {
+    projectPath,
+    scriptId,
+  });
+}
+
 /**
  * Mock invoke for development without Tauri runtime.
  */
@@ -491,6 +542,39 @@ async function mockInvoke(
       return;
     case "is_audio_playing":
       return false;
+
+    case "load_script_list":
+      return [
+        { id: 1, title: "Game_Temp" }, { id: 2, title: "Game_System" },
+        { id: 3, title: "Game_Switches" }, { id: 4, title: "Game_Variables" },
+        { id: 5, title: "Game_Map" }, { id: 6, title: "Scene_Title" },
+        { id: 7, title: "Scene_Map" }, { id: 8, title: "Main" },
+      ] satisfies ScriptEntry[];
+
+    case "load_script_source": {
+      const sid = args?.scriptId as number;
+      const mockSrc: Record<number, string> = {
+        1: "class Game_Temp\n  attr_accessor :map_bgm\n  attr_accessor :message_text\n  attr_accessor :common_event_id\n\n  def initialize\n    @map_bgm = nil\n    @message_text = nil\n    @common_event_id = 0\n  end\nend",
+        8: "begin\n  Graphics.freeze\n  $scene = Scene_Title.new\n  while $scene != nil\n    $scene.main\n  end\n  Graphics.transition(20)\nrescue Errno::ENOENT\n  filename = $!\n  print(\"Unable to find file #{filename}.\")\nend",
+      };
+      return mockSrc[sid] ?? `# ${sid}\n# Empty script`;
+    }
+
+    case "save_all_scripts":
+      console.log("[mock] Saved scripts");
+      return;
+
+    case "create_script":
+      return [
+        { id: 1, title: "Game_Temp" }, { id: 2, title: "Game_System" },
+        { id: 99, title: args?.title as string ?? "New Script" },
+        { id: 8, title: "Main" },
+      ] satisfies ScriptEntry[];
+
+    case "delete_script":
+      return [
+        { id: 1, title: "Game_Temp" }, { id: 8, title: "Main" },
+      ] satisfies ScriptEntry[];
 
     default:
       throw new Error(`Unknown mock command: ${cmd}`);

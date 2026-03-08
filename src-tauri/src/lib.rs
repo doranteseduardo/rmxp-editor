@@ -30,6 +30,11 @@ pub fn run() {
             preview_audio,
             stop_audio,
             is_audio_playing,
+            load_script_list,
+            load_script_source,
+            save_all_scripts,
+            create_script,
+            delete_script,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

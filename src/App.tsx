@@ -20,6 +20,7 @@ import { TilesetPalette } from "./components/TilesetPalette/TilesetPalette";
 import { EventEditor } from "./components/EventEditor/EventEditor";
 import { MapPropertiesDialog } from "./components/MapProperties/MapPropertiesDialog";
 import { CreateMapDialog } from "./components/MapProperties/CreateMapDialog";
+import { ScriptEditor } from "./components/ScriptEditor/ScriptEditor";
 import "./App.css";
 
 /** Try to open a native folder picker via Tauri dialog plugin. */
@@ -70,6 +71,9 @@ function App() {
 
   // Tileset names cache (loaded once when project opens)
   const [tilesetNames, setTilesetNames] = useState<Array<[number, string]>>([]);
+
+  // Editor mode: map editor vs script editor
+  const [editorMode, setEditorMode] = useState<"map" | "script">("map");
 
   // Open a project by path
   const handleOpenProject = useCallback(
@@ -405,6 +409,20 @@ function App() {
           {isDirty ? " *" : ""}
         </span>
         <div className="app-titlebar-right">
+          <div className="app-mode-toggle">
+            <button
+              className={`app-mode-btn${editorMode === "map" ? " active" : ""}`}
+              onClick={() => setEditorMode("map")}
+            >
+              Maps
+            </button>
+            <button
+              className={`app-mode-btn${editorMode === "script" ? " active" : ""}`}
+              onClick={() => setEditorMode("script")}
+            >
+              Scripts
+            </button>
+          </div>
           <button className="app-titlebar-btn" onClick={handleBrowseProject}>
             Open...
           </button>
@@ -414,39 +432,45 @@ function App() {
 
       {/* Main layout */}
       <div className="app-body">
-        {/* Left: Map tree */}
-        <MapTreePanel
-          mapInfos={project.map_infos}
-          currentMapId={currentMapId}
-          onSelectMap={(id) => handleSelectMap(id)}
-          onCreateMap={handleCreateMap}
-          onDeleteMap={handleDeleteMap}
-          onRenameMap={handleRenameMap}
-          onMapProperties={handleMapProperties}
-        />
+        {editorMode === "map" ? (
+          <>
+            {/* Left: Map tree */}
+            <MapTreePanel
+              mapInfos={project.map_infos}
+              currentMapId={currentMapId}
+              onSelectMap={(id) => handleSelectMap(id)}
+              onCreateMap={handleCreateMap}
+              onDeleteMap={handleDeleteMap}
+              onRenameMap={handleRenameMap}
+              onMapProperties={handleMapProperties}
+            />
 
-        {/* Center: Map editor */}
-        <MapEditor
-          mapData={mapData}
-          tilesetInfo={tilesetInfo}
-          tilesetImage={tilesetImage}
-          autotileImages={autotileImages}
-          projectPath={project?.path ?? ""}
-          selectedTileId={selectedTileId}
-          onMapDirty={handleMapDirty}
-          onOpenEvent={handleOpenEvent}
-          onCreateEvent={handleCreateEvent}
-          onDeleteEvent={handleDeleteEvent}
-        />
+            {/* Center: Map editor */}
+            <MapEditor
+              mapData={mapData}
+              tilesetInfo={tilesetInfo}
+              tilesetImage={tilesetImage}
+              autotileImages={autotileImages}
+              projectPath={project?.path ?? ""}
+              selectedTileId={selectedTileId}
+              onMapDirty={handleMapDirty}
+              onOpenEvent={handleOpenEvent}
+              onCreateEvent={handleCreateEvent}
+              onDeleteEvent={handleDeleteEvent}
+            />
 
-        {/* Right: Tileset palette */}
-        <TilesetPalette
-          tilesetInfo={tilesetInfo}
-          tilesetImage={tilesetImage}
-          autotileImages={autotileImages}
-          selectedTileId={selectedTileId}
-          onSelectTile={setSelectedTileId}
-        />
+            {/* Right: Tileset palette */}
+            <TilesetPalette
+              tilesetInfo={tilesetInfo}
+              tilesetImage={tilesetImage}
+              autotileImages={autotileImages}
+              selectedTileId={selectedTileId}
+              onSelectTile={setSelectedTileId}
+            />
+          </>
+        ) : (
+          <ScriptEditor projectPath={project.path} />
+        )}
       </div>
 
       {/* Event editor modal */}

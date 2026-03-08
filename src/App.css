@@ -115,6 +115,40 @@ body,
   background: #45475a;
 }
 
+/* Mode toggle (Maps / Scripts) */
+.app-mode-toggle {
+  display: flex;
+  gap: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #45475a;
+  -webkit-app-region: no-drag;
+}
+
+.app-mode-btn {
+  padding: 3px 12px;
+  font-size: 11px;
+  background: #313244;
+  border: none;
+  color: #a6adc8;
+  cursor: pointer;
+}
+
+.app-mode-btn:not(:last-child) {
+  border-right: 1px solid #45475a;
+}
+
+.app-mode-btn:hover {
+  background: #45475a;
+  color: #cdd6f4;
+}
+
+.app-mode-btn.active {
+  background: #89b4fa;
+  color: #1e1e2e;
+  font-weight: 600;
+}
+
 /* Welcome screen */
 .app-welcome {
   flex: 1;
