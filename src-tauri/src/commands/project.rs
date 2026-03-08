@@ -273,6 +273,11 @@ pub async fn get_asset_path(
         "picture" => ("Graphics", "Pictures", &["png", "jpg", "jpeg", "bmp", "gif"]),
         "animation" => ("Graphics", "Animations", &["png", "jpg", "jpeg", "bmp", "gif"]),
         "icon" => ("Graphics", "Icons", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "battler" => ("Graphics", "Battlers", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "windowskin" => ("Graphics", "Windowskins", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "title" => ("Graphics", "Titles", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "gameover" => ("Graphics", "Gameovers", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "transition" => ("Graphics", "Transitions", &["png", "jpg", "jpeg", "bmp", "gif"]),
         // Audio
         "bgm" => ("Audio", "BGM", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
         "bgs" => ("Audio", "BGS", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
@@ -328,6 +333,11 @@ pub async fn list_asset_files(
         "picture" => ("Graphics", "Pictures", &["png", "jpg", "jpeg", "bmp", "gif"]),
         "animation" => ("Graphics", "Animations", &["png", "jpg", "jpeg", "bmp", "gif"]),
         "icon" => ("Graphics", "Icons", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "battler" => ("Graphics", "Battlers", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "windowskin" => ("Graphics", "Windowskins", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "title" => ("Graphics", "Titles", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "gameover" => ("Graphics", "Gameovers", &["png", "jpg", "jpeg", "bmp", "gif"]),
+        "transition" => ("Graphics", "Transitions", &["png", "jpg", "jpeg", "bmp", "gif"]),
         // Audio
         "bgm" => ("Audio", "BGM", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
         "bgs" => ("Audio", "BGS", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),

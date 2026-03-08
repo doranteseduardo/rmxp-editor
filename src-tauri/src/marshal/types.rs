@@ -192,7 +192,7 @@ impl RubyValue {
                     }
                     return Value::Object(map);
                 }
-                // Table — return metadata since the data is large binary
+                // Table — decode full binary data to JSON with i16 data array
                 if class_name == "Table" {
                     let mut map = serde_json::Map::new();
                     map.insert("__class".into(), Value::String("Table".into()));
@@ -201,10 +201,23 @@ impl RubyValue {
                         let x = i32::from_le_bytes(data[4..8].try_into().unwrap_or([0; 4]));
                         let y = i32::from_le_bytes(data[8..12].try_into().unwrap_or([0; 4]));
                         let z = i32::from_le_bytes(data[12..16].try_into().unwrap_or([0; 4]));
+                        let total = i32::from_le_bytes(data[16..20].try_into().unwrap_or([0; 4]));
                         map.insert("dims".into(), Value::Number(serde_json::Number::from(dims)));
                         map.insert("x_size".into(), Value::Number(serde_json::Number::from(x)));
                         map.insert("y_size".into(), Value::Number(serde_json::Number::from(y)));
                         map.insert("z_size".into(), Value::Number(serde_json::Number::from(z)));
+                        // Decode i16 data array
+                        let mut values = Vec::with_capacity(total as usize);
+                        for i in 0..(total as usize) {
+                            let offset = 20 + i * 2;
+                            if offset + 1 < data.len() {
+                                let val = i16::from_le_bytes([data[offset], data[offset + 1]]);
+                                values.push(Value::Number(serde_json::Number::from(val)));
+                            } else {
+                                values.push(Value::Number(serde_json::Number::from(0)));
+                            }
+                        }
+                        map.insert("data".into(), Value::Array(values));
                     }
                     return Value::Object(map);
                 }
@@ -282,7 +295,40 @@ impl RubyValue {
                             data,
                         };
                     }
-                    // Table → keep as-is (Table is handled separately via Table struct)
+                    // Table → reconstruct UserDefined binary from JSON data
+                    if class_name == "Table" {
+                        let dims = map.get("dims").and_then(|v| v.as_i64()).unwrap_or(1) as i32;
+                        let x_size = map.get("x_size").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+                        let y_size = map.get("y_size").and_then(|v| v.as_i64()).unwrap_or(1) as i32;
+                        let z_size = map.get("z_size").and_then(|v| v.as_i64()).unwrap_or(1) as i32;
+                        let total = (x_size * y_size * z_size) as usize;
+                        let mut binary = Vec::with_capacity(20 + total * 2);
+                        binary.extend_from_slice(&dims.to_le_bytes());
+                        binary.extend_from_slice(&x_size.to_le_bytes());
+                        binary.extend_from_slice(&y_size.to_le_bytes());
+                        binary.extend_from_slice(&z_size.to_le_bytes());
+                        binary.extend_from_slice(&(total as i32).to_le_bytes());
+                        if let Some(Value::Array(data_arr)) = map.get("data") {
+                            for (i, v) in data_arr.iter().enumerate() {
+                                if i >= total { break; }
+                                let val = v.as_i64().unwrap_or(0) as i16;
+                                binary.extend_from_slice(&val.to_le_bytes());
+                            }
+                            // Pad with zeros if data_arr is shorter than total
+                            for _ in data_arr.len()..total {
+                                binary.extend_from_slice(&0i16.to_le_bytes());
+                            }
+                        } else {
+                            // No data array — fill with zeros
+                            for _ in 0..total {
+                                binary.extend_from_slice(&0i16.to_le_bytes());
+                            }
+                        }
+                        return RubyValue::UserDefined {
+                            class_name: "Table".to_string(),
+                            data: binary,
+                        };
+                    }
                     // Other __class → reconstruct as RubyObject
                     let mut obj = RubyObject::new(class_name.clone());
                     for (k, v) in map {

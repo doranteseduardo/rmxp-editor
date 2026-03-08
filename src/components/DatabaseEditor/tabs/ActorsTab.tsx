@@ -1,7 +1,7 @@
 import type { RpgActor } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
 import { useDatabaseNames } from "../DatabaseContext";
-import { useEditorRegistration } from "../../context/ProjectSaveContext";
+import { useEditorRegistration } from "../../../context/ProjectSaveContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
 import { IdSelect } from "../controls/IdSelect";
 import { AssetPicker } from "../controls/AssetPicker";
@@ -28,7 +28,7 @@ export function ActorsTab({ projectPath }: Props) {
   if (db.error) return <div className="db-loading" style={{ color: "#f38ba8" }}>{db.error}</div>;
 
   const u = (patch: Partial<RpgActor>) => db.update(patch);
-  const paramValues: number[] = (a?.parameters as unknown as { data?: number[] })?.data ?? [];
+  const paramValues: number[] = a?.parameters?.data ?? [];
 
   return (
     <>
@@ -70,7 +70,7 @@ export function ActorsTab({ projectPath }: Props) {
             <div className="db-section">
               <div className="db-section-title">Parameters (6 stats x 99 levels)</div>
               {paramValues.length > 0 ? (
-                <ParameterCurveEditor values={paramValues} onChange={(vals) => u({ parameters: { ...a.parameters, data: vals } as unknown as RpgActor["parameters"] })} />
+                <ParameterCurveEditor values={paramValues} onChange={(vals) => u({ parameters: { ...a.parameters, data: vals } })} />
               ) : (
                 <div style={{ fontSize: 11, color: "#6c7086" }}>Parameter data in binary Table format — preserved on save.</div>
               )}

@@ -28,13 +28,15 @@ export interface RpgTone {
   gray: number;
 }
 
-/** Table metadata (binary data handled by backend, JSON shows dimensions) */
+/** Table — multidimensional i16 array with header metadata + data payload */
 export interface RpgTable {
   __class: "Table";
   dims?: number;
   x_size?: number;
   y_size?: number;
   z_size?: number;
+  /** Flat array of i16 values. Access: data[z * (x_size * y_size) + y * x_size + x] */
+  data?: number[];
 }
 
 /** RPG::AudioFile */

@@ -1,7 +1,7 @@
 import type { RpgEnemy, RpgEnemyAction } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
 import { useDatabaseNames } from "../DatabaseContext";
-import { useEditorRegistration } from "../../context/ProjectSaveContext";
+import { useEditorRegistration } from "../../../context/ProjectSaveContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
 import { IdSelect } from "../controls/IdSelect";
 import { AssetPicker } from "../controls/AssetPicker";
@@ -49,9 +49,9 @@ export function EnemiesTab({ projectPath }: Props) {
     u({ actions: copy });
   };
 
-  // Extract rank arrays from Table objects
-  const elementRanks: number[] = (e?.element_ranks as unknown as { data?: number[] })?.data ?? [];
-  const stateRanks: number[] = (e?.state_ranks as unknown as { data?: number[] })?.data ?? [];
+  // Extract rank arrays from Table objects (now exposed via backend)
+  const elementRanks: number[] = e?.element_ranks?.data ?? [];
+  const stateRanks: number[] = e?.state_ranks?.data ?? [];
 
   return (
     <>
@@ -131,13 +131,11 @@ export function EnemiesTab({ projectPath }: Props) {
                 </div>
                 <div className="db-section">
                   <div className="db-section-title">Element Ranks</div>
-                  <RankTableEditor ranks={elementRanks} labels={names.elements.slice(1)} onChange={() => {}} />
-                  {elementRanks.length === 0 && <div style={{ fontSize: 10, color: "#6c7086" }}>Binary Table data preserved on save</div>}
+                  <RankTableEditor ranks={elementRanks} labels={names.elements.slice(1)} onChange={ranks => u({ element_ranks: { ...e.element_ranks, data: ranks } })} />
                 </div>
                 <div className="db-section">
                   <div className="db-section-title">State Ranks</div>
-                  <RankTableEditor ranks={stateRanks} labels={names.states.map(s => s.name)} onChange={() => {}} />
-                  {stateRanks.length === 0 && <div style={{ fontSize: 10, color: "#6c7086" }}>Binary Table data preserved on save</div>}
+                  <RankTableEditor ranks={stateRanks} labels={names.states.map(s => s.name)} onChange={ranks => u({ state_ranks: { ...e.state_ranks, data: ranks } })} />
                 </div>
               </div>
             </div>

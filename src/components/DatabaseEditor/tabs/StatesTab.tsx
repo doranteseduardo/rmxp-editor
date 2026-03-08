@@ -1,7 +1,7 @@
 import type { RpgState } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
 import { useDatabaseNames } from "../DatabaseContext";
-import { useEditorRegistration } from "../../context/ProjectSaveContext";
+import { useEditorRegistration } from "../../../context/ProjectSaveContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
 import { IdSelect } from "../controls/IdSelect";
 import { ElementSetEditor, SetEditor } from "../controls/SetEditor";

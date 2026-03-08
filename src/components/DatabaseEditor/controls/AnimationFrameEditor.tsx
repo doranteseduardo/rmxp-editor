@@ -22,9 +22,13 @@ interface Props {
   /** Optional timing data to show SE markers on the timeline */
   timings?: RpgAnimationTiming[];
   onChange: (frames: RpgAnimationFrame[]) => void;
+  /** Called when the selected/playing frame changes (for preview sync) */
+  onFrameSelect?: (frameIndex: number) => void;
+  /** Called when play/pause state changes */
+  onPlayingChange?: (playing: boolean) => void;
 }
 
-export function AnimationFrameEditor({ frames, frameMax = 0, timings, onChange }: Props) {
+export function AnimationFrameEditor({ frames, frameMax = 0, timings, onChange, onFrameSelect, onPlayingChange }: Props) {
   const [selFrame, setSelFrame] = useState(0);
   const [selCell, setSelCell] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -54,6 +58,11 @@ export function AnimationFrameEditor({ frames, frameMax = 0, timings, onChange }
     return entries.map(t => `SE: ${t.se?.name || "(none)"}`).join(", ");
   }, [timings]);
 
+  // Notify parent when frame selection changes
+  useEffect(() => {
+    onFrameSelect?.(selFrame);
+  }, [selFrame, onFrameSelect]);
+
   // Playback logic
   useEffect(() => {
     if (isPlaying && totalFrames > 0) {
@@ -79,7 +88,9 @@ export function AnimationFrameEditor({ frames, frameMax = 0, timings, onChange }
 
   const togglePlay = () => {
     if (totalFrames === 0) return;
-    setIsPlaying(prev => !prev);
+    const newState = !isPlaying;
+    setIsPlaying(newState);
+    onPlayingChange?.(newState);
   };
 
   // Cell data availability

@@ -1,7 +1,7 @@
 import type { RpgTroop, RpgTroopMember } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
 import { useDatabaseNames } from "../DatabaseContext";
-import { useEditorRegistration } from "../../context/ProjectSaveContext";
+import { useEditorRegistration } from "../../../context/ProjectSaveContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
 import { IdSelect } from "../controls/IdSelect";
 import { TroopPositionEditor } from "../controls/TroopPositionEditor";
@@ -123,7 +123,11 @@ export function TroopsTab({ projectPath }: Props) {
                           <div style={{ fontSize: 10, color: "#6c7086", marginBottom: 4 }}>
                             Span: {t.pages[selPage].span === 0 ? "Battle" : t.pages[selPage].span === 1 ? "Turn" : "Moment"}
                           </div>
-                          <EventCommandList commands={t.pages[selPage].list} maxHeight={350} />
+                          <EventCommandList commands={t.pages[selPage].list} maxHeight={350} onChange={list => {
+                            const pages = [...t.pages];
+                            pages[selPage] = { ...pages[selPage], list };
+                            u({ pages });
+                          }} />
                         </>
                       )}
                     </>

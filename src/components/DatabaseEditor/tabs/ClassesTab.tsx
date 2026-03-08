@@ -1,7 +1,7 @@
 import type { RpgClass, RpgClassLearning } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
 import { useDatabaseNames } from "../DatabaseContext";
-import { useEditorRegistration } from "../../context/ProjectSaveContext";
+import { useEditorRegistration } from "../../../context/ProjectSaveContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
 import { IdSelect } from "../controls/IdSelect";
 import { SetEditor } from "../controls/SetEditor";
@@ -42,8 +42,8 @@ export function ClassesTab({ projectPath }: Props) {
   };
   const removeLearning = (idx: number) => { if (!c) return; u({ learnings: c.learnings.filter((_, i) => i !== idx) }); setSelLearning(-1); };
 
-  const elementRanks: number[] = (c?.element_ranks as unknown as { data?: number[] })?.data ?? [];
-  const stateRanks: number[] = (c?.state_ranks as unknown as { data?: number[] })?.data ?? [];
+  const elementRanks: number[] = c?.element_ranks?.data ?? [];
+  const stateRanks: number[] = c?.state_ranks?.data ?? [];
 
   return (
     <>
@@ -92,14 +92,14 @@ export function ClassesTab({ projectPath }: Props) {
                 <div className="db-section">
                   <div className="db-section-title">Element Efficiency</div>
                   {elementRanks.length > 0 ? (
-                    <RankTableEditor ranks={elementRanks} labels={names.elements.slice(1)} onChange={v => u({ element_ranks: { ...c.element_ranks, data: v } as unknown as RpgClass["element_ranks"] })} />
-                  ) : <div style={{ fontSize: 11, color: "#6c7086" }}>Element rank data in binary Table — preserved on save.</div>}
+                    <RankTableEditor ranks={elementRanks} labels={names.elements.slice(1)} onChange={v => u({ element_ranks: { ...c.element_ranks, data: v } })} />
+                  ) : <div style={{ fontSize: 11, color: "#6c7086" }}>Element rank data not available.</div>}
                 </div>
                 <div className="db-section">
                   <div className="db-section-title">State Efficiency</div>
                   {stateRanks.length > 0 ? (
-                    <RankTableEditor ranks={stateRanks} labels={names.states.map(s => s.name)} onChange={v => u({ state_ranks: { ...c.state_ranks, data: v } as unknown as RpgClass["state_ranks"] })} />
-                  ) : <div style={{ fontSize: 11, color: "#6c7086" }}>State rank data in binary Table — preserved on save.</div>}
+                    <RankTableEditor ranks={stateRanks} labels={names.states.map(s => s.name)} onChange={v => u({ state_ranks: { ...c.state_ranks, data: v } })} />
+                  ) : <div style={{ fontSize: 11, color: "#6c7086" }}>State rank data not available.</div>}
                 </div>
               </div>
             </div>

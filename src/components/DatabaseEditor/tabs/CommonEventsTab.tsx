@@ -1,7 +1,7 @@
 import type { RpgCommonEvent } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
 import { useDatabaseNames } from "../DatabaseContext";
-import { useEditorRegistration } from "../../context/ProjectSaveContext";
+import { useEditorRegistration } from "../../../context/ProjectSaveContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
 import { EventCommandList } from "../controls/EventCommandList";
 
@@ -57,7 +57,7 @@ export function CommonEventsTab({ projectPath }: Props) {
             </div>
             <div className="db-section">
               <div className="db-section-title">Event Commands</div>
-              <EventCommandList commands={ce.list} maxHeight={400} />
+              <EventCommandList commands={ce.list} maxHeight={400} onChange={list => u({ list })} />
               <div style={{ fontSize: 10, color: "#6c7086", marginTop: 4 }}>{ce.list.length} command(s)</div>
             </div>
           </div>

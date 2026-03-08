@@ -1,10 +1,10 @@
 import type { RpgSkill } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
 import { useDatabaseNames } from "../DatabaseContext";
-import { useEditorRegistration } from "../../context/ProjectSaveContext";
+import { useEditorRegistration } from "../../../context/ProjectSaveContext";
 import { DatabaseListPanel } from "../DatabaseListPanel";
 import { IdSelect } from "../controls/IdSelect";
-import { AssetPicker } from "../controls/AssetPicker";
+import { AssetPicker, AudioAssetPicker } from "../controls/AssetPicker";
 import { ElementSetEditor, SetEditor } from "../controls/SetEditor";
 
 interface Props { projectPath: string }
@@ -48,6 +48,14 @@ export function SkillsTab({ projectPath }: Props) {
                   <div className="db-field"><span className="db-field-label">Scope</span><select value={s.scope} onChange={e => u({ scope: +e.target.value })}>{SCOPES.map((l, i) => <option key={i} value={i}>{l}</option>)}</select></div>
                   <div className="db-field"><span className="db-field-label">Occasion</span><select value={s.occasion} onChange={e => u({ occasion: +e.target.value })}>{OCCASIONS.map((l, i) => <option key={i} value={i}>{l}</option>)}</select></div>
                   <div className="db-field"><span className="db-field-label">SP Cost</span><input type="number" value={s.sp_cost} min={0} onChange={e => u({ sp_cost: +e.target.value })} /></div>
+                  <div className="db-field">
+                    <span className="db-field-label">Menu SE</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, flex: 1 }}>
+                      <div style={{ flex: 1 }}><AudioAssetPicker projectPath={projectPath} assetType="SE" value={s.menu_se?.name ?? ""} onChange={name => u({ menu_se: { ...s.menu_se, name } })} /></div>
+                      <input type="number" style={{ width: 44, textAlign: "center" }} value={s.menu_se?.volume ?? 80} min={0} max={100} title="Volume" onChange={e => u({ menu_se: { ...s.menu_se, volume: +e.target.value } })} />
+                      <input type="number" style={{ width: 44, textAlign: "center" }} value={s.menu_se?.pitch ?? 100} min={50} max={150} title="Pitch" onChange={e => u({ menu_se: { ...s.menu_se, pitch: +e.target.value } })} />
+                    </div>
+                  </div>
                   <div className="db-field"><span className="db-field-label">Common Event</span><IdSelect value={s.common_event_id} entries={names.commonEvents} onChange={id => u({ common_event_id: id })} allowNone /></div>
                   <div className="db-field"><span className="db-field-label">User Anim</span><IdSelect value={s.animation1_id} entries={names.animations} onChange={id => u({ animation1_id: id })} allowNone /></div>
                   <div className="db-field"><span className="db-field-label">Target Anim</span><IdSelect value={s.animation2_id} entries={names.animations} onChange={id => u({ animation2_id: id })} allowNone /></div>

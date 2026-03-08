@@ -150,12 +150,24 @@ fn merge_database_value(original: &RubyValue, json: &serde_json::Value) -> RubyV
             for (ivar_name, orig_val) in &orig_obj.instance_vars {
                 let field_name = ivar_name.strip_prefix('@').unwrap_or(ivar_name);
                 if let Some(json_val) = json_map.get(field_name) {
-                    // For UserDefined fields that are Tables, preserve the original binary
-                    // unless the JSON explicitly provides replacement data
+                    // For UserDefined Table fields, check if JSON has a "data" array
+                    // indicating the frontend edited the table; otherwise preserve original
                     match orig_val {
                         RubyValue::UserDefined { class_name, .. } if class_name == "Table" => {
-                            // Tables can't round-trip through JSON, keep original
-                            new_obj.instance_vars.push((ivar_name.clone(), orig_val.clone()));
+                            if let serde_json::Value::Object(tmap) = json_val {
+                                if tmap.contains_key("data") {
+                                    // Table was edited — reconstruct from JSON
+                                    new_obj.instance_vars.push((
+                                        ivar_name.clone(),
+                                        RubyValue::from_json_value(json_val),
+                                    ));
+                                } else {
+                                    // No data array — preserve original binary
+                                    new_obj.instance_vars.push((ivar_name.clone(), orig_val.clone()));
+                                }
+                            } else {
+                                new_obj.instance_vars.push((ivar_name.clone(), orig_val.clone()));
+                            }
                         }
                         _ => {
                             new_obj.instance_vars.push((
