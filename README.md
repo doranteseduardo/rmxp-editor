@@ -1,17 +1,31 @@
 # RMXP Editor
 
-A modern, cross-platform editor for **RPG Maker XP** projects, built specifically with **Pokémon Essentials v21.1** support in mind.
+A modern, cross-platform editor for **RPG Maker XP** projects, aiming for **1:1 feature parity** with the official RMXP editor while adding modern conveniences. Built specifically with **Pokémon Essentials v21.1** support in mind.
 
-![Editor Screenshot](screenshot.png)
+![Main Interface](docs/screenshot_main.png)
+_The modern, light-themed interface capturing the classic RMXP workflow_
 
 Built with [Tauri v2](https://v2.tauri.app/) + React + TypeScript for a native desktop experience on macOS, Windows, and Linux.
+
+## Project Status
+
+This editor faithfully recreates the functionalities of the original RPG Maker XP, offering a familiar environment for veterans while upgrading the underlying technology.
+
+**Current Implementation Status:**
+
+- **Core:** Native .rxproj and .rxdata parsing (custom Rust implementation).
+- **Map Editor:** Feature-complete (Layers 1-3, Events, Autotiles, Zoom, Undo/Redo).
+- **Database:** Full implementation of all 13 legacy tabs.
+- **Events:** Comprehensive interpreter and editor support for event commands.
+- **Scripts:** Enhanced Ruby script editor with modern syntax highlighting.
 
 ## Features
 
 ### Map Editor
 
 - Visual tile-based map editing with a real-time canvas renderer
-- Full 3-layer support (matching RMXP's layer system)
+- **1:1 RMXP Layer System**: Full support for Layers 1, 2, 3, and Events
+- **Authentic Autotiles**: 7-slot autotile system with animated rendering
 - Tileset palette with clickable tile grid and autotile previews
 - Drawing tools: Pencil, Rectangle, Flood Fill, Eraser
 - Undo/Redo with full history stack
@@ -21,15 +35,25 @@ Built with [Tauri v2](https://v2.tauri.app/) + React + TypeScript for a native d
 
 ### Event System
 
+![Event Editor](docs/screenshot_event_editor.png)
+_Full Event Editor with conditions, triggers, and page management_
+
 - Event viewer with markers on the map canvas
 - Full event editor with page management (add, delete, copy pages)
 - Double-click events on the map to open the editor
-- Rich command editing with inline parameter editors for 90+ RMXP commands
+- **Move Route Editor**: Define complex movement patterns for events
+- **Comprehensive Command Set**: Inline parameter editors for the vast majority of RMXP commands
 - Command picker modal with category sidebar and keyboard search
 - Keyboard shortcuts: Insert, Delete, Ctrl+C/V/D, Ctrl+Z/Y
 - Sprite preview with character sheet rendering
 
+![Event Commands](docs/screenshot_event_editor_2.png)
+_Command selection providing access to standard RMXP event logic_
+
 ### Database Editor
+
+![Database Editor](docs/screenshot_database_editor.png)
+_Tabbed Database Editor managing all game data_
 
 - Full tabbed interface covering all 13 RMXP data categories:
   - **Actors** — stats, exp curves, equipment, class assignment
@@ -47,26 +71,31 @@ Built with [Tauri v2](https://v2.tauri.app/) + React + TypeScript for a native d
   - **System** — title/game-over graphics, start position, music/sound config, vocabulary
 - Shared controls: asset pickers (graphics + audio with preview/playback), ID selectors, set editors, parameter curve editors
 
+![Tileset Editor](docs/screenshot_database_editor_2.png)
+_Tileset configuration including passage and terrain tags_
+
 ### Script Editor
 
-- Full script list panel with search, reorder, add/delete
-- Code editor with syntax highlighting
-- Script content editing and saving
+![Script Editor](docs/screenshot_script_editor.png)
+_Modern code editor with Ruby syntax highlighting and search_
 
-### Tileset Support
+- Full-featured code editor based on CodeMirror 6
+- **Ruby Syntax Highlighting** with huge file support
+- Smart indentation and bracket matching
+- **Script List Management**: Create, rename, delete, and reorder scripts
+- **Search & Replace**: text search within scripts
+- Unsaved changes tracking (dirty state indicators)
+- Custom theme (Catppuccin Latte) for a modern look
 
-- Loads RMXP tileset images via Tauri's asset protocol
-- 7-slot autotile system with animated autotile rendering
-- Tile property editor with tileset graphics as background overlay (memory-efficient single-image approach)
-
-### Project Management
+### Project Management & Tilesets
 
 - Native folder picker to open any RMXP project
 - Parses `Game.rxproj`, `MapInfos.rxdata`, `Tilesets.rxdata`, and individual map files
-- Reads and writes all database `.rxdata` files (Actors, Classes, Skills, Items, Weapons, Armors, Enemies, Troops, States, Animations, CommonEvents, System)
+- Reads and writes all database `.rxdata` files
 - Hierarchical map tree with parent/child relationships
+- **Tileset Support**: Loads RMXP tileset images via Tauri's asset protocol
+- 7-slot autotile system with animated autotile rendering
 - Auto-opens the last edited map on project load
-- Save modified maps and database entries back to `.rxdata` format
 
 ## Tech Stack
 
@@ -74,7 +103,7 @@ Built with [Tauri v2](https://v2.tauri.app/) + React + TypeScript for a native d
 - **Backend:** Rust (Tauri v2)
 - **Binary parsing:** Custom Ruby Marshal v4.8 deserializer/serializer (reads and writes `.rxdata` files directly)
 - **Rendering:** HTML5 Canvas with requestAnimationFrame loop
-- **Theme:** Catppuccin Mocha dark theme
+- **Theme:** Catppuccin Latte
 
 ## Architecture
 
@@ -109,7 +138,7 @@ src-tauri/                      # Rust backend
 └── Cargo.toml
 ```
 
-## Getting Started
+## Development
 
 ### Prerequisites
 
@@ -117,22 +146,24 @@ src-tauri/                      # Rust backend
 - [Rust](https://www.rust-lang.org/tools/install) (latest stable)
 - [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform
 
-### Development
+### Setup
 
-```bash
-# Install frontend dependencies
-npm install
+1. Install dependencies:
 
-# Run in development mode (starts both Vite dev server and Tauri)
-cargo tauri dev
-```
+   ```bash
+   npm install
+   ```
 
-### Build
+2. Run in development mode:
 
-```bash
-# Create a production build
-cargo tauri build
-```
+   ```bash
+   npm run tauri dev
+   ```
+
+3. Build for production:
+   ```bash
+   npm run tauri build
+   ```
 
 ## Roadmap
 
@@ -145,4 +176,5 @@ cargo tauri build
 
 ## License
 
+MIT.
 This project is not affiliated with Enterbrain, Maruno, or the Pokémon Essentials team.
