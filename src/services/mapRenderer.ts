@@ -73,7 +73,16 @@ export class MapRenderer {
     this.tiles = tiles;
     this.mapWidth = width;
     this.mapHeight = height;
-    console.log(`[MapRenderer] setMapData: ${width}x${height}, ${tiles.length} tiles, sample=[${tiles.slice(0, 5).join(",")}]`);
+    // Log tile type distribution per layer
+    const layerSize = width * height;
+    for (let z = 0; z < 3; z++) {
+      const start = z * layerSize;
+      const end = start + layerSize;
+      const layer = tiles.slice(start, end);
+      const autotiles = layer.filter(t => t >= 48 && t < 384);
+      const regular = layer.filter(t => t >= 384);
+      console.log(`[MapRenderer] Layer ${z}: autotile=${autotiles.length}, regular=${regular.length}, empty=${layer.filter(t => t <= 0).length}${autotiles.length > 0 ? `, AT sample=[${autotiles.slice(0, 10).join(",")}]` : ""}`);
+    }
   }
 
   setTilesetImage(img: HTMLImageElement) {
@@ -84,6 +93,7 @@ export class MapRenderer {
   setAutotileImage(slot: number, img: HTMLImageElement | null) {
     if (slot >= 0 && slot < 7) {
       this.autotileImages[slot] = img;
+      console.log(`[MapRenderer] setAutotileImage[${slot}]: ${img ? `${img.width}x${img.height}` : "null"}`);
     }
   }
 
@@ -258,9 +268,26 @@ export class MapRenderer {
       return;
     }
 
-    const frameCount = Math.floor(img.width / 96);
+    // Standard RMXP autotile: each frame is 96×128.
+    // Animated = 96*N × 128 horizontal strip.
+    const frameCount = Math.max(1, Math.floor(img.width / 96));
     const frame = frameCount > 1 ? this.autotileFrame % frameCount : 0;
     const frameOffsetX = frame * 96;
+
+    // For non-standard autotile images (< 96×128), e.g. 160×32 (5 frames
+    // of 32×32 each), draw a single animated tile — no sub-tile patterns.
+    if (img.width < 96 || img.height < 128) {
+      const tileW = Math.min(TILE_SIZE, img.height > 0 ? img.height : TILE_SIZE);
+      const tileH = tileW; // assume square frames
+      const simpleFrameCount = Math.max(1, Math.floor(img.width / tileW));
+      const simpleFrame = simpleFrameCount > 1 ? this.autotileFrame % simpleFrameCount : 0;
+      this.ctx.drawImage(
+        img,
+        simpleFrame * tileW, 0, tileW, tileH,
+        screenX, screenY, tileSize, tileSize
+      );
+      return;
+    }
 
     const rectBase = pattern * 4;
     const halfSize = tileSize / 2;

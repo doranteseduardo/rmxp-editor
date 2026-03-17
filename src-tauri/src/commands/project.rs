@@ -145,14 +145,26 @@ pub async fn load_map(project_path: String, map_id: i64) -> Result<MapRenderData
         }
     }
 
-    // Debug: count non-zero tiles per layer
+    // Debug: count non-zero tiles per layer + tile type distribution
     let layer_size = (map.width * map.height) as usize;
     for z in 0..3 {
         let start = z * layer_size;
         let end = start + layer_size;
         let nonzero = tiles[start..end].iter().filter(|&&t| t > 0).count();
-        eprintln!("[load_map] Layer {}: {}/{} non-zero tiles, sample={:?}",
-            z, nonzero, layer_size, &tiles[start..std::cmp::min(start + 10, end)]);
+        let autotile_count = tiles[start..end].iter().filter(|&&t| t >= 48 && t < 384).count();
+        let regular_count = tiles[start..end].iter().filter(|&&t| t >= 384).count();
+        let unknown_count = tiles[start..end].iter().filter(|&&t| t > 0 && t < 48).count();
+        eprintln!("[load_map] Layer {}: {}/{} non-zero (autotile={}, regular={}, unknown_1-47={}), sample={:?}",
+            z, nonzero, layer_size, autotile_count, regular_count, unknown_count,
+            &tiles[start..std::cmp::min(start + 10, end)]);
+        if autotile_count > 0 {
+            let at_samples: Vec<i16> = tiles[start..end].iter()
+                .filter(|&&t| t >= 48 && t < 384)
+                .take(20)
+                .copied()
+                .collect();
+            eprintln!("[load_map] Layer {} autotile IDs sample: {:?}", z, at_samples);
+        }
     }
 
     // Extract event info

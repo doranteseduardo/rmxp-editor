@@ -235,6 +235,17 @@ export function renderAutotilePattern(
   destY: number,
   frame = 0,
 ): void {
+  // For non-standard sized autotile images (< 96×128, e.g. 160×32),
+  // draw a single frame-sized tile. Use the provided frame index.
+  if (img.width < 96 || img.height < 128) {
+    const tileW = Math.min(32, img.height > 0 ? img.height : 32);
+    const tileH = tileW;
+    const simpleFrameCount = Math.max(1, Math.floor(img.width / tileW));
+    const simpleFrame = simpleFrameCount > 1 ? frame % simpleFrameCount : 0;
+    ctx.drawImage(img, simpleFrame * tileW, 0, tileW, tileH, destX, destY, 32, 32);
+    return;
+  }
+
   const frameOffsetX = frame * 96;
   const rectBase = pattern * 4;
   const half = 16;
