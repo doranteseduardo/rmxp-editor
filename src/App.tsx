@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ProjectInfo, MapRenderData, TilesetRenderInfo, MapProperties } from "./types";
 import { FIRST_REGULAR_TILE } from "./types";
 import {
@@ -22,7 +22,11 @@ import { MapPropertiesDialog } from "./components/MapProperties/MapPropertiesDia
 import { CreateMapDialog } from "./components/MapProperties/CreateMapDialog";
 import { ScriptEditor } from "./components/ScriptEditor/ScriptEditor";
 import { DatabaseEditor } from "./components/DatabaseEditor/DatabaseEditor";
-import { ProjectSaveProvider } from "./context/ProjectSaveContext";
+import {
+  ProjectSaveProvider,
+  useProjectSave,
+  useEditorRegistration,
+} from "./context/ProjectSaveContext";
 import "./App.css";
 
 /** Try to open a native folder picker via Tauri dialog plugin. */
@@ -41,21 +45,23 @@ async function showFolderPicker(): Promise<string | null> {
   }
 }
 
-function App() {
+/**
+ * Inner component rendered inside ProjectSaveProvider so it can call
+ * useProjectSave() and useEditorRegistration().
+ */
+function AppContent() {
+  const { saveAll, dirtyCount } = useProjectSave();
+
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [currentMapId, setCurrentMapId] = useState<number | null>(null);
   const [mapData, setMapData] = useState<MapRenderData | null>(null);
-  const [tilesetInfo, setTilesetInfo] = useState<TilesetRenderInfo | null>(
-    null
+  const [tilesetInfo, setTilesetInfo] = useState<TilesetRenderInfo | null>(null);
+  const [tilesetImage, setTilesetImage] = useState<HTMLImageElement | null>(null);
+  const [autotileImages, setAutotileImages] = useState<(HTMLImageElement | null)[]>(
+    [null, null, null, null, null, null, null]
   );
-  const [tilesetImage, setTilesetImage] = useState<HTMLImageElement | null>(
-    null
-  );
-  const [autotileImages, setAutotileImages] = useState<
-    (HTMLImageElement | null)[]
-  >([null, null, null, null, null, null, null]);
   const [selectedTileId, setSelectedTileId] = useState(FIRST_REGULAR_TILE);
-  const [isDirty, setIsDirty] = useState(false);
+  const [mapIsDirty, setMapIsDirty] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,135 +80,179 @@ function App() {
   // Tileset names cache (loaded once when project opens)
   const [tilesetNames, setTilesetNames] = useState<Array<[number, string]>>([]);
 
-  // Modal editor windows (like EventEditor)
+  // Modal editor windows
   const [showDatabase, setShowDatabase] = useState(false);
   const [showScripts, setShowScripts] = useState(false);
 
-  // Open a project by path
-  const handleOpenProject = useCallback(
-    async (path: string) => {
-      try {
-        setLoading(true);
-        setError(null);
-        const proj = await openProject(path);
-        setProject(proj);
-        setMapData(null);
-        setTilesetInfo(null);
-        setTilesetImage(null);
-        setAutotileImages([null, null, null, null, null, null, null]);
-        setCurrentMapId(null);
-        setIsDirty(false);
+  // Refs let callbacks always read the latest values without stale closures.
+  const mapDataRef = useRef<MapRenderData | null>(null);
+  const mapIsDirtyRef = useRef(false);
+  const currentMapIdRef = useRef<number | null>(null);
+  const projectRef = useRef<ProjectInfo | null>(null);
 
-        // Load tileset names for dialogs
-        try {
-          const names = await listTilesetNames(proj.path);
-          setTilesetNames(names);
-        } catch (err) {
-          console.warn("Failed to load tileset names:", err);
-        }
+  useEffect(() => { mapDataRef.current = mapData; }, [mapData]);
+  useEffect(() => { projectRef.current = project; }, [project]);
 
-        // Auto-open the last edited map
-        if (proj.edit_map_id) {
-          await handleSelectMap(proj.edit_map_id, proj.path);
-        }
-      } catch (err) {
-        setError(String(err));
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
-
-  // Show folder picker and open project
-  const handleBrowseProject = useCallback(async () => {
-    try {
-      const selected = await showFolderPicker();
-      if (selected) {
-        await handleOpenProject(selected);
-      }
-    } catch (err) {
-      setError(`Dialog error: ${err}`);
-    }
-  }, [handleOpenProject]);
-
-  // Load map and its tileset images
-  const handleSelectMap = useCallback(
-    async (mapId: number, projectPath?: string) => {
-      const path = projectPath || project?.path;
-      if (!path) return;
-
-      try {
-        setLoading(true);
-        setError(null);
-        setCurrentMapId(mapId);
-
-        // Load map data
-        const data = await loadMap(path, mapId);
-        setMapData(data);
-
-        // Load tileset metadata
-        const tileset = await loadTileset(path, data.tileset_id);
-        setTilesetInfo(tileset);
-
-        // Load tileset and autotile images
-        console.log("[App] Loading images for tileset:", tileset.tileset_name, "autotiles:", tileset.autotile_names);
-        const images = await loadAllTilesetImages(
-          path,
-          tileset.tileset_name,
-          tileset.autotile_names
-        );
-        console.log("[App] Images loaded:", {
-          tileset: images.tileset ? `${images.tileset.width}x${images.tileset.height}` : "null",
-          autotiles: images.autotiles.map((a, i) => a ? `[${i}]${a.width}x${a.height}` : `[${i}]null`),
-        });
-        setTilesetImage(images.tileset);
-        setAutotileImages(images.autotiles);
-
-        setIsDirty(false);
-      } catch (err) {
-        setError(String(err));
-      } finally {
-        setLoading(false);
-      }
-    },
-    [project]
-  );
-
-  const handleMapDirty = useCallback(() => {
-    setIsDirty(true);
+  /** Update map dirty flag in both state (for renders) and ref (for callbacks). */
+  const updateMapDirty = useCallback((val: boolean) => {
+    mapIsDirtyRef.current = val;
+    setMapIsDirty(val);
   }, []);
 
-  // Open event editor on double-click
-  const handleOpenEvent = useCallback(
-    (eventId: number, eventName: string) => {
-      setEditingEvent({ eventId, eventName });
-    },
-    []
-  );
+  // ── Map save/cancel for ProjectSaveContext registration ────────────────────
 
-  // Save current map (Ctrl+S)
-  const handleSave = useCallback(async () => {
-    if (!project || !mapData || !isDirty) return;
-
+  const saveMapTiles = useCallback(async () => {
+    const md = mapDataRef.current;
+    const proj = projectRef.current;
+    if (!proj || !md) return;
+    setLoading(true);
     try {
-      setLoading(true);
-      await saveMap(
-        project.path,
-        mapData.id,
-        mapData.tiles,
-        mapData.width,
-        mapData.height
-      );
-      setIsDirty(false);
+      await saveMap(proj.path, md.id, md.tiles, md.width, md.height);
+      updateMapDirty(false);
     } catch (err) {
       setError(`Save failed: ${err}`);
     } finally {
       setLoading(false);
     }
-  }, [project, mapData, isDirty]);
+  }, [updateMapDirty]);
 
-  // --- Map management handlers ---
+  const cancelMapTiles = useCallback(() => {
+    updateMapDirty(false);
+  }, [updateMapDirty]);
+
+  // Register the current map with the global save context.
+  // ID changes when the map changes, which auto-unregisters the old map.
+  useEditorRegistration(
+    currentMapId != null ? `map-${currentMapId}` : "map-none",
+    saveMapTiles,
+    cancelMapTiles,
+    mapIsDirty
+  );
+
+  // ── Project loading ────────────────────────────────────────────────────────
+
+  const handleOpenProject = useCallback(async (path: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const proj = await openProject(path);
+
+      // Update ref immediately so handleSelectMap sees the new project path.
+      projectRef.current = proj;
+      setProject(proj);
+
+      setMapData(null);
+      mapDataRef.current = null;
+      setTilesetInfo(null);
+      setTilesetImage(null);
+      setAutotileImages([null, null, null, null, null, null, null]);
+      setCurrentMapId(null);
+      currentMapIdRef.current = null;
+      updateMapDirty(false);
+
+      try {
+        const names = await listTilesetNames(proj.path);
+        setTilesetNames(names);
+      } catch (err) {
+        console.warn("Failed to load tileset names:", err);
+      }
+
+      if (proj.edit_map_id) {
+        // skipGuard=true: dirty state was cleared above; no need to prompt.
+        await handleSelectMap(proj.edit_map_id, true);
+      }
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleBrowseProject = useCallback(async () => {
+    try {
+      const selected = await showFolderPicker();
+      if (selected) await handleOpenProject(selected);
+    } catch (err) {
+      setError(`Dialog error: ${err}`);
+    }
+  }, [handleOpenProject]);
+
+  // ── Map selection with unsaved-changes guard ───────────────────────────────
+
+  /**
+   * Load a map. Pass skipGuard=true to bypass the unsaved-changes prompt
+   * (used when reloading the current map after property changes, or on initial
+   * project open when dirty state has already been cleared).
+   */
+  const handleSelectMap = useCallback(async (mapId: number, skipGuard = false) => {
+    const path = projectRef.current?.path;
+    if (!path) return;
+
+    // Prompt before switching away from a dirty map.
+    if (
+      !skipGuard &&
+      currentMapIdRef.current !== null &&
+      mapId !== currentMapIdRef.current &&
+      mapIsDirtyRef.current
+    ) {
+      if (confirm("Save tile changes to the current map before switching?")) {
+        const md = mapDataRef.current;
+        if (md) {
+          try {
+            await saveMap(path, md.id, md.tiles, md.width, md.height);
+          } catch (err) {
+            setError(`Save failed: ${err}`);
+            return; // stay on the current map if save failed
+          }
+        }
+      }
+      // Whether saved or discarded, clear the dirty flag.
+      mapIsDirtyRef.current = false;
+      setMapIsDirty(false);
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      setCurrentMapId(mapId);
+      currentMapIdRef.current = mapId;
+
+      const data = await loadMap(path, mapId);
+      setMapData(data);
+      mapDataRef.current = data;
+
+      const tileset = await loadTileset(path, data.tileset_id);
+      setTilesetInfo(tileset);
+
+      console.log("[App] Loading images for tileset:", tileset.tileset_name, "autotiles:", tileset.autotile_names);
+      const images = await loadAllTilesetImages(path, tileset.tileset_name, tileset.autotile_names);
+      console.log("[App] Images loaded:", {
+        tileset: images.tileset ? `${images.tileset.width}x${images.tileset.height}` : "null",
+        autotiles: images.autotiles.map((a, i) => a ? `[${i}]${a.width}x${a.height}` : `[${i}]null`),
+      });
+      setTilesetImage(images.tileset);
+      setAutotileImages(images.autotiles);
+
+      mapIsDirtyRef.current = false;
+      setMapIsDirty(false);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []); // uses refs only — stable reference, no deps needed
+
+  const handleMapDirty = useCallback(() => {
+    updateMapDirty(true);
+  }, [updateMapDirty]);
+
+  // Open event editor on double-click
+  const handleOpenEvent = useCallback((eventId: number, eventName: string) => {
+    setEditingEvent({ eventId, eventName });
+  }, []);
+
+  // ── Map management handlers ────────────────────────────────────────────────
 
   const handleCreateMap = useCallback((parentId: number) => {
     setCreateMapParentId(parentId);
@@ -210,45 +260,46 @@ function App() {
 
   const handleConfirmCreateMap = useCallback(
     async (name: string, parentId: number, width: number, height: number, tilesetId: number) => {
-      if (!project) return;
+      const proj = projectRef.current;
+      if (!proj) return;
       try {
         setCreateMapParentId(null);
         setLoading(true);
         setError(null);
         const [newId, updatedInfos] = await createMap(
-          project.path,
-          name,
-          parentId,
-          width,
-          height,
-          tilesetId
+          proj.path, name, parentId, width, height, tilesetId
         );
-        setProject({ ...project, map_infos: updatedInfos });
-        // Open the new map
-        await handleSelectMap(newId, project.path);
+        setProject({ ...proj, map_infos: updatedInfos });
+        projectRef.current = { ...proj, map_infos: updatedInfos };
+        // Guard runs here: if map tiles are dirty the user will be prompted.
+        await handleSelectMap(newId);
       } catch (err) {
         setError(`Create failed: ${err}`);
       } finally {
         setLoading(false);
       }
     },
-    [project, handleSelectMap]
+    [handleSelectMap]
   );
 
   const handleDeleteMap = useCallback(
     async (mapId: number, mapName: string) => {
-      if (!project) return;
+      const proj = projectRef.current;
+      if (!proj) return;
       if (!confirm(`Delete map [${String(mapId).padStart(3, "0")}] "${mapName}"?\n\nThis cannot be undone.`)) {
         return;
       }
       try {
         setLoading(true);
         setError(null);
-        const updatedInfos = await deleteMap(project.path, mapId);
-        setProject({ ...project, map_infos: updatedInfos });
-        if (currentMapId === mapId) {
+        const updatedInfos = await deleteMap(proj.path, mapId);
+        setProject({ ...proj, map_infos: updatedInfos });
+        projectRef.current = { ...proj, map_infos: updatedInfos };
+        if (currentMapIdRef.current === mapId) {
           setCurrentMapId(null);
+          currentMapIdRef.current = null;
           setMapData(null);
+          mapDataRef.current = null;
         }
       } catch (err) {
         setError(`Delete failed: ${err}`);
@@ -256,104 +307,95 @@ function App() {
         setLoading(false);
       }
     },
-    [project, currentMapId]
+    []
   );
 
-  const handleRenameMap = useCallback(
-    async (mapId: number, currentName: string) => {
-      if (!project) return;
-      const newName = prompt("Rename map:", currentName);
-      if (!newName || newName === currentName) return;
-      try {
-        setLoading(true);
-        setError(null);
-        await renameMap(project.path, mapId, newName);
-        // Update local state
-        const updatedInfos = { ...project.map_infos };
-        if (updatedInfos[mapId]) {
-          updatedInfos[mapId] = { ...updatedInfos[mapId], name: newName };
-        }
-        setProject({ ...project, map_infos: updatedInfos });
-      } catch (err) {
-        setError(`Rename failed: ${err}`);
-      } finally {
-        setLoading(false);
+  const handleRenameMap = useCallback(async (mapId: number, currentName: string) => {
+    const proj = projectRef.current;
+    if (!proj) return;
+    const newName = prompt("Rename map:", currentName);
+    if (!newName || newName === currentName) return;
+    try {
+      setLoading(true);
+      setError(null);
+      await renameMap(proj.path, mapId, newName);
+      const updatedInfos = { ...proj.map_infos };
+      if (updatedInfos[mapId]) {
+        updatedInfos[mapId] = { ...updatedInfos[mapId], name: newName };
       }
-    },
-    [project]
-  );
+      setProject({ ...proj, map_infos: updatedInfos });
+      projectRef.current = { ...proj, map_infos: updatedInfos };
+    } catch (err) {
+      setError(`Rename failed: ${err}`);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const handleMapProperties = useCallback((mapId: number) => {
     setPropsMapId(mapId);
   }, []);
 
-  const handleMapPropertiesSaved = useCallback(
-    async (props: MapProperties) => {
-      if (!project) return;
-      setPropsMapId(null);
+  const handleMapPropertiesSaved = useCallback(async (props: MapProperties) => {
+    const proj = projectRef.current;
+    if (!proj) return;
+    setPropsMapId(null);
 
-      // Update local map info with new name
-      const updatedInfos = { ...project.map_infos };
-      if (updatedInfos[props.id]) {
-        updatedInfos[props.id] = { ...updatedInfos[props.id], name: props.name };
-      }
-      setProject({ ...project, map_infos: updatedInfos });
+    const updatedInfos = { ...proj.map_infos };
+    if (updatedInfos[props.id]) {
+      updatedInfos[props.id] = { ...updatedInfos[props.id], name: props.name };
+    }
+    setProject({ ...proj, map_infos: updatedInfos });
+    projectRef.current = { ...proj, map_infos: updatedInfos };
 
-      // Reload the map if it's currently open (tileset/dimensions may have changed)
-      if (currentMapId === props.id) {
-        await handleSelectMap(props.id, project.path);
-      }
-    },
-    [project, currentMapId, handleSelectMap]
-  );
+    if (currentMapIdRef.current === props.id) {
+      // Reload the same map — skip the guard (we're not switching maps).
+      await handleSelectMap(props.id, true);
+    }
+  }, [handleSelectMap]);
 
-  // --- Event management handlers ---
+  // ── Event management handlers ──────────────────────────────────────────────
 
-  const handleCreateEvent = useCallback(
-    async (x: number, y: number) => {
-      if (!project || !currentMapId || !mapData) return;
-      try {
-        setError(null);
-        const [newEvent, updatedEvents] = await createEvent(
-          project.path,
-          currentMapId,
-          x,
-          y
-        );
-        // Update map data with new events list
-        setMapData({ ...mapData, events: updatedEvents });
-        // Open the event editor immediately
-        setEditingEvent({ eventId: newEvent.id, eventName: newEvent.name });
-      } catch (err) {
-        setError(`Create event failed: ${err}`);
-      }
-    },
-    [project, currentMapId, mapData]
-  );
+  const handleCreateEvent = useCallback(async (x: number, y: number) => {
+    const proj = projectRef.current;
+    const md = mapDataRef.current;
+    const mapId = currentMapIdRef.current;
+    if (!proj || !mapId || !md) return;
+    try {
+      setError(null);
+      const [newEvent, updatedEvents] = await createEvent(proj.path, mapId, x, y);
+      setMapData({ ...md, events: updatedEvents });
+      mapDataRef.current = { ...md, events: updatedEvents };
+      setEditingEvent({ eventId: newEvent.id, eventName: newEvent.name });
+    } catch (err) {
+      setError(`Create event failed: ${err}`);
+    }
+  }, []);
 
-  const handleDeleteEvent = useCallback(
-    async (eventId: number, eventName: string) => {
-      if (!project || !currentMapId || !mapData) return;
-      if (!confirm(`Delete event "${eventName}" (ID: ${eventId})?\n\nThis cannot be undone.`)) {
-        return;
-      }
-      try {
-        setError(null);
-        const updatedEvents = await deleteEvent(project.path, currentMapId, eventId);
-        setMapData({ ...mapData, events: updatedEvents });
-      } catch (err) {
-        setError(`Delete event failed: ${err}`);
-      }
-    },
-    [project, currentMapId, mapData]
-  );
+  const handleDeleteEvent = useCallback(async (eventId: number, eventName: string) => {
+    const proj = projectRef.current;
+    const md = mapDataRef.current;
+    const mapId = currentMapIdRef.current;
+    if (!proj || !mapId || !md) return;
+    if (!confirm(`Delete event "${eventName}" (ID: ${eventId})?\n\nThis cannot be undone.`)) return;
+    try {
+      setError(null);
+      const updatedEvents = await deleteEvent(proj.path, mapId, eventId);
+      setMapData({ ...md, events: updatedEvents });
+      mapDataRef.current = { ...md, events: updatedEvents };
+    } catch (err) {
+      setError(`Delete event failed: ${err}`);
+    }
+  }, []);
 
-  // Keyboard shortcuts
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────────
+
+  // Ctrl+S saves ALL dirty editors (map tiles + database + scripts).
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
-        handleSave();
+        saveAll();
       }
       if ((e.ctrlKey || e.metaKey) && e.key === "o") {
         e.preventDefault();
@@ -362,9 +404,10 @@ function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSave, handleBrowseProject]);
+  }, [saveAll, handleBrowseProject]);
 
-  // If no project is loaded, show welcome screen
+  // ── Welcome screen ─────────────────────────────────────────────────────────
+
   if (!project) {
     return (
       <div className="app">
@@ -402,15 +445,14 @@ function App() {
     );
   }
 
+  // ── Main UI ────────────────────────────────────────────────────────────────
+
   return (
-    <ProjectSaveProvider>
     <div className="app">
-      {/* Title bar */}
+      {/* Title bar — * reflects all dirty editors via dirtyCount */}
       <div className="app-titlebar">
         <span className="app-title">
-          RMXP Editor
-          {project ? ` — ${project.name}` : ""}
-          {isDirty ? " *" : ""}
+          RMXP Editor — {project.name}{dirtyCount > 0 ? " *" : ""}
         </span>
         <div className="app-titlebar-right">
           <button className="app-titlebar-btn" onClick={() => setShowDatabase(true)}>
@@ -445,7 +487,7 @@ function App() {
           tilesetInfo={tilesetInfo}
           tilesetImage={tilesetImage}
           autotileImages={autotileImages}
-          projectPath={project?.path ?? ""}
+          projectPath={project.path}
           selectedTileId={selectedTileId}
           onMapDirty={handleMapDirty}
           onOpenEvent={handleOpenEvent}
@@ -482,7 +524,7 @@ function App() {
       )}
 
       {/* Event editor modal */}
-      {editingEvent && project && currentMapId && (
+      {editingEvent && currentMapId && (
         <EventEditor
           projectPath={project.path}
           mapId={currentMapId}
@@ -494,7 +536,7 @@ function App() {
       )}
 
       {/* Map properties dialog */}
-      {propsMapId !== null && project && (
+      {propsMapId !== null && (
         <MapPropertiesDialog
           projectPath={project.path}
           mapId={propsMapId}
@@ -505,7 +547,7 @@ function App() {
       )}
 
       {/* Create map dialog */}
-      {createMapParentId !== null && project && (
+      {createMapParentId !== null && (
         <CreateMapDialog
           mapInfos={project.map_infos}
           tilesetNames={tilesetNames}
@@ -523,6 +565,13 @@ function App() {
         </div>
       )}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <ProjectSaveProvider>
+      <AppContent />
     </ProjectSaveProvider>
   );
 }

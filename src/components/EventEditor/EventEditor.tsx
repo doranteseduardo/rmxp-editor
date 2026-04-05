@@ -163,7 +163,30 @@ export function EventEditor({
     [updatePage]
   );
 
-  // Save event to disk
+  // OK: save (if dirty) then close
+  const handleOk = useCallback(async () => {
+    if (event && dirty) {
+      setSaving(true);
+      try {
+        await saveEvent(projectPath, mapId, event);
+        setDirty(false);
+      } catch (err) {
+        setError(`Save failed: ${String(err)}`);
+        setSaving(false);
+        return; // stay open if save failed
+      }
+      setSaving(false);
+    }
+    onClose();
+  }, [event, dirty, projectPath, mapId, onClose]);
+
+  // Cancel: prompt if dirty, then close without saving
+  const handleCancel = useCallback(() => {
+    if (dirty && !confirm("Discard changes to this event?")) return;
+    onClose();
+  }, [dirty, onClose]);
+
+  // Ctrl+S: save only (no close) — useful mid-editing
   const handleSave = useCallback(async () => {
     if (!event || !dirty) return;
     try {
@@ -186,7 +209,7 @@ export function EventEditor({
         } else if (editingCommand !== null) {
           setEditingCommand(null);
         } else {
-          onClose();
+          handleCancel();
         }
       }
       if (e.key === "Delete" && selectedCommand >= 0 && event && !showPicker && editingCommand === null) {
@@ -245,16 +268,16 @@ export function EventEditor({
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose, showPicker, editingCommand, selectedCommand, event, page, clipboard, handleDeleteCommand, handleSave, updatePage, undo, redo]);
+  }, [handleCancel, showPicker, editingCommand, selectedCommand, event, page, clipboard, handleDeleteCommand, handleSave, updatePage, undo, redo]);
 
-  // Click outside to close
+  // Click outside to close (respects dirty guard via handleCancel)
   const handleOverlayClick = useCallback(
     (e: React.MouseEvent) => {
       if ((e.target as HTMLElement).classList.contains("event-editor-overlay")) {
-        onClose();
+        handleCancel();
       }
     },
-    [onClose]
+    [handleCancel]
   );
 
   return (
@@ -272,7 +295,7 @@ export function EventEditor({
               {event?.y ?? "?"})
             </span>
           </div>
-          <button className="event-editor-close" onClick={onClose}>
+          <button className="event-editor-close" onClick={handleCancel}>
             ×
           </button>
         </div>
@@ -438,13 +461,13 @@ export function EventEditor({
             </button>
             <button
               className="event-editor-btn event-editor-btn-primary"
-              onClick={handleSave}
-              disabled={!dirty || saving}
+              onClick={handleOk}
+              disabled={saving}
             >
-              {saving ? "Saving..." : "Save"}
+              {saving ? "Saving..." : "OK"}
             </button>
-            <button className="event-editor-btn" onClick={onClose}>
-              Close
+            <button className="event-editor-btn" onClick={handleCancel}>
+              Cancel
             </button>
           </div>
         </div>
