@@ -198,6 +198,101 @@
   font-size: 14px;
 }
 
+/* ── Global search panel ─────────────────────────────────────── */
+
+.global-search-input-row {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-surface0);
+  flex-shrink: 0;
+}
+
+.global-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--color-mantle);
+  border: 1px solid var(--color-surface1);
+  color: var(--color-text);
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  outline: none;
+}
+
+.global-search-input:focus {
+  border-color: var(--color-accent);
+}
+
+.global-search-status {
+  padding: 4px 12px;
+  font-size: 11px;
+  color: var(--color-overlay0);
+  flex-shrink: 0;
+  min-height: 20px;
+}
+
+.global-search-results {
+  /* inherits .script-list-items scroll behaviour */
+}
+
+.search-result-group {
+  margin-bottom: 2px;
+}
+
+.search-result-group-title {
+  padding: 4px 12px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-subtext0);
+  background: var(--color-mantle);
+  border-bottom: 1px solid var(--color-surface0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.search-result-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 8px 3px 12px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--color-subtext1);
+  line-height: 1.4;
+}
+
+.search-result-item:hover {
+  background: var(--color-surface0);
+  color: var(--color-text);
+}
+
+.search-result-lineno {
+  flex-shrink: 0;
+  min-width: 28px;
+  text-align: right;
+  color: var(--color-overlay0);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+}
+
+.search-result-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.search-result-match {
+  background: #df8e1d33;
+  color: #df8e1d;
+  border-radius: 2px;
+  font-style: normal;
+  padding: 0 1px;
+}
+
 /* ── Saving indicator ────────────────────────────────────────── */
 
 .script-saving-indicator {

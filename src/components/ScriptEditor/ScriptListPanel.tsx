@@ -9,6 +9,7 @@ interface Props {
   onCreate: (afterId: number) => void;
   onDelete: (id: number) => void;
   onRename: (id: number, newTitle: string) => void;
+  onSearchOpen: () => void;
 }
 
 export function ScriptListPanel({
@@ -19,6 +20,7 @@ export function ScriptListPanel({
   onCreate,
   onDelete,
   onRename,
+  onSearchOpen,
 }: Props) {
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -65,13 +67,22 @@ export function ScriptListPanel({
     <div className="script-list-panel" onClick={closeContextMenu}>
       <div className="script-list-header">
         <span>Scripts</span>
-        <button
-          className="script-list-add-btn"
-          title="New script"
-          onClick={() => onCreate(selectedId ?? lastScriptId)}
-        >
-          +
-        </button>
+        <div style={{ display: "flex", gap: 4 }}>
+          <button
+            className="script-list-add-btn"
+            title="Find in all scripts (Ctrl+Shift+F)"
+            onClick={onSearchOpen}
+          >
+            ⌕
+          </button>
+          <button
+            className="script-list-add-btn"
+            title="New script"
+            onClick={() => onCreate(selectedId ?? lastScriptId)}
+          >
+            +
+          </button>
+        </div>
       </div>
       <div className="script-list-items">
         {scripts.map((script) => (

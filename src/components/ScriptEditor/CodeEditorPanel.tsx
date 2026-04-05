@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { EditorState } from "@codemirror/state";
+import { EditorState, EditorSelection } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { syntaxHighlighting, indentOnInput, bracketMatching, foldGutter, foldKeymap, HighlightStyle, StreamLanguage } from "@codemirror/language";
@@ -109,13 +109,21 @@ const catppuccinHighlight = HighlightStyle.define([
 
 // ── Component ───────────────────────────────────────────────────
 
+export interface JumpTarget {
+  line: number;   // 1-indexed
+  ch: number;     // 0-indexed char offset within the line
+  length: number; // selection length
+  key: number;    // increment to re-trigger jump to same position
+}
+
 interface Props {
   source: string | null;
   loading: boolean;
   onSourceChange: (newSource: string) => void;
+  jumpTo?: JumpTarget | null;
 }
 
-export function CodeEditorPanel({ source, loading, onSourceChange }: Props) {
+export function CodeEditorPanel({ source, loading, onSourceChange, jumpTo }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onSourceChange);
@@ -183,7 +191,9 @@ export function CodeEditorPanel({ source, loading, onSourceChange }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source !== null]);
 
-  // Swap document when source prop changes (different script selected)
+  // Swap document when source changes, then apply any pending jump target.
+  // Keying off both `source` and `jumpTo` ensures navigation to the same
+  // position in the same script also works (key field makes jumpTo unique).
   useEffect(() => {
     const view = viewRef.current;
     if (!view || source === null) return;
@@ -192,15 +202,25 @@ export function CodeEditorPanel({ source, loading, onSourceChange }: Props) {
     if (currentDoc !== source) {
       suppressChangeRef.current = true;
       view.dispatch({
-        changes: {
-          from: 0,
-          to: view.state.doc.length,
-          insert: source,
-        },
+        changes: { from: 0, to: view.state.doc.length, insert: source },
       });
       suppressChangeRef.current = false;
     }
-  }, [source]);
+
+    if (jumpTo) {
+      const doc = view.state.doc;
+      const lineNum = Math.min(Math.max(1, jumpTo.line), doc.lines);
+      const lineObj = doc.line(lineNum);
+      const from = lineObj.from + Math.min(jumpTo.ch, lineObj.length);
+      const to   = Math.min(from + jumpTo.length, lineObj.to);
+      view.dispatch({
+        selection: EditorSelection.range(from, to),
+        effects: EditorView.scrollIntoView(from, { y: "center" }),
+      });
+      view.focus();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source, jumpTo]);
 
   return (
     <div className="script-code-panel">

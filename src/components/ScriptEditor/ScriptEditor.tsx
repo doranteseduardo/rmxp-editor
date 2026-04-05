@@ -9,7 +9,8 @@ import {
 } from "../../services/tauriApi";
 import { useEditorRegistration } from "../../context/ProjectSaveContext";
 import { ScriptListPanel } from "./ScriptListPanel";
-import { CodeEditorPanel } from "./CodeEditorPanel";
+import { CodeEditorPanel, type JumpTarget } from "./CodeEditorPanel";
+import { GlobalSearchPanel, type SearchResult } from "./GlobalSearchPanel";
 import "./ScriptEditor.css";
 
 interface Props {
@@ -32,6 +33,17 @@ export function ScriptEditor({ projectPath, onClose }: Props) {
   const [dirtyIds, setDirtyIds] = useState<Set<number>>(new Set());
   // Track original sources for dirty detection
   const originalsRef = useRef<Map<number, string>>(new Map());
+
+  // ── Global search state ────────────────────────────────────────
+  const [searchActive, setSearchActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchIdRef = useRef(0); // incremented to cancel in-flight searches
+
+  // Jump target for CodeEditorPanel after search navigation
+  const [jumpTo, setJumpTo] = useState<JumpTarget | null>(null);
+  const jumpKeyRef = useRef(0);
 
   // Load script list on mount
   useEffect(() => {
@@ -224,6 +236,86 @@ export function ScriptEditor({ projectPath, onClose }: Props) {
     []
   );
 
+  // ── Global search logic ────────────────────────────────────────
+
+  /** Search all script sources for query (case-insensitive). Cancellable. */
+  const runSearch = useCallback(async (query: string) => {
+    const id = ++searchIdRef.current;
+    setSearching(true);
+
+    const results: SearchResult[] = [];
+    const lowerQuery = query.toLowerCase();
+
+    for (const script of scripts) {
+      if (searchIdRef.current !== id) return; // cancelled by newer search
+
+      let source = cacheRef.current.get(script.id);
+      if (source === undefined) {
+        try {
+          source = await loadScriptSource(projectPath, script.id);
+          if (searchIdRef.current !== id) return;
+          cacheRef.current.set(script.id, source);
+          originalsRef.current.set(script.id, source);
+        } catch {
+          continue;
+        }
+      }
+
+      const lines = source.split("\n");
+      for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        const line = lines[lineIdx];
+        const lower = line.toLowerCase();
+        let idx = 0;
+        while ((idx = lower.indexOf(lowerQuery, idx)) !== -1) {
+          results.push({
+            scriptId: script.id,
+            scriptTitle: script.title,
+            line: lineIdx + 1,
+            ch: idx,
+            lineContent: line,
+            matchLength: lowerQuery.length,
+          });
+          idx += lowerQuery.length;
+          if (results.length >= 1000) break;
+        }
+        if (results.length >= 1000) break;
+      }
+      if (results.length >= 1000) break;
+    }
+
+    if (searchIdRef.current === id) {
+      setSearchResults(results);
+      setSearching(false);
+    }
+  }, [projectPath, scripts]);
+
+  /** Debounce: run search 300 ms after the user stops typing. */
+  useEffect(() => {
+    if (!searchActive) return;
+    if (!searchQuery.trim()) {
+      ++searchIdRef.current; // cancel any in-flight search
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    const timer = setTimeout(() => runSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, searchActive, runSearch]);
+
+  /** Navigate to a search result: select the script then jump to the line. */
+  const handleNavigate = useCallback(async (
+    scriptId: number,
+    line: number,
+    ch: number,
+    matchLength: number,
+  ) => {
+    setSearchActive(false);
+    await handleSelect(scriptId);
+    setJumpTo({ line, ch, length: matchLength, key: ++jumpKeyRef.current });
+  }, [handleSelect]);
+
+  // ── Keyboard shortcuts ─────────────────────────────────────────
+
   // Keyboard shortcut: Ctrl+S
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -235,6 +327,18 @@ export function ScriptEditor({ projectPath, onClose }: Props) {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [handleSave]);
+
+  // Ctrl+Shift+F: open global search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        setSearchActive(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   if (loading) {
     return (
@@ -255,19 +359,32 @@ export function ScriptEditor({ projectPath, onClose }: Props) {
   return (
     <div className="script-editor-wrapper">
       <div className="script-editor">
-        <ScriptListPanel
-          scripts={scripts}
-          selectedId={selectedId}
-          dirtyIds={dirtyIds}
-          onSelect={handleSelect}
-          onCreate={handleCreate}
-          onDelete={handleDelete}
-          onRename={handleRename}
-        />
+        {searchActive ? (
+          <GlobalSearchPanel
+            query={searchQuery}
+            results={searchResults}
+            searching={searching}
+            onQueryChange={setSearchQuery}
+            onClose={() => setSearchActive(false)}
+            onNavigate={handleNavigate}
+          />
+        ) : (
+          <ScriptListPanel
+            scripts={scripts}
+            selectedId={selectedId}
+            dirtyIds={dirtyIds}
+            onSelect={handleSelect}
+            onCreate={handleCreate}
+            onDelete={handleDelete}
+            onRename={handleRename}
+            onSearchOpen={() => setSearchActive(true)}
+          />
+        )}
         <CodeEditorPanel
           source={currentSource}
           loading={loadingSource}
           onSourceChange={handleSourceChange}
+          jumpTo={jumpTo}
         />
         {saving && <div className="script-saving-indicator">Saving...</div>}
       </div>
