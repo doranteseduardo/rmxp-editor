@@ -20,14 +20,14 @@ The original RMXP editor is a 32-bit Windows application from 2004. This reimple
 
 ## What it does
 
-| Module | Highlights |
+| Module | Description |
 |---|---|
-| 🗺️ **Map Editor** | 3 tile layers + Events, autotiles, pencil/rect/fill/eraser, undo/redo, zoom, pan, grid, DPR-aware rendering |
-| 🎭 **Event Editor** | Full command set, multi-page events, move route editor, character sprite preview, copy/paste commands |
-| 🗃️ **Database** | All 13 RMXP data tabs — Actors, Classes, Skills, Items, Weapons, Armors, Enemies, Troops, States, Animations, Tilesets, Common Events, System |
-| 📜 **Script Editor** | CodeMirror 6, Ruby syntax highlighting, global search across all scripts, per-script dirty tracking |
-| 📍 **Starting Point** | Visual ⌂ marker on the map + right-click → Set as Starting Point |
-| 📋 **Event Clipboard** | Right-click → Copy/Paste events across tiles |
+| **Map Editor** | 3 tile layers + Events, autotiles, pencil/rect/fill/eraser, undo/redo, zoom, pan, grid, DPR-aware rendering |
+| **Event Editor** | Full command set, multi-page events, move route editor, character sprite preview, copy/paste commands |
+| **Database** | All 13 RMXP data tabs — Actors, Classes, Skills, Items, Weapons, Armors, Enemies, Troops, States, Animations, Tilesets, Common Events, System |
+| **Script Editor** | CodeMirror 6, Ruby syntax highlighting, global search across all scripts, per-script dirty tracking |
+| **Starting Point** | Visual marker on the map + right-click → Set as Starting Point |
+| **Event Clipboard** | Right-click → Copy/Paste events across tiles |
 
 ---
 
@@ -76,7 +76,7 @@ Output bundle: `src-tauri/target/release/bundle/`
 | `Ctrl+O` | Global | Open project folder |
 | `Ctrl+Z` / `Ctrl+Y` | Map · Event Editor | Undo / Redo |
 | `Ctrl+Shift+F` | Script Editor | Global search across all scripts |
-| `Double-click` | Map canvas | Open event / create event (on Events layer) |
+| `Double-click` | Map canvas | Open event / create event (Events layer) |
 | `Right-click` | Map canvas | Tile context menu |
 | `Middle-click drag` | Map canvas | Pan viewport |
 | `Ctrl+scroll` | Map canvas | Zoom |
@@ -141,17 +141,17 @@ All game data lives in `.rxdata` files — Ruby's binary Marshal format (v4.8). 
 ## Roadmap
 
 ```
-✅ Ruby Marshal v4.8 parser/serializer
-✅ Project loading — Game.rxproj, MapInfos.rxdata, map tree
-✅ Map editor — tile layers, autotiles, drawing tools, undo/redo, zoom/pan
-✅ Event system — viewer, full command set, move routes, character sprites
-✅ Database editor — all 13 tabs
-✅ Script editor — CodeMirror 6, Ruby highlighting, global search
-✅ Unified save flow — global dirty tracking, OK / Cancel / Apply
-✅ Starting position — map marker + context-menu setter
-✅ Event clipboard — copy/paste events across tiles via right-click
-⬜ PBS file integration (Pokémon Essentials species, moves, items, trainers)
-⬜ Playtest launcher
+[x] Ruby Marshal v4.8 parser/serializer
+[x] Project loading — Game.rxproj, MapInfos.rxdata, map tree
+[x] Map editor — tile layers, autotiles, drawing tools, undo/redo, zoom/pan
+[x] Event system — viewer, full command set, move routes, character sprites
+[x] Database editor — all 13 tabs
+[x] Script editor — CodeMirror 6, Ruby highlighting, global search
+[x] Unified save flow — global dirty tracking, OK / Cancel / Apply
+[x] Starting position — map marker + context-menu setter
+[x] Event clipboard — copy/paste events across tiles via right-click
+[ ] PBS file integration (Pokémon Essentials species, moves, items, trainers)
+[ ] Playtest launcher
 ```
 
 ---
