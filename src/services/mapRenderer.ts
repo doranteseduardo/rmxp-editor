@@ -24,6 +24,8 @@ export interface RenderOptions {
   zoom: number;
   viewportX: number;
   viewportY: number;
+  /** Tile coordinates of the starting position marker, if on this map */
+  startMarker?: { x: number; y: number };
 }
 
 export interface EventMarker {
@@ -181,6 +183,11 @@ export class MapRenderer {
       if (eventsDimmed) {
         this.ctx.globalAlpha = 1.0;
       }
+    }
+
+    // Render start position marker
+    if (options.startMarker) {
+      this.renderStartMarker(options.startMarker.x, options.startMarker.y, viewportX, viewportY, tileSize);
     }
 
     // Render grid
@@ -436,6 +443,41 @@ export class MapRenderer {
       srcX, srcY, frameW, frameH,
       destX, destY, destW, destH
     );
+  }
+
+  private renderStartMarker(tileX: number, tileY: number, viewportX: number, viewportY: number, tileSize: number) {
+    const screenX = (tileX - viewportX) * tileSize;
+    const screenY = (tileY - viewportY) * tileSize;
+    const cx = screenX + tileSize / 2;
+    const cy = screenY + tileSize / 2;
+    const r = tileSize * 0.36;
+
+    this.ctx.save();
+
+    // Green filled circle with glow
+    this.ctx.shadowColor = "rgba(64, 160, 43, 0.75)";
+    this.ctx.shadowBlur = tileSize * 0.2;
+    this.ctx.fillStyle = "rgba(64, 160, 43, 0.88)";
+    this.ctx.beginPath();
+    this.ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    this.ctx.fill();
+
+    // White border
+    this.ctx.shadowBlur = 0;
+    this.ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+    this.ctx.lineWidth = Math.max(1, tileSize * 0.04);
+    this.ctx.stroke();
+
+    // House icon
+    if (tileSize >= 16) {
+      this.ctx.fillStyle = "#fff";
+      this.ctx.font = `bold ${Math.max(10, Math.round(tileSize * 0.38))}px sans-serif`;
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+      this.ctx.fillText("⌂", cx, cy + tileSize * 0.03);
+    }
+
+    this.ctx.restore();
   }
 
   private renderGrid(startX: number, startY: number, endX: number, endY: number, viewportX: number, viewportY: number, tileSize: number) {

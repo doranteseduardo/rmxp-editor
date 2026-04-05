@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import type { ScriptEntry, ScriptData } from "../../types";
 import {
   loadScriptList,
@@ -202,7 +203,7 @@ export function ScriptEditor({ projectPath, onClose }: Props) {
     async (id: number) => {
       const script = scripts.find((s) => s.id === id);
       const title = script?.title ?? `#${id}`;
-      if (!window.confirm(`Delete script "${title}"?`)) return;
+      if (!(await confirm(`Delete script "${title}"?`))) return;
       try {
         const updated = await deleteScript(projectPath, id);
         setScripts(updated);

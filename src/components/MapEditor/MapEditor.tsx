@@ -22,10 +22,16 @@ interface Props {
   autotileImages: (HTMLImageElement | null)[];
   projectPath?: string;
   selectedTileId: number;
+  currentMapId?: number;
+  startPosition?: { mapId: number; x: number; y: number };
+  hasClipboardEvent?: boolean;
   onMapDirty: () => void;
   onOpenEvent?: (eventId: number, eventName: string) => void;
   onCreateEvent?: (x: number, y: number) => void;
   onDeleteEvent?: (eventId: number, eventName: string) => void;
+  onSetStartPosition?: (x: number, y: number) => Promise<void>;
+  onCopyEvent?: (eventId: number) => Promise<void>;
+  onPasteEvent?: (x: number, y: number) => Promise<void>;
 }
 
 export function MapEditor({
@@ -35,10 +41,16 @@ export function MapEditor({
   autotileImages,
   projectPath: _projectPath,
   selectedTileId,
+  currentMapId,
+  startPosition,
+  hasClipboardEvent,
   onMapDirty,
   onOpenEvent,
   onCreateEvent,
   onDeleteEvent,
+  onSetStartPosition,
+  onCopyEvent,
+  onPasteEvent,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<MapRenderer | null>(null);
@@ -77,12 +89,13 @@ export function MapEditor({
   // Force re-render trigger
   const [renderTick, setRenderTick] = useState(0);
 
-  // Event context menu state
-  const [eventContextMenu, setEventContextMenu] = useState<{
-    x: number;
-    y: number;
-    eventId: number;
-    eventName: string;
+  // Tile context menu state (right-click on any tile)
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;           // screen x
+    y: number;           // screen y
+    tileX: number;       // tile col
+    tileY: number;       // tile row
+    event: { id: number; name: string } | null;
   } | null>(null);
 
   // Character sprite cache: graphicName → HTMLImageElement
@@ -181,6 +194,13 @@ export function MapEditor({
       graphicImage: e.graphic_name ? characterImages.get(e.graphic_name) : null,
     }));
 
+    const startMarker =
+      currentMapId !== undefined &&
+      startPosition &&
+      currentMapId === startPosition.mapId
+        ? { x: startPosition.x, y: startPosition.y }
+        : undefined;
+
     const animate = (time: number) => {
       rendererRef.current?.render(
         time,
@@ -192,6 +212,7 @@ export function MapEditor({
           zoom,
           viewportX,
           viewportY,
+          startMarker,
         },
         events
       );
@@ -210,6 +231,8 @@ export function MapEditor({
     viewportY,
     renderTick,
     characterImages,
+    currentMapId,
+    startPosition,
   ]);
 
   // Resize canvas to fill container
@@ -642,19 +665,15 @@ export function MapEditor({
             if (!mapData) return;
             const pos = screenToTile(e.clientX, e.clientY);
             if (!pos) return;
-            const evt = mapData.events.find(
-              (ev) => ev.x === pos.x && ev.y === pos.y
-            );
-            if (evt) {
-              setEventContextMenu({
-                x: e.clientX,
-                y: e.clientY,
-                eventId: evt.id,
-                eventName: evt.name,
-              });
-            } else {
-              setEventContextMenu(null);
-            }
+            if (pos.x < 0 || pos.x >= mapData.width || pos.y < 0 || pos.y >= mapData.height) return;
+            const evt = mapData.events.find(ev => ev.x === pos.x && ev.y === pos.y);
+            setContextMenu({
+              x: e.clientX,
+              y: e.clientY,
+              tileX: pos.x,
+              tileY: pos.y,
+              event: evt ? { id: evt.id, name: evt.name } : null,
+            });
           }}
         />
         {/* Scrollbar overlays */}
@@ -680,35 +699,69 @@ export function MapEditor({
         )}
       </div>
 
-      {/* Event context menu */}
-      {eventContextMenu && (
+      {/* Tile context menu */}
+      {contextMenu && (
         <div
           className="map-tree-context-overlay"
-          onClick={() => setEventContextMenu(null)}
-          onContextMenu={(e) => { e.preventDefault(); setEventContextMenu(null); }}
+          onClick={() => setContextMenu(null)}
+          onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
         >
           <div
             className="map-tree-context-menu"
-            style={{ left: eventContextMenu.x, top: eventContextMenu.y }}
+            style={{ left: contextMenu.x, top: contextMenu.y }}
             onClick={(e) => e.stopPropagation()}
           >
+            {contextMenu.event && (
+              <>
+                <button
+                  onClick={() => {
+                    if (onOpenEvent) onOpenEvent(contextMenu.event!.id, contextMenu.event!.name);
+                    setContextMenu(null);
+                  }}
+                >
+                  Open Event
+                </button>
+                <button
+                  onClick={async () => {
+                    if (onCopyEvent) await onCopyEvent(contextMenu.event!.id);
+                    setContextMenu(null);
+                  }}
+                >
+                  Copy Event
+                </button>
+                <div className="map-tree-context-separator" />
+                <button
+                  className="map-tree-context-danger"
+                  onClick={() => {
+                    if (onDeleteEvent) onDeleteEvent(contextMenu.event!.id, contextMenu.event!.name);
+                    setContextMenu(null);
+                  }}
+                >
+                  Delete Event
+                </button>
+                <div className="map-tree-context-separator" />
+              </>
+            )}
+            {!contextMenu.event && hasClipboardEvent && (
+              <>
+                <button
+                  onClick={async () => {
+                    if (onPasteEvent) await onPasteEvent(contextMenu.tileX, contextMenu.tileY);
+                    setContextMenu(null);
+                  }}
+                >
+                  Paste Event
+                </button>
+                <div className="map-tree-context-separator" />
+              </>
+            )}
             <button
-              onClick={() => {
-                if (onOpenEvent) onOpenEvent(eventContextMenu.eventId, eventContextMenu.eventName);
-                setEventContextMenu(null);
+              onClick={async () => {
+                if (onSetStartPosition) await onSetStartPosition(contextMenu.tileX, contextMenu.tileY);
+                setContextMenu(null);
               }}
             >
-              Edit Event
-            </button>
-            <div className="map-tree-context-separator" />
-            <button
-              className="map-tree-context-danger"
-              onClick={() => {
-                if (onDeleteEvent) onDeleteEvent(eventContextMenu.eventId, eventContextMenu.eventName);
-                setEventContextMenu(null);
-              }}
-            >
-              Delete Event
+              Set as Starting Point
             </button>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import type {
   RpgEvent,
   EventPage,
@@ -181,8 +182,8 @@ export function EventEditor({
   }, [event, dirty, projectPath, mapId, onClose]);
 
   // Cancel: prompt if dirty, then close without saving
-  const handleCancel = useCallback(() => {
-    if (dirty && !confirm("Discard changes to this event?")) return;
+  const handleCancel = useCallback(async () => {
+    if (dirty && !(await confirm("Discard changes to this event?"))) return;
     onClose();
   }, [dirty, onClose]);
 

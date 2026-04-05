@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ProjectInfo, MapRenderData, TilesetRenderInfo, MapProperties } from "./types";
+import type { ProjectInfo, MapRenderData, TilesetRenderInfo, MapProperties, RpgEvent, EventInfo } from "./types";
 import { FIRST_REGULAR_TILE } from "./types";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import {
   openProject,
   loadMap,
@@ -12,6 +13,10 @@ import {
   createEvent,
   deleteEvent,
   listTilesetNames,
+  loadSystemData,
+  saveSystemData,
+  loadEvent,
+  saveEvent,
 } from "./services/tauriApi";
 import { loadAllTilesetImages } from "./services/imageLoader";
 import { MapTreePanel } from "./components/MapTree/MapTreePanel";
@@ -79,6 +84,12 @@ function AppContent() {
 
   // Tileset names cache (loaded once when project opens)
   const [tilesetNames, setTilesetNames] = useState<Array<[number, string]>>([]);
+
+  // Starting position (loaded from System.rxdata)
+  const [startPosition, setStartPosition] = useState<{ mapId: number; x: number; y: number } | null>(null);
+
+  // Clipboard for event copy/paste
+  const [clipboardEvent, setClipboardEvent] = useState<RpgEvent | null>(null);
 
   // Modal editor windows
   const [showDatabase, setShowDatabase] = useState(false);
@@ -157,6 +168,13 @@ function AppContent() {
         console.warn("Failed to load tileset names:", err);
       }
 
+      try {
+        const sys = await loadSystemData(proj.path);
+        setStartPosition({ mapId: sys.start_map_id, x: sys.start_x, y: sys.start_y });
+      } catch (err) {
+        console.warn("Failed to load system start position:", err);
+      }
+
       if (proj.edit_map_id) {
         // skipGuard=true: dirty state was cleared above; no need to prompt.
         await handleSelectMap(proj.edit_map_id, true);
@@ -196,7 +214,7 @@ function AppContent() {
       mapId !== currentMapIdRef.current &&
       mapIsDirtyRef.current
     ) {
-      if (confirm("Save tile changes to the current map before switching?")) {
+      if (await confirm("Save tile changes to the current map before switching?")) {
         const md = mapDataRef.current;
         if (md) {
           try {
@@ -286,7 +304,7 @@ function AppContent() {
     async (mapId: number, mapName: string) => {
       const proj = projectRef.current;
       if (!proj) return;
-      if (!confirm(`Delete map [${String(mapId).padStart(3, "0")}] "${mapName}"?\n\nThis cannot be undone.`)) {
+      if (!(await confirm(`Delete map [${String(mapId).padStart(3, "0")}] "${mapName}"?\n\nThis cannot be undone.`))) {
         return;
       }
       try {
@@ -377,7 +395,7 @@ function AppContent() {
     const md = mapDataRef.current;
     const mapId = currentMapIdRef.current;
     if (!proj || !mapId || !md) return;
-    if (!confirm(`Delete event "${eventName}" (ID: ${eventId})?\n\nThis cannot be undone.`)) return;
+    if (!(await confirm(`Delete event "${eventName}" (ID: ${eventId})?\n\nThis cannot be undone.`))) return;
     try {
       setError(null);
       const updatedEvents = await deleteEvent(proj.path, mapId, eventId);
@@ -387,6 +405,64 @@ function AppContent() {
       setError(`Delete event failed: ${err}`);
     }
   }, []);
+
+  // Set starting position: load System, patch, save, update local state
+  const handleSetStartPosition = useCallback(async (x: number, y: number) => {
+    const proj = projectRef.current;
+    const mapId = currentMapIdRef.current;
+    if (!proj || mapId === null) return;
+    try {
+      const sys = await loadSystemData(proj.path);
+      await saveSystemData(proj.path, { ...sys, start_map_id: mapId, start_x: x, start_y: y });
+      setStartPosition({ mapId, x, y });
+    } catch (err) {
+      setError(`Set starting point failed: ${err}`);
+    }
+  }, []);
+
+  // Copy event: load full data and store in clipboard
+  const handleCopyEvent = useCallback(async (eventId: number) => {
+    const proj = projectRef.current;
+    const mapId = currentMapIdRef.current;
+    if (!proj || mapId === null) return;
+    try {
+      const evt = await loadEvent(proj.path, mapId, eventId);
+      setClipboardEvent(evt);
+    } catch (err) {
+      setError(`Copy event failed: ${err}`);
+    }
+  }, []);
+
+  // Paste event: create at target tile, overwrite with clipboard data
+  const handlePasteEvent = useCallback(async (tileX: number, tileY: number) => {
+    const proj = projectRef.current;
+    const md = mapDataRef.current;
+    const mapId = currentMapIdRef.current;
+    if (!proj || !md || mapId === null || !clipboardEvent) return;
+    try {
+      setError(null);
+      const [newEvent, updatedEvents] = await createEvent(proj.path, mapId, tileX, tileY);
+      const pasted: RpgEvent = { ...clipboardEvent, id: newEvent.id, x: tileX, y: tileY };
+      await saveEvent(proj.path, mapId, pasted);
+      // Build updated EventInfo from clipboard data
+      const firstPage = clipboardEvent.pages[0];
+      const pastedInfo: EventInfo = {
+        id: newEvent.id,
+        name: clipboardEvent.name,
+        x: tileX,
+        y: tileY,
+        page_count: clipboardEvent.pages.length,
+        graphic_name: firstPage?.graphic.character_name ?? "",
+        graphic_direction: firstPage?.graphic.direction ?? 2,
+        graphic_pattern: firstPage?.graphic.pattern ?? 0,
+      };
+      const finalEvents = updatedEvents.map(e => e.id === newEvent.id ? pastedInfo : e);
+      setMapData({ ...md, events: finalEvents });
+      mapDataRef.current = { ...md, events: finalEvents };
+    } catch (err) {
+      setError(`Paste event failed: ${err}`);
+    }
+  }, [clipboardEvent]);
 
   // ── Keyboard shortcuts ─────────────────────────────────────────────────────
 
@@ -489,10 +565,16 @@ function AppContent() {
           autotileImages={autotileImages}
           projectPath={project.path}
           selectedTileId={selectedTileId}
+          currentMapId={currentMapId ?? undefined}
+          startPosition={startPosition ?? undefined}
+          hasClipboardEvent={clipboardEvent !== null}
           onMapDirty={handleMapDirty}
           onOpenEvent={handleOpenEvent}
           onCreateEvent={handleCreateEvent}
           onDeleteEvent={handleDeleteEvent}
+          onSetStartPosition={handleSetStartPosition}
+          onCopyEvent={handleCopyEvent}
+          onPasteEvent={handlePasteEvent}
         />
 
         {/* Right: Tileset palette */}

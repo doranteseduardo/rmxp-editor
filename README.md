@@ -1,180 +1,230 @@
 # RMXP Editor
 
-A modern, cross-platform editor for **RPG Maker XP** projects, aiming for **1:1 feature parity** with the official RMXP editor while adding modern conveniences. Built specifically with **Pokémon Essentials v21.1** support in mind.
+A modern, cross-platform desktop editor for **RPG Maker XP** projects. Built with [Tauri v2](https://v2.tauri.app/) + React + TypeScript, targeting **Pokémon Essentials v21.1** workflows while remaining compatible with any RMXP project.
 
-![Main Interface](docs/screenshot_main.png)
-_The modern, light-themed interface capturing the classic RMXP workflow_
+![Main Interface](screenshot_main.png)
 
-Built with [Tauri v2](https://v2.tauri.app/) + React + TypeScript for a native desktop experience on macOS, Windows, and Linux.
+---
 
-## Project Status
+## Overview
 
-This editor faithfully recreates the functionalities of the original RPG Maker XP, offering a familiar environment for veterans while upgrading the underlying technology.
+The official RPG Maker XP editor is a 32-bit Windows application from 2004 that cannot run natively on modern macOS or Linux. This editor reimplements it from scratch as a native desktop app, reading and writing the original `.rxdata` binary format directly — no Ruby runtime or game engine required.
 
-**Current Implementation Status:**
+**Key design goals:**
 
-- **Core:** Native .rxproj and .rxdata parsing (custom Rust implementation).
-- **Map Editor:** Feature-complete (Layers 1-3, Events, Autotiles, Zoom, Undo/Redo).
-- **Database:** Full implementation of all 13 legacy tabs.
-- **Events:** Comprehensive interpreter and editor support for event commands.
-- **Scripts:** Enhanced Ruby script editor with modern syntax highlighting.
+- Full read/write fidelity with the original `.rxdata` binary format (Ruby Marshal v4.8)
+- Native cross-platform binary (macOS, Windows, Linux)
+- Feature parity with all 13 database tabs and the map/event/script editors
+- Pokémon Essentials v21.1 compatibility (extended terrain tags, PBS integration roadmap)
+
+---
 
 ## Features
 
 ### Map Editor
 
-- Visual tile-based map editing with a real-time canvas renderer
-- **1:1 RMXP Layer System**: Full support for Layers 1, 2, 3, and Events
-- **Authentic Autotiles**: 7-slot autotile system with animated rendering
-- Tileset palette with clickable tile grid and autotile previews
-- Drawing tools: Pencil, Rectangle, Flood Fill, Eraser
-- Undo/Redo with full history stack
-- Zoom and pan navigation
-- Grid and event marker overlays
-- DPR-aware rendering for Retina/HiDPI displays
+![Map Editor](screenshot_main.png)
 
-### Event System
+- Three independent tile layers (L1 / L2 / L3) plus an Events overlay layer
+- 7-slot autotile system with animated rendering (frame cycling at 250 ms intervals)
+- Drawing tools: **Pencil**, **Rectangle**, **Flood Fill**, **Eraser**
+- Zoom (Ctrl+scroll / pinch) from 25% to 400%; pan with middle-click drag or scroll
+- Undo/Redo stack with full per-operation history (`Ctrl+Z` / `Ctrl+Y`)
+- DPR-aware canvas renderer — crisp on Retina/HiDPI displays
+- Grid and event marker overlays (toggleable)
+- **Starting position marker** — green ⌂ icon shows the game's player start tile on the relevant map
+- **Right-click context menu** on any tile:
+  - Set as Starting Point (saves immediately to `System.rxdata`)
+  - Open Event / Copy Event / Delete Event (when an event is present)
+  - Paste Event (when an event is on the clipboard and the tile is empty)
 
-![Event Editor](docs/screenshot_event_editor.png)
-_Full Event Editor with conditions, triggers, and page management_
+### Event Editor
 
-- Event viewer with markers on the map canvas
-- Full event editor with page management (add, delete, copy pages)
-- Double-click events on the map to open the editor
-- **Move Route Editor**: Define complex movement patterns for events
-- **Comprehensive Command Set**: Inline parameter editors for the vast majority of RMXP commands
-- Command picker modal with category sidebar and keyboard search
-- Keyboard shortcuts: Insert, Delete, Ctrl+C/V/D, Ctrl+Z/Y
-- Sprite preview with character sheet rendering
+![Event Editor](screenshot_event_editor.png)
 
-![Event Commands](docs/screenshot_event_editor_2.png)
-_Command selection providing access to standard RMXP event logic_
+- Event list rendered as character sprites or named markers directly on the canvas
+- Double-click any event on the map to open the editor
+- Full multi-page event editor: add, delete, and copy pages
+- Page conditions: switch, variable, self-switch
+- Trigger types, move speed/frequency, walk/step animation, direction fix, through, always-on-top
+- **Character picker** with sprite sheet preview
+- **Move Route Editor** — inline movement sequence builder
+- **Command editor** with inline parameter editing for the vast majority of RMXP commands:
+  - Message / choice / input / scroll text
+  - Switch / variable / self-switch / timer control
+  - Conditional branches, loops, labels, jumps
+  - Event management (transfer player, set event location, etc.)
+  - Screen effects: tone, flash, shake, fade, weather
+  - Audio commands: BGM, BGS, ME, SE
+  - Battle, shop, name input calls
+  - Script call
+- Command picker modal with category sidebar and live keyboard search
+- Clipboard for event commands: `Ctrl+C` / `Ctrl+V` / `Ctrl+D` (duplicate)
+- Undo/Redo within the event editor
+- OK / Cancel flow with unsaved-changes guard (native dialog)
+
+![Event Commands](screenshot_event_editor_2.png)
 
 ### Database Editor
 
-![Database Editor](docs/screenshot_database_editor.png)
-_Tabbed Database Editor managing all game data_
+![Database Editor](screenshot_database_editor.png)
 
-- Full tabbed interface covering all 13 RMXP data categories:
-  - **Actors** — stats, exp curves, equipment, class assignment
-  - **Classes** — learnable skills, stat growth curves, element/state rank tables
-  - **Skills** — scope, cost, animations, audio, element/state associations
-  - **Items** — consumables, equipment, key items with parameter bonuses
-  - **Weapons** — stats, elements, states, animations, audio
-  - **Armors** — defense stats, guard elements/states, auto-state
-  - **Enemies** — stats, loot drops, element/state ranks, treasure tables
-  - **Troops** — enemy positioning editor, battle event pages with full command editing
-  - **States** — restrictions, ratings, auto-release, animations
-  - **Animations** — frame-by-frame cell editor, real-time preview canvas, timing/flash/SE editing
-  - **Tilesets** — passage, priority, and terrain tag grid editors with tileset image overlay
-  - **Common Events** — trigger types, switch conditions, full event command editing
-  - **System** — title/game-over graphics, start position, music/sound config, vocabulary
-- Shared controls: asset pickers (graphics + audio with preview/playback), ID selectors, set editors, parameter curve editors
+All 13 RMXP data categories, fully editable:
 
-![Tileset Editor](docs/screenshot_database_editor_2.png)
-_Tileset configuration including passage and terrain tags_
+| Tab | Highlights |
+|-----|-----------|
+| **Actors** | Stats, EXP curves, starting equipment, class assignment |
+| **Classes** | Skill learn table, stat growth curves, element/state rank tables |
+| **Skills** | Scope, MP cost, animations, audio, element/state flags |
+| **Items** | Consumables, equipment, key items, parameter bonuses |
+| **Weapons** | ATK/DEF stats, elements, states, animation, audio |
+| **Armors** | PDEF/MDEF, guard elements/states, auto-state |
+| **Enemies** | Stats, loot, element/state ranks, action patterns |
+| **Troops** | Enemy group positioning, battle event pages with full command editing |
+| **States** | Restrictions, ratings, auto-release conditions, overlay animations |
+| **Animations** | Frame-by-frame cell editor, real-time preview canvas, timing/flash/SE |
+| **Tilesets** | Passage, 4-direction passage, priority (0–5), bush/counter flags, terrain tags (0–17) with autotile graphic previews |
+| **Common Events** | Trigger type, switch condition, full event command list |
+| **System** | Title/game-over graphics, map selector for start position, music/sound config, vocabulary |
+
+Shared controls across tabs: graphic/audio asset pickers with preview and playback, ID selectors, set editors, parameter curve editors.
+
+![Tileset Editor](screenshot_database_editor_2.png)
 
 ### Script Editor
 
-![Script Editor](docs/screenshot_script_editor.png)
-_Modern code editor with Ruby syntax highlighting and search_
+![Script Editor](screenshot_script_editor.png)
 
-- Full-featured code editor based on CodeMirror 6
-- **Ruby Syntax Highlighting** with huge file support
-- Smart indentation and bracket matching
-- **Script List Management**: Create, rename, delete, and reorder scripts
-- **Search & Replace**: text search within scripts
-- Unsaved changes tracking (dirty state indicators)
-- Custom theme (Catppuccin Latte) for a modern look
+- Script list panel with create, rename, delete, and drag-to-reorder
+- Double-click a name or press `F2` to rename inline
+- CodeMirror 6 editor with **Ruby syntax highlighting** (Catppuccin Latte theme)
+- Bracket matching, auto-close brackets, fold gutter, tab indentation
+- Per-script unsaved-changes indicators (yellow dot)
+- **Global search** (`Ctrl+Shift+F`) — searches across all scripts simultaneously, shows results grouped by script with line numbers and highlighted matches; click any result to jump directly to it
+- `Ctrl+S` saves all dirty scripts at once
 
-### Project Management & Tilesets
+---
 
-- Native folder picker to open any RMXP project
-- Parses `Game.rxproj`, `MapInfos.rxdata`, `Tilesets.rxdata`, and individual map files
-- Reads and writes all database `.rxdata` files
-- Hierarchical map tree with parent/child relationships
-- **Tileset Support**: Loads RMXP tileset images via Tauri's asset protocol
-- 7-slot autotile system with animated autotile rendering
-- Auto-opens the last edited map on project load
+## Keyboard Shortcuts
+
+| Shortcut | Context | Action |
+|----------|---------|--------|
+| `Ctrl+S` | Global | Save all dirty editors |
+| `Ctrl+O` | Global | Open project folder |
+| `Ctrl+Z` | Map / Event Editor | Undo |
+| `Ctrl+Y` / `Ctrl+Shift+Z` | Map / Event Editor | Redo |
+| `Ctrl+Shift+F` | Script Editor | Global search across all scripts |
+| `Double-click` | Map canvas | Open event editor (on event tile) / create event (on Events layer) |
+| `Right-click` | Map canvas | Tile context menu |
+| `Middle-click drag` | Map canvas | Pan viewport |
+| `Ctrl+scroll` / Pinch | Map canvas | Zoom |
+| `Insert` | Event command list | Insert new command |
+| `Delete` | Event command list | Delete selected command |
+| `Ctrl+C/V/D` | Event command list | Copy / Paste / Duplicate command |
+| `Escape` | Event Editor | Cancel (with unsaved-changes guard) |
+
+---
 
 ## Tech Stack
 
-- **Frontend:** React 19, TypeScript, Vite
-- **Backend:** Rust (Tauri v2)
-- **Binary parsing:** Custom Ruby Marshal v4.8 deserializer/serializer (reads and writes `.rxdata` files directly)
-- **Rendering:** HTML5 Canvas with requestAnimationFrame loop
-- **Theme:** Catppuccin Latte
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 19, TypeScript, Vite |
+| Desktop shell | Tauri v2 (Rust) |
+| Binary format | Custom Ruby Marshal v4.8 parser/serializer |
+| Map rendering | HTML5 Canvas 2D, `requestAnimationFrame` loop |
+| Code editor | CodeMirror 6 |
+| Audio playback | rodio (Rust) |
+| Theme | Catppuccin Latte |
+
+### Binary Format
+
+All game data is stored in `.rxdata` files — Ruby's binary Marshal format (version 4.8). This editor ships a **pure Rust** Marshal reader and writer that handles all RMXP object types: `RPG::Map`, `RPG::Event`, `RPG::Tileset`, `RPG::System`, `RPG::Actor`, `Table`, `Color`, `Tone`, `RPG::AudioFile`, and so on. No Ruby runtime is involved at any point.
+
+Scripts are stored compressed with zlib inside `Scripts.rxdata`; the editor decompresses and recompresses them transparently.
+
+---
 
 ## Architecture
 
 ```
-src/                            # React frontend
+src/                              # React + TypeScript frontend
+├── App.tsx                       # Root shell, project state, unified save context
+├── context/
+│   └── ProjectSaveContext.tsx    # Global dirty/save coordination across all editors
 ├── components/
-│   ├── MapEditor/              # Canvas-based map editor with drawing tools
-│   ├── MapTree/                # Hierarchical map list panel
-│   ├── TilesetPalette/         # Tileset/autotile selector
-│   ├── EventEditor/            # Event page editor, command param editors, command picker
-│   ├── ScriptEditor/           # Script list + code editor panels
-│   ├── DatabaseEditor/         # Tabbed database editor
-│   │   ├── tabs/               # 13 data category tabs (Actors, Classes, Skills, etc.)
-│   │   └── controls/           # Shared controls (AssetPicker, TilePropertyEditor, etc.)
-│   ├── MapProperties/          # Map settings dialog
-│   ├── common/                 # Shared UI primitives
-│   └── shared/                 # Cross-component utilities
+│   ├── MapEditor/                # Canvas-based tile editor with drawing tools
+│   ├── MapTree/                  # Hierarchical map list with context menu
+│   ├── TilesetPalette/           # Tileset / autotile selector
+│   ├── EventEditor/              # Event page editor, command picker, move route editor
+│   ├── ScriptEditor/             # Script list, CodeMirror panel, global search
+│   ├── DatabaseEditor/
+│   │   ├── tabs/                 # 13 data-category tabs
+│   │   └── controls/             # Shared controls (AssetPicker, TilePropertyEditor, …)
+│   └── MapProperties/            # Map settings dialog
 ├── services/
-│   ├── tauriApi.ts             # Tauri IPC command wrappers
-│   ├── imageLoader.ts          # Asset protocol image loading with caching
-│   ├── mapRenderer.ts          # Canvas tile renderer (regular + autotile)
-│   ├── mapEditor.ts            # Paint operations and undo/redo
-│   ├── eventCommands.ts        # Command catalog, summary formatting, picker categories
-│   └── autotileData.ts         # 48-pattern autotile lookup table
-└── types/                      # TypeScript type definitions and RMXP constants
+│   ├── tauriApi.ts               # Tauri IPC wrappers (typed)
+│   ├── imageLoader.ts            # Asset-protocol image loading with cache
+│   ├── mapRenderer.ts            # Canvas tile renderer (tiles + autotiles + markers)
+│   ├── mapEditor.ts              # Paint operations, flood fill, undo/redo stack
+│   ├── eventCommands.ts          # Command catalog, summary text, picker categories
+│   └── autotileData.ts           # 48-pattern autotile rect lookup table
+└── types/                        # TypeScript types and RMXP constants
 
-src-tauri/                      # Rust backend
+src-tauri/                        # Rust backend
 ├── src/
-│   ├── commands/               # Tauri IPC command handlers
-│   ├── marshal/                # Ruby Marshal v4.8 binary format parser/serializer
-│   └── models/                 # RMXP data structures (Map, Tileset, Event, Table, etc.)
+│   ├── commands/                 # Tauri IPC handlers (project, map, database, scripts, audio)
+│   ├── marshal/                  # Ruby Marshal v4.8 reader + writer
+│   ├── models/                   # RMXP data models (Map, Tileset, Event, System, Table, …)
+│   ├── state/                    # App-level shared state
+│   └── pbs/                      # PBS file utilities (roadmap)
 └── Cargo.toml
 ```
 
-## Development
+---
+
+## Getting Started
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18+)
+- [Node.js](https://nodejs.org/) v18+
 - [Rust](https://www.rust-lang.org/tools/install) (latest stable)
-- [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform
+- [Tauri v2 system dependencies](https://v2.tauri.app/start/prerequisites/) for your OS
 
-### Setup
+### Development
 
-1. Install dependencies:
+```bash
+npm install
+npm run tauri dev
+```
 
-   ```bash
-   npm install
-   ```
+### Production Build
 
-2. Run in development mode:
+```bash
+npm run tauri build
+```
 
-   ```bash
-   npm run tauri dev
-   ```
+The output installer/binary will be in `src-tauri/target/release/bundle/`.
 
-3. Build for production:
-   ```bash
-   npm run tauri build
-   ```
+---
 
 ## Roadmap
 
-- [x] **Phase 1** — Project loading, Ruby Marshal parser, map tree
-- [x] **Phase 2** — Map editor with tile rendering, drawing tools, undo/redo
-- [x] **Phase 3** — Event system viewer and editor
-- [x] **Phase 4** — Database editors (all 13 RMXP data categories with full editing)
-- [x] **Phase 5** — Script editor with syntax highlighting
-- [ ] **Phase 6** — PBS file integration and Pokémon Essentials-specific tooling
+- [x] Ruby Marshal v4.8 parser/serializer (read + write)
+- [x] Project loading — `Game.rxproj`, `MapInfos.rxdata`, map tree
+- [x] Map editor — tile layers, autotiles, drawing tools, undo/redo, zoom/pan
+- [x] Event system — viewer, editor, full command set, move routes
+- [x] Database editor — all 13 tabs with full editing support
+- [x] Script editor — CodeMirror 6, Ruby highlighting, global search
+- [x] Unified save flow — global dirty tracking, OK/Cancel/Apply pattern
+- [x] Starting position — map marker + context-menu setter
+- [x] Event clipboard — copy/paste events across tiles via right-click menu
+- [ ] PBS file integration (species, moves, items, trainer data for Pokémon Essentials)
+- [ ] Playtest launcher
+
+---
 
 ## License
 
-MIT.
-This project is not affiliated with Enterbrain, Maruno, or the Pokémon Essentials team.
+MIT.  
+Not affiliated with Enterbrain, Maruno, or the Pokémon Essentials team.
