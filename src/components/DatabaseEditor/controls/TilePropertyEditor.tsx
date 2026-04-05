@@ -13,8 +13,9 @@
  * since all 48 patterns share the same property value.
  * Regular tiles (IDs 384+) use the tileset image as a single CSS background.
  */
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { autotilePreviewDataUrl } from "../../../services/autotileData";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { renderAutotilePattern } from "../../../services/autotileData";
+import { loadImage } from "../../../services/imageLoader";
 
 export type PropertyMode = "passage" | "passage_4dir" | "priorities" | "bush_flag" | "counter_flag" | "terrain_tags";
 
@@ -251,34 +252,66 @@ function useTilesetSize(projectPath?: string, tilesetName?: string) {
 }
 
 /**
- * Hook: load autotile images and pre-render pattern-0 previews as data URLs.
- * Returns an array of 7 data URLs (or null for empty/missing slots).
+ * Hook: load autotile HTMLImageElements for direct canvas rendering.
+ * Returns an array of 7 images (or null for empty/missing slots).
+ * Uses loadImage (convertFileSrc) so no cross-origin issues.
  */
-function useAutotilePreviews(projectPath?: string, autotileNames?: string[]): (string | null)[] {
-  const [previews, setPreviews] = useState<(string | null)[]>([]);
+function useAutotileImages(projectPath?: string, autotileNames?: string[]): (HTMLImageElement | null)[] {
+  const [images, setImages] = useState<(HTMLImageElement | null)[]>([]);
 
   useEffect(() => {
-    if (!projectPath || !autotileNames) { setPreviews([]); return; }
+    if (!projectPath || !autotileNames) { setImages([]); return; }
     let cancelled = false;
 
-    const promises = autotileNames.map((name) => {
-      if (!name) return Promise.resolve(null);
-      return new Promise<string | null>((resolve) => {
-        const img = new Image();
-        img.onload = () => resolve(cancelled ? null : autotilePreviewDataUrl(img));
-        img.onerror = () => resolve(null);
-        img.src = buildAssetUrl(projectPath, "Autotiles", name);
-      });
+    const promises = autotileNames.map(async (name) => {
+      if (!name) return null;
+      try {
+        const img = await loadImage(`${projectPath}/Graphics/Autotiles/${name}.png`);
+        return cancelled ? null : img;
+      } catch {
+        return null;
+      }
     });
 
-    Promise.all(promises).then((urls) => {
-      if (!cancelled) setPreviews(urls);
+    Promise.all(promises).then((imgs) => {
+      if (!cancelled) setImages(imgs);
     });
 
     return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectPath, autotileNames?.join(",")]);
 
-  return previews;
+  return images;
+}
+
+/**
+ * Renders an autotile pattern directly to a canvas element.
+ * Avoids toDataURL() entirely — no CORS taint issues.
+ */
+function AutotileCanvas({ img }: { img: HTMLImageElement | null }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, 32, 32);
+    if (!img) return;
+    ctx.imageSmoothingEnabled = false;
+    renderAutotilePattern(ctx, img, 0, 0, 0);
+  }, [img]);
+  return (
+    <canvas
+      ref={ref}
+      width={32}
+      height={32}
+      style={{
+        position: "absolute", inset: 0,
+        imageRendering: "pixelated",
+        pointerEvents: "none",
+      }}
+    />
+  );
 }
 
 /* ─── 4-Dir click handler for individual direction toggling ───── */
@@ -298,7 +331,7 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
   const regularTileRows = Math.max(0, rows - regularTileStartRow);
 
   const tilesetSize = useTilesetSize(projectPath, tilesetName);
-  const autotilePreviews = useAutotilePreviews(projectPath, autotileNames);
+  const autotileImages = useAutotileImages(projectPath, autotileNames);
 
   const tilesetBgUrl = (projectPath && tilesetName)
     ? `url("${buildAssetUrl(projectPath, "Tilesets", tilesetName)}")`
@@ -386,7 +419,7 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
             if (startIdx >= data.length) return null;
             const val = data[startIdx] ?? 0;
             const atName = slot === 0 ? "" : (autotileNames?.[slot - 1] ?? "");
-            const atPreview = slot > 0 ? autotilePreviews[slot - 1] : null;
+            const atImage = slot > 0 ? (autotileImages[slot - 1] ?? null) : null;
             const isHovered = hoveredIdx === -(slot + 1);
 
             return (
@@ -401,13 +434,9 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
                     position: "relative", cursor: "pointer",
                     border: isHovered ? "1px solid #1e66f5" : "1px solid #ccd0da",
                     boxSizing: "border-box",
-                    backgroundImage: atPreview ? `url("${atPreview}")` : undefined,
-                    backgroundSize: `${CELL_SIZE}px ${CELL_SIZE}px`,
-                    backgroundRepeat: "no-repeat",
-                    backgroundPosition: "0 0",
-                    imageRendering: "pixelated" as React.CSSProperties["imageRendering"],
                   }}
                 >
+                  <AutotileCanvas img={atImage} />
                   <Badge mode={mode} value={val} />
                 </div>
                 <div style={{
