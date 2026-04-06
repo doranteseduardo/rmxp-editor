@@ -23,6 +23,7 @@ import { CommandParamEditor, hasParamEditor } from "./CommandParamEditor";
 import { MoveRouteEditor } from "./MoveRouteEditor";
 import { CharacterPicker } from "./CharacterPicker";
 import { AssetPicker } from "../shared/AssetPicker";
+import type { PbsIndex } from "../../services/pbsIndex";
 import "./EventEditor.css";
 
 interface Props {
@@ -33,6 +34,7 @@ interface Props {
   eventName: string;
   onClose: () => void;
   mapInfos?: Record<number, import("../../types").MapInfo>;
+  pbsIndex?: PbsIndex;
 }
 
 export function EventEditor({
@@ -42,6 +44,7 @@ export function EventEditor({
   eventName,
   onClose,
   mapInfos,
+  pbsIndex,
 }: Props) {
   const { value: event, set: setEvent, setWithoutHistory, resetHistory, undo, redo, canUndo, canRedo } = useUndoable<RpgEvent>(null);
   const [activePage, setActivePage] = useState(0);
@@ -120,10 +123,13 @@ export function EventEditor({
       const newCmd: EventCommand = {
         code: def.code,
         indent: selectedCommand >= 0 ? page.list[selectedCommand]?.indent ?? 0 : 0,
-        parameters: getDefaultParams(def.code),
+        parameters: def.defaultParams ?? getDefaultParams(def.code),
       };
 
-      const insertAt = selectedCommand >= 0 ? selectedCommand + 1 : page.list.length - 1;
+      // Insert after the entire block (past any continuations)
+      const insertAt = selectedCommand >= 0
+        ? getBlockEnd(page.list, selectedCommand) + 1
+        : page.list.length - 1;
       updatePage((p) => {
         const list = [...p.list];
         list.splice(insertAt, 0, newCmd);
@@ -141,9 +147,12 @@ export function EventEditor({
       const cmd = page.list[index];
       if (cmd.code === 0) return;
 
+      // Delete the entire block (parent + all continuations)
+      const blockEnd = getBlockEnd(page.list, index);
+      const deleteCount = blockEnd - index + 1;
       updatePage((p) => {
         const list = [...p.list];
-        list.splice(index, 1);
+        list.splice(index, deleteCount);
         return { ...p, list };
       });
       setSelectedCommand(Math.max(0, index - 1));
@@ -404,28 +413,52 @@ export function EventEditor({
                   </div>
                 </div>
                 <div className="event-command-list">
-                  {page.list.map((cmd, i) => (
-                    <CommandRow
-                      key={i}
-                      command={cmd}
-                      index={i}
-                      selected={selectedCommand === i}
-                      editing={editingCommand === i}
-                      onClick={() => setSelectedCommand(i)}
-                      onDoubleClick={() => {
-                        if (cmd.code !== 0) {
-                          setEditingCommand(i);
-                        }
-                      }}
-                      onParamChange={(paramIdx, value) =>
-                        handleUpdateCommandParam(i, paramIdx, value)
-                      }
-                      onStopEditing={() => setEditingCommand(null)}
-                      mapInfos={mapInfos}
-                      switchNames={switchNames}
-                      variableNames={variableNames}
-                    />
-                  ))}
+                  {toVisualBlocks(page.list).map((block) => {
+                    if (block.kind === "multi") {
+                      return (
+                        <MultiLineBlock
+                          key={block.rawIndex}
+                          block={block}
+                          selected={selectedCommand === block.rawIndex}
+                          editing={editingCommand === block.rawIndex}
+                          onSelect={() => setSelectedCommand(block.rawIndex)}
+                          onStartEdit={() => setEditingCommand(block.rawIndex)}
+                          onUpdateLines={(lines) => {
+                            const contCode = PARENT_CONT[block.cmd.code]!;
+                            updatePage((p) => {
+                              const list = [...p.list];
+                              const newCmds: EventCommand[] = lines.map((text, idx) => ({
+                                code: idx === 0 ? block.cmd.code : contCode,
+                                indent: block.cmd.indent,
+                                parameters: [text],
+                              }));
+                              list.splice(block.rawIndex, 1 + block.contIndices.length, ...newCmds);
+                              return { ...p, list };
+                            });
+                            setDirty(true);
+                          }}
+                          onStopEditing={() => setEditingCommand(null)}
+                        />
+                      );
+                    }
+                    const { rawIndex: i, cmd } = block;
+                    return (
+                      <CommandRow
+                        key={i}
+                        command={cmd}
+                        index={i}
+                        selected={selectedCommand === i}
+                        editing={editingCommand === i}
+                        onClick={() => setSelectedCommand(i)}
+                        onDoubleClick={() => { if (cmd.code !== 0) setEditingCommand(i); }}
+                        onParamChange={(paramIdx, value) => handleUpdateCommandParam(i, paramIdx, value)}
+                        onStopEditing={() => setEditingCommand(null)}
+                        mapInfos={mapInfos}
+                        switchNames={switchNames}
+                        variableNames={variableNames}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             </>
@@ -1047,6 +1080,7 @@ function CommandRow({
           mapInfos={mapInfos}
           switchNames={switchNames}
           variableNames={variableNames}
+          pbsIndex={pbsIndex}
         />
       </div>
     );
@@ -1081,6 +1115,142 @@ function isTextEditableCommand(code: number): boolean {
     code === 119 || // Jump to Label
     code === 355 || // Script
     code === 655    // Script continuation
+  );
+}
+
+/** Maps parent command codes to their continuation codes */
+const PARENT_CONT: Record<number, number> = { 101: 401, 108: 408, 355: 655 };
+
+type VisualBlock =
+  | { kind: "single"; rawIndex: number; cmd: EventCommand }
+  | { kind: "multi"; rawIndex: number; cmd: EventCommand; contIndices: number[]; contCmds: EventCommand[] };
+
+/** Groups parent commands with their continuations into visual blocks */
+function toVisualBlocks(list: EventCommand[]): VisualBlock[] {
+  const blocks: VisualBlock[] = [];
+  let i = 0;
+  while (i < list.length) {
+    const cmd = list[i];
+    const contCode = PARENT_CONT[cmd.code];
+    if (contCode !== undefined) {
+      const contIndices: number[] = [];
+      const contCmds: EventCommand[] = [];
+      let j = i + 1;
+      while (j < list.length && list[j].code === contCode) {
+        contIndices.push(j);
+        contCmds.push(list[j]);
+        j++;
+      }
+      if (contIndices.length > 0) {
+        blocks.push({ kind: "multi", rawIndex: i, cmd, contIndices, contCmds });
+        i = j;
+        continue;
+      }
+    }
+    blocks.push({ kind: "single", rawIndex: i, cmd });
+    i++;
+  }
+  return blocks;
+}
+
+/** Returns the last raw index occupied by the block starting at `index` */
+function getBlockEnd(list: EventCommand[], index: number): number {
+  const contCode = PARENT_CONT[list[index]?.code ?? -1];
+  if (contCode === undefined) return index;
+  let j = index + 1;
+  while (j < list.length && list[j].code === contCode) j++;
+  return j - 1;
+}
+
+/** Multi-line block: parent command + its continuation lines as one editable unit */
+function MultiLineBlock({
+  block,
+  selected,
+  editing,
+  onSelect,
+  onStartEdit,
+  onUpdateLines,
+  onStopEditing,
+}: {
+  block: Extract<VisualBlock, { kind: "multi" }>;
+  selected: boolean;
+  editing: boolean;
+  onSelect: () => void;
+  onStartEdit: () => void;
+  onUpdateLines: (lines: string[]) => void;
+  onStopEditing: () => void;
+}) {
+  const def = getCommandDef(block.cmd.code);
+  const icon = getCommandIcon(block.cmd.code);
+  const allLines = [
+    String(block.cmd.parameters[0] ?? ""),
+    ...block.contCmds.map((c) => String(c.parameters[0] ?? "")),
+  ];
+
+  const isComment = block.cmd.code === 108;
+  const isScript = block.cmd.code === 355;
+
+  let blockClass = "event-command-block";
+  if (selected) blockClass += " selected";
+  if (editing) blockClass += " editing";
+
+  let rowClass = "event-command-row";
+  if (selected) rowClass += " selected";
+  if (isComment) rowClass += " cmd-comment";
+  if (isScript) rowClass += " cmd-script";
+
+  const indentBars = Array.from({ length: block.cmd.indent }, (_, i) => (
+    <span key={i} className="event-command-indent-bar" />
+  ));
+
+  if (editing) {
+    return (
+      <div className={blockClass} onClick={(e) => e.stopPropagation()}>
+        <div className={rowClass} onClick={onSelect}>
+          <span className="event-command-indent">{indentBars}</span>
+          <span className="event-command-icon">{icon}</span>
+          <span className="event-command-name">{def.name}</span>
+        </div>
+        <div style={{ padding: "2px 12px 4px 34px" }}>
+          <textarea
+            className="event-command-edit-textarea"
+            defaultValue={allLines.join("\n")}
+            autoFocus
+            rows={Math.max(2, allLines.length + 1)}
+            onBlur={(e) => {
+              const lines = e.target.value.split("\n").filter((_, idx, arr) => idx < arr.length || arr[idx] !== "");
+              onUpdateLines(lines.length > 0 ? lines : [""]);
+              onStopEditing();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") { onStopEditing(); e.preventDefault(); e.stopPropagation(); }
+            }}
+          />
+          <div style={{ fontSize: 9, color: "#8c8fa1", marginTop: 2 }}>
+            Each line becomes a continuation. Press Escape to finish.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={blockClass} onClick={onSelect} onDoubleClick={onStartEdit}>
+      <div className={rowClass} style={{ background: "transparent" }}>
+        <span className="event-command-indent">{indentBars}</span>
+        <span className="event-command-icon">{icon}</span>
+        <span className="event-command-name">{def.name}</span>
+        <span className="event-command-params">{allLines[0]}</span>
+      </div>
+      {allLines.slice(1).map((line, idx) => (
+        <div
+          key={idx}
+          className={`event-command-cont-line${isComment ? " cmd-comment" : isScript ? " cmd-script" : ""}`}
+        >
+          {line}
+        </div>
+      ))}
+    </div>
   );
 }
 

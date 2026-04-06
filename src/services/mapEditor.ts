@@ -23,9 +23,17 @@ export interface TileChange {
 
 /** An undoable action (group of tile changes). */
 export interface MapAction {
-  type: "paint" | "fill" | "rectangle" | "erase";
+  type: "paint" | "fill" | "rectangle" | "erase" | "paste";
   changes: TileChange[];
   timestamp: number;
+}
+
+/** Clipboard data for tile region copy/paste. */
+export interface TileClipboard {
+  width: number;
+  height: number;
+  /** Per-layer tile data: layers[layerIndex][y * width + x] */
+  layers: number[][];
 }
 
 /**
@@ -547,6 +555,80 @@ export function applyAction(mapData: MapRenderData, action: MapAction) {
       change.newTileId
     );
   }
+}
+
+/**
+ * Copy a rectangular region of tiles into a clipboard.
+ * activeLayer: 0-2 copies that layer only; -1 copies all 3 layers.
+ * The rect is normalized so any drag direction works.
+ */
+export function copyTileRegion(
+  mapData: MapRenderData,
+  rect: { x1: number; y1: number; x2: number; y2: number },
+  activeLayer: number
+): TileClipboard {
+  const { tiles, width, height } = mapData;
+  const minX = Math.max(0, Math.min(rect.x1, rect.x2));
+  const maxX = Math.min(width - 1, Math.max(rect.x1, rect.x2));
+  const minY = Math.max(0, Math.min(rect.y1, rect.y2));
+  const maxY = Math.min(height - 1, Math.max(rect.y1, rect.y2));
+  const w = maxX - minX + 1;
+  const h = maxY - minY + 1;
+
+  const layerIndices = activeLayer >= 0 && activeLayer <= 2
+    ? [activeLayer]
+    : [0, 1, 2];
+
+  const layers: number[][] = [[], [], []];
+  for (const l of layerIndices) {
+    const data: number[] = new Array(w * h).fill(0);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const offset = l * width * height + (minY + y) * width + (minX + x);
+        data[y * w + x] = tiles[offset] ?? 0;
+      }
+    }
+    layers[l] = data;
+  }
+
+  return { width: w, height: h, layers };
+}
+
+/**
+ * Paste a tile clipboard at (origin.x, origin.y).
+ * activeLayer: 0-2 pastes that layer only; -1 pastes all layers.
+ * Returns TileChange[] for undo/redo.
+ */
+export function pasteTileRegion(
+  mapData: MapRenderData,
+  clipboard: TileClipboard,
+  origin: { x: number; y: number },
+  activeLayer: number
+): TileChange[] {
+  const { tiles, width, height } = mapData;
+  const layerIndices = activeLayer >= 0 && activeLayer <= 2
+    ? [activeLayer]
+    : [0, 1, 2];
+
+  const changes: TileChange[] = [];
+  for (const l of layerIndices) {
+    const layerData = clipboard.layers[l];
+    if (!layerData || layerData.length === 0) continue;
+    for (let dy = 0; dy < clipboard.height; dy++) {
+      for (let dx = 0; dx < clipboard.width; dx++) {
+        const tx = origin.x + dx;
+        const ty = origin.y + dy;
+        if (tx < 0 || tx >= width || ty < 0 || ty >= height) continue;
+        const newTileId = layerData[dy * clipboard.width + dx] ?? 0;
+        const offset = l * width * height + ty * width + tx;
+        const oldTileId = tiles[offset] ?? 0;
+        if (oldTileId === newTileId) continue;
+        tiles[offset] = newTileId;
+        changes.push({ x: tx, y: ty, layer: l, oldTileId, newTileId });
+      }
+    }
+  }
+  return changes;
 }
 
 /**

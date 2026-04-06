@@ -39,6 +39,13 @@ pub fn run() {
             save_database,
             load_system,
             save_system,
+            launch_game,
+            list_pbs_files,
+            load_pbs_file,
+            save_pbs_file,
+            asset_exists,
+            read_raw_pbs_file,
+            write_raw_pbs_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

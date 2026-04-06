@@ -26,6 +26,8 @@ export interface RenderOptions {
   viewportY: number;
   /** Tile coordinates of the starting position marker, if on this map */
   startMarker?: { x: number; y: number };
+  /** Tile selection rectangle to draw as a dashed overlay */
+  selectionRect?: { x1: number; y1: number; x2: number; y2: number } | null;
 }
 
 export interface EventMarker {
@@ -193,6 +195,11 @@ export class MapRenderer {
     // Render grid
     if (showGrid) {
       this.renderGrid(startX, startY, endX, endY, viewportX, viewportY, tileSize);
+    }
+
+    // Render tile selection rectangle
+    if (options.selectionRect) {
+      this.renderSelectionRect(options.selectionRect, viewportX, viewportY, tileSize);
     }
 
     // Debug overlay — always visible for first 5 seconds, scaled for DPR
@@ -507,5 +514,38 @@ export class MapRenderer {
       x: Math.floor(screenX / tileSize + viewportX),
       y: Math.floor(screenY / tileSize + viewportY),
     };
+  }
+
+  private renderSelectionRect(
+    rect: { x1: number; y1: number; x2: number; y2: number },
+    viewportX: number,
+    viewportY: number,
+    tileSize: number
+  ) {
+    const minX = Math.min(rect.x1, rect.x2);
+    const minY = Math.min(rect.y1, rect.y2);
+    const maxX = Math.max(rect.x1, rect.x2);
+    const maxY = Math.max(rect.y1, rect.y2);
+
+    const screenX = (minX - viewportX) * tileSize;
+    const screenY = (minY - viewportY) * tileSize;
+    const screenW = (maxX - minX + 1) * tileSize;
+    const screenH = (maxY - minY + 1) * tileSize;
+
+    this.ctx.save();
+    // Outer white stroke
+    this.ctx.strokeStyle = "#ffffff";
+    this.ctx.lineWidth = 2;
+    this.ctx.setLineDash([4, 4]);
+    this.ctx.strokeRect(screenX, screenY, screenW, screenH);
+    // Inner blue stroke offset by dash phase
+    this.ctx.strokeStyle = "#1e66f5";
+    this.ctx.setLineDash([4, 4]);
+    this.ctx.lineDashOffset = 4;
+    this.ctx.strokeRect(screenX, screenY, screenW, screenH);
+    // Semi-transparent fill
+    this.ctx.fillStyle = "rgba(30, 102, 245, 0.1)";
+    this.ctx.fillRect(screenX, screenY, screenW, screenH);
+    this.ctx.restore();
   }
 }

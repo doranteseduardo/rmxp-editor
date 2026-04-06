@@ -1,0 +1,131 @@
+.pbs-editor {
+  display: flex;
+  flex-direction: column;
+  width: 900px;
+  height: 680px;
+  background: #eff1f5;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.pbs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #ccd0da;
+  border-bottom: 1px solid #bcc0cc;
+  flex-shrink: 0;
+}
+
+.pbs-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4c4f69;
+}
+
+.pbs-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: #6c6f85;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.pbs-close-btn:hover {
+  color: #d20f39;
+}
+
+/* Tab bar */
+.pbs-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  padding: 4px 8px 0;
+  background: #dce0e8;
+  border-bottom: 1px solid #ccd0da;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.pbs-tab {
+  padding: 4px 10px;
+  font-size: 11px;
+  background: #ccd0da;
+  border: 1px solid #bcc0cc;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  color: #6c6f85;
+  cursor: pointer;
+  position: relative;
+}
+
+.pbs-tab.active {
+  background: #eff1f5;
+  color: #4c4f69;
+  font-weight: 600;
+  border-color: #bcc0cc;
+}
+
+.pbs-tab-dirty {
+  color: #fe640b;
+  font-size: 8px;
+  margin-left: 3px;
+}
+
+.pbs-loading,
+.pbs-no-files {
+  font-size: 11px;
+  color: #8c8fa1;
+  padding: 4px 8px;
+}
+
+/* Body */
+.pbs-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  background: #eff1f5;
+}
+
+/* Bottom bar */
+.pbs-bottom-bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #dce0e8;
+  border-top: 1px solid #ccd0da;
+  flex-shrink: 0;
+}
+
+.pbs-btn {
+  padding: 5px 16px;
+  font-size: 12px;
+  border: 1px solid #bcc0cc;
+  border-radius: 4px;
+  background: #ccd0da;
+  color: #4c4f69;
+  cursor: pointer;
+}
+
+.pbs-btn:hover:not(:disabled) {
+  background: #bcc0cc;
+}
+
+.pbs-btn-primary {
+  background: #1e66f5;
+  border-color: #1657d4;
+  color: #fff;
+}
+
+.pbs-btn-primary:hover:not(:disabled) {
+  background: #1657d4;
+}
+
+.pbs-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

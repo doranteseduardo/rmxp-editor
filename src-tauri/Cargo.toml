@@ -1,5 +1,5 @@
 [package]
-name = "rmxp-editor"
+name = "essentials-studio"
 version = "0.1.0"
 edition = "2021"
 description = "A modern RPG Maker XP editor for Pokémon Essentials"
@@ -23,5 +23,5 @@ env_logger = "0.11"
 tauri-build = { version = "2", features = [] }
 
 [lib]
-name = "rmxp_editor_lib"
+name = "essentials_studio_lib"
 crate-type = ["lib", "cdylib", "staticlib"]

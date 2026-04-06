@@ -143,6 +143,16 @@ body,
   background: var(--color-surface1);
 }
 
+.app-titlebar-btn--play {
+  background: #40a02b;
+  border-color: #2d7a1f;
+  color: #fff;
+  font-weight: 600;
+}
+
+.app-titlebar-btn--play:hover {
+  background: #2d7a1f;
+}
 
 /* Welcome screen */
 .app-welcome {

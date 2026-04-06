@@ -7,10 +7,13 @@ import {
   paintRectangle,
   floodFill,
   eraseTile,
+  copyTileRegion,
+  pasteTileRegion,
   UndoStack,
   applyAction,
   revertAction,
   type MapAction,
+  type TileClipboard,
 } from "../../services/mapEditor";
 import { loadCharacterImage } from "../../services/imageLoader";
 import "./MapEditor.css";
@@ -86,6 +89,12 @@ export function MapEditor({
   const panStart = useRef({ x: 0, y: 0 });
   const panViewport = useRef({ x: 0, y: 0 });
 
+  // Selection state (tile select tool)
+  const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
+  const [selectionEnd, setSelectionEnd] = useState<{ x: number; y: number } | null>(null);
+  const isSelecting = useRef(false);
+  const [tileClipboard, setTileClipboard] = useState<TileClipboard | null>(null);
+
   // Force re-render trigger
   const [renderTick, setRenderTick] = useState(0);
 
@@ -106,6 +115,14 @@ export function MapEditor({
     if (!canvasRef.current) return;
     rendererRef.current = new MapRenderer(canvasRef.current);
   }, []);
+
+  // Clear selection when switching away from select tool
+  useEffect(() => {
+    if (paintTool !== "select") {
+      setSelectionStart(null);
+      setSelectionEnd(null);
+    }
+  }, [paintTool]);
 
   // Update renderer with map data
   useEffect(() => {
@@ -201,6 +218,10 @@ export function MapEditor({
         ? { x: startPosition.x, y: startPosition.y }
         : undefined;
 
+    const selectionRect = (selectionStart && selectionEnd)
+      ? { x1: selectionStart.x, y1: selectionStart.y, x2: selectionEnd.x, y2: selectionEnd.y }
+      : null;
+
     const animate = (time: number) => {
       rendererRef.current?.render(
         time,
@@ -213,6 +234,7 @@ export function MapEditor({
           viewportX,
           viewportY,
           startMarker,
+          selectionRect,
         },
         events
       );
@@ -233,6 +255,8 @@ export function MapEditor({
     characterImages,
     currentMapId,
     startPosition,
+    selectionStart,
+    selectionEnd,
   ]);
 
   // Resize canvas to fill container
@@ -256,7 +280,7 @@ export function MapEditor({
     return () => observer.disconnect();
   }, []);
 
-  // Keyboard shortcuts (undo/redo)
+  // Keyboard shortcuts (undo/redo + tile copy/paste)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!mapData) return;
@@ -266,36 +290,68 @@ export function MapEditor({
         const action = undoStackRef.current.undo();
         if (action) {
           revertAction(mapData, action);
-          rendererRef.current?.setMapData(
-            mapData.tiles,
-            mapData.width,
-            mapData.height
-          );
+          rendererRef.current?.setMapData(mapData.tiles, mapData.width, mapData.height);
           setRenderTick((t) => t + 1);
         }
       }
 
-      if (
-        (e.ctrlKey || e.metaKey) &&
-        ((e.key === "z" && e.shiftKey) || e.key === "y")
-      ) {
+      if ((e.ctrlKey || e.metaKey) && ((e.key === "z" && e.shiftKey) || e.key === "y")) {
         e.preventDefault();
         const action = undoStackRef.current.redo();
         if (action) {
           applyAction(mapData, action);
-          rendererRef.current?.setMapData(
-            mapData.tiles,
-            mapData.width,
-            mapData.height
-          );
+          rendererRef.current?.setMapData(mapData.tiles, mapData.width, mapData.height);
           setRenderTick((t) => t + 1);
         }
+      }
+
+      // Ctrl+C — copy tile selection
+      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
+        setSelectionStart((start) => {
+          setSelectionEnd((end) => {
+            if (start && end) {
+              const clipboard = copyTileRegion(
+                mapData,
+                { x1: start.x, y1: start.y, x2: end.x, y2: end.y },
+                selectedLayer
+              );
+              setTileClipboard(clipboard);
+            }
+            return end;
+          });
+          return start;
+        });
+      }
+
+      // Ctrl+V — paste tile clipboard
+      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
+        setTileClipboard((clipboard) => {
+          if (!clipboard) return clipboard;
+          setCursorTile((cursor) => {
+            setSelectionStart((selStart) => {
+              const origin = cursor ?? selStart;
+              if (origin) {
+                const changes = pasteTileRegion(mapData, clipboard, origin, selectedLayer);
+                if (changes.length > 0) {
+                  undoStackRef.current.push({ type: "paste", changes, timestamp: Date.now() });
+                  rendererRef.current?.setMapData(mapData.tiles, mapData.width, mapData.height);
+                  setRenderTick((t) => t + 1);
+                  onMapDirty();
+                }
+              }
+              return selStart;
+            });
+            return cursor;
+          });
+          return clipboard;
+        });
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [mapData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapData, selectedLayer, onMapDirty]);
 
   // Convert screen position to tile coordinates
   const screenToTile = useCallback(
@@ -389,6 +445,13 @@ export function MapEditor({
           return;
         }
 
+        if (paintTool === "select") {
+          setSelectionStart(pos);
+          setSelectionEnd(pos);
+          isSelecting.current = true;
+          return;
+        }
+
         if (paintTool === "bucket") {
           const changes = floodFill(
             mapData,
@@ -462,6 +525,10 @@ export function MapEditor({
           setCursorTile(null);
         }
 
+        if (isSelecting.current && paintTool === "select") {
+          setSelectionEnd(pos);
+        }
+
         if (
           isPainting.current &&
           (paintTool === "pencil" || paintTool === "eraser")
@@ -478,6 +545,11 @@ export function MapEditor({
     (e: React.MouseEvent) => {
       if (e.button === 1) {
         isPanning.current = false;
+        return;
+      }
+
+      if (e.button === 0 && isSelecting.current) {
+        isSelecting.current = false;
         return;
       }
 
@@ -542,7 +614,7 @@ export function MapEditor({
         <div className="map-editor-toolbar">
           <div className="toolbar-group">
             <span className="toolbar-label">Tool:</span>
-            {(["pencil", "rectangle", "bucket", "eraser"] as PaintTool[]).map(
+            {(["pencil", "rectangle", "bucket", "eraser", "select"] as PaintTool[]).map(
               (tool) => (
                 <button
                   key={tool}
@@ -556,9 +628,16 @@ export function MapEditor({
                     ? "Rect"
                     : tool === "bucket"
                     ? "Fill"
-                    : "Erase"}
+                    : tool === "eraser"
+                    ? "Erase"
+                    : "Sel"}
                 </button>
               )
+            )}
+            {paintTool === "select" && tileClipboard && (
+              <span style={{ fontSize: 10, color: "#40a02b", marginLeft: 4 }}>
+                ✓ Copied ({tileClipboard.width}×{tileClipboard.height})
+              </span>
             )}
           </div>
 

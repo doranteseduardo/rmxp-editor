@@ -1053,6 +1053,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "essentials-studio"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "env_logger",
+ "flate2",
+ "image",
+ "log",
+ "notify",
+ "rodio",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "exr"
 version = "1.74.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3623,26 +3643,6 @@ name = "rgb"
 version = "0.8.53"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47b34b781b31e5d73e9fbc8689c70551fd1ade9a19e3e28cfec8580a79290cc4"
-
-[[package]]
-name = "rmxp-editor"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "env_logger",
- "flate2",
- "image",
- "log",
- "notify",
- "rodio",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "thiserror 1.0.69",
- "tokio",
-]
 
 [[package]]
 name = "rodio"

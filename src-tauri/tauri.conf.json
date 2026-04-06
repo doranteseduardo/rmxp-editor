@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicokimmel/tauri-v2-schema/main/schema.json",
-  "productName": "RMXP Editor",
+  "productName": "Essentials Studio",
   "version": "0.1.0",
-  "identifier": "com.rmxp-editor.app",
+  "identifier": "com.essentials-studio.app",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "RMXP Editor",
+        "title": "Essentials Studio",
         "width": 1280,
         "height": 800,
         "resizable": true,

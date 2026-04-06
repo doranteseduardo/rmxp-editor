@@ -19,13 +19,14 @@ import type {
   DatabaseFiles,
   RpgSystemData,
 } from "../types";
+import type { PbsSection } from "../types/pbsTypes";
 
 // Lazy-loaded Tauri invoke — resolved on first call
 type InvokeFn = (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
 let _invoke: InvokeFn | null = null;
 let _resolving: Promise<InvokeFn> | null = null;
 
-async function invoke(cmd: string, args?: Record<string, unknown>): Promise<unknown> {
+async function invoke<T = unknown>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (!_invoke) {
     if (!_resolving) {
       _resolving = (async () => {
@@ -42,7 +43,7 @@ async function invoke(cmd: string, args?: Record<string, unknown>): Promise<unkn
     }
     _invoke = await _resolving;
   }
-  return _invoke(cmd, args);
+  return _invoke(cmd, args) as Promise<T>;
 }
 
 /**
@@ -384,6 +385,57 @@ export async function saveSystemData(
   await invoke("save_system", { projectPath, data });
 }
 
+/** Launch the game process (stub — custom player TBD). */
+export async function launchGame(projectPath: string): Promise<void> {
+  await invoke("launch_game", { projectPath });
+}
+
+// ── PBS commands ─────────────────────────────────────────────────
+
+/** List all *.txt files in the project's PBS/ directory. */
+export async function listPbsFiles(projectPath: string): Promise<string[]> {
+  return await invoke<string[]>("list_pbs_files", { projectPath });
+}
+
+/** Load and parse a PBS file into sections. */
+export async function loadPbsFile(
+  projectPath: string,
+  filename: string
+): Promise<PbsSection[]> {
+  return await invoke<PbsSection[]>("load_pbs_file", { projectPath, filename });
+}
+
+/** Save sections back to a PBS file. */
+export async function savePbsFile(
+  projectPath: string,
+  filename: string,
+  sections: PbsSection[]
+): Promise<void> {
+  await invoke("save_pbs_file", { projectPath, filename, sections });
+}
+
+/** Check whether an asset file exists at the given absolute path. */
+export async function assetExists(path: string): Promise<boolean> {
+  return await invoke<boolean>("asset_exists", { path });
+}
+
+/** Read a PBS file as raw text (for special formats like encounters.txt). */
+export async function readRawPbsFile(
+  projectPath: string,
+  filename: string
+): Promise<string> {
+  return await invoke<string>("read_raw_pbs_file", { projectPath, filename });
+}
+
+/** Write raw text to a PBS file (for special formats like encounters.txt). */
+export async function writeRawPbsFile(
+  projectPath: string,
+  filename: string,
+  content: string
+): Promise<void> {
+  await invoke("write_raw_pbs_file", { projectPath, filename, content });
+}
+
 /**
  * Mock invoke for development without Tauri runtime.
  */
@@ -679,6 +731,45 @@ async function mockInvoke(
 
     case "save_system":
       console.log("[mock] Saved system data");
+      return;
+
+    case "launch_game":
+      console.log("[mock] Launch game:", args?.projectPath);
+      return;
+
+    case "list_pbs_files":
+      return ["pokemon.txt", "moves.txt", "items.txt", "abilities.txt", "types.txt", "trainers.txt", "trainer_types.txt", "encounters.txt"];
+
+    case "load_pbs_file": {
+      const fn = args?.filename as string;
+      if (fn === "pokemon.txt") {
+        return [
+          { header: "BULBASAUR", fields: [{ key: "Name", value: "Bulbasaur" }, { key: "Types", value: "GRASS,POISON" }, { key: "Abilities", value: "OVERGROW" }, { key: "HiddenAbilities", value: "CHLOROPHYLL" }, { key: "BaseStats", value: "45,49,49,45,65,65" }, { key: "GenderRate", value: "1" }, { key: "GrowthRate", value: "Parabolic" }, { key: "BaseEXP", value: "64" }, { key: "CatchRate", value: "45" }, { key: "Happiness", value: "70" }, { key: "Moves", value: "1,TACKLE,1,GROWL,7,LEECHSEED,9,VINEWHIP" }, { key: "EggMoves", value: "AMNESIA,CHARM,CURSE" }, { key: "EggGroups", value: "Monster,Grass" }, { key: "StepsToHatch", value: "5140" }, { key: "Height", value: "0.7" }, { key: "Weight", value: "6.9" }, { key: "Color", value: "Green" }, { key: "Shape", value: "6" }, { key: "Habitat", value: "Grassland" }, { key: "Generation", value: "1" }, { key: "Evolutions", value: "IVYSAUR,Level,16" }] },
+          { header: "IVYSAUR", fields: [{ key: "Name", value: "Ivysaur" }, { key: "Types", value: "GRASS,POISON" }, { key: "Abilities", value: "OVERGROW" }, { key: "HiddenAbilities", value: "CHLOROPHYLL" }, { key: "BaseStats", value: "60,62,63,60,80,80" }, { key: "GenderRate", value: "1" }, { key: "GrowthRate", value: "Parabolic" }, { key: "BaseEXP", value: "142" }, { key: "CatchRate", value: "45" }, { key: "Happiness", value: "70" }, { key: "Moves", value: "1,TACKLE,1,GROWL,7,LEECHSEED,9,VINEWHIP,13,POISONPOWDER,13,SLEEPPOWDER" }, { key: "EggGroups", value: "Monster,Grass" }, { key: "StepsToHatch", value: "5140" }, { key: "Height", value: "1.0" }, { key: "Weight", value: "13.0" }, { key: "Color", value: "Green" }, { key: "Evolutions", value: "VENUSAUR,Level,32" }] },
+          { header: "CHARMANDER", fields: [{ key: "Name", value: "Charmander" }, { key: "Types", value: "FIRE" }, { key: "Abilities", value: "BLAZE" }, { key: "HiddenAbilities", value: "SOLARPOWER" }, { key: "BaseStats", value: "39,52,43,39,60,65" }, { key: "GenderRate", value: "1" }, { key: "GrowthRate", value: "MediumSlow" }, { key: "BaseEXP", value: "62" }, { key: "CatchRate", value: "45" }, { key: "Happiness", value: "70" }, { key: "Moves", value: "1,SCRATCH,1,GROWL,4,EMBER" }, { key: "Evolutions", value: "CHARMELEON,Level,16" }] },
+        ] satisfies PbsSection[];
+      }
+      if (fn === "moves.txt") {
+        return [
+          { header: "TACKLE", fields: [{ key: "Name", value: "Tackle" }, { key: "Type", value: "NORMAL" }, { key: "Category", value: "Physical" }, { key: "Power", value: "40" }, { key: "Accuracy", value: "100" }, { key: "TotalPP", value: "35" }, { key: "Target", value: "NearOther" }, { key: "FunctionCode", value: "None" }, { key: "Flags", value: "Contact,CanProtect,CanMirrorMove" }] },
+          { header: "GROWL", fields: [{ key: "Name", value: "Growl" }, { key: "Type", value: "NORMAL" }, { key: "Category", value: "Status" }, { key: "Power", value: "0" }, { key: "Accuracy", value: "100" }, { key: "TotalPP", value: "40" }, { key: "Target", value: "AllNearFoes" }, { key: "FunctionCode", value: "LowerTargetAtk1" }] },
+          { header: "VINEWHIP", fields: [{ key: "Name", value: "Vine Whip" }, { key: "Type", value: "GRASS" }, { key: "Category", value: "Physical" }, { key: "Power", value: "45" }, { key: "Accuracy", value: "100" }, { key: "TotalPP", value: "25" }, { key: "Target", value: "NearOther" }, { key: "FunctionCode", value: "None" }, { key: "Flags", value: "Contact,CanProtect,CanMirrorMove" }] },
+        ] satisfies PbsSection[];
+      }
+      return [] satisfies PbsSection[];
+    }
+
+    case "save_pbs_file":
+      console.log("[mock] Saved PBS file:", args?.filename, `(${(args?.sections as PbsSection[])?.length} sections)`);
+      return;
+
+    case "asset_exists":
+      return true;
+
+    case "read_raw_pbs_file":
+      return "";
+
+    case "write_raw_pbs_file":
       return;
 
     default:

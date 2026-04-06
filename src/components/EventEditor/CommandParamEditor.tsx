@@ -4,7 +4,9 @@
  * Covers all 90 official RMXP event command types.
  */
 
+import { useState, useRef, useId } from "react";
 import type { EventCommand, MapInfo } from "../../types";
+import type { PbsIndex } from "../../services/pbsIndex";
 
 interface Props {
   command: EventCommand;
@@ -13,10 +15,12 @@ interface Props {
   mapInfos?: Record<number, MapInfo>;
   switchNames?: string[];
   variableNames?: string[];
+  pbsIndex?: PbsIndex;
 }
 
 /** All command codes that have a dedicated parameter editor. */
 const EDITOR_CODES = new Set([
+  355, // Script (PE Ruby script call)
   102, 103, 104, 105, 106,
   111, 117, 121, 122, 123, 124, 125, 126, 127, 128, 129,
   131, 132, 133, 134, 135, 136,
@@ -39,7 +43,7 @@ export function hasParamEditor(code: number): boolean {
 /**
  * Renders a parameter editor for the given command.
  */
-export function CommandParamEditor({ command, onChange, onDone, mapInfos, switchNames, variableNames }: Props) {
+export function CommandParamEditor({ command, onChange, onDone, mapInfos, switchNames, variableNames, pbsIndex }: Props) {
   const p = command.parameters;
 
   switch (command.code) {
@@ -125,6 +129,8 @@ export function CommandParamEditor({ command, onChange, onDone, mapInfos, switch
     case 337: return <ShowBattleAnimationEditor params={p} onChange={onChange} onDone={onDone} />;
     case 338: return <DealDamageEditor params={p} onChange={onChange} onDone={onDone} />;
     case 339: return <ForceActionEditor params={p} onChange={onChange} onDone={onDone} />;
+    // --- PE Script ---
+    case 355: return <PeScriptEditor params={p} onChange={onChange} onDone={onDone} pbsIndex={pbsIndex} />;
     default: return null;
   }
 }
@@ -1700,6 +1706,128 @@ function ForceActionEditor({ params, onChange, onDone }: EditorProps) {
         </select>
       </div>
     </EditorShell>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+// PE Script (355) editor
+// ══════════════════════════════════════════════════════════
+
+const PE_SNIPPETS: { label: string; code: string }[] = [
+  { label: "Wild Battle", code: 'pbBattle(PBSpecies::POKEMON,5,false,false)' },
+  { label: "Trainer Battle", code: 'pbTrainerBattle(:POKEMONTRAINER,"Trainer Name",_I("You lost!"))' },
+  { label: "Give Item", code: 'pbReceiveItem(:POTION,1)' },
+  { label: "Has Item?", code: 'pbHasItem?(:POTION)' },
+  { label: "Remove Item", code: 'pbTakeItem(:POTION,1)' },
+  { label: "Give Pokémon", code: 'pbAddPokemon(:POKEMON,5)' },
+  { label: "Heal Party", code: 'pbHealAll' },
+  { label: "Play BGM", code: 'pbBGMPlay("Battle trainer")' },
+  { label: "Play SE", code: 'pbSEPlay("Pkmn level up")' },
+  { label: "Player Name", code: '$Trainer.name' },
+  { label: "Has Badge?", code: 'pbHasBadge?(1)' },
+  { label: "Give Badge", code: 'pbSetBadge(1)' },
+  { label: "Fade/Flash", code: 'pbFadeOutIn { }' },
+  { label: "Message", code: 'pbMessage(_INTL("Hello, {1}!",$Trainer.name))' },
+];
+
+interface PeScriptEditorProps extends EditorProps {
+  pbsIndex?: PbsIndex;
+}
+
+function PeScriptEditor({ params, onChange, onDone, pbsIndex }: PeScriptEditorProps) {
+  const speciesNames = pbsIndex?.get("pokemon.txt") ?? [];
+  const itemNames = pbsIndex?.get("items.txt") ?? [];
+  const moveNames = pbsIndex?.get("moves.txt") ?? [];
+  const abilityNames = pbsIndex?.get("abilities.txt") ?? [];
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertSnippet = (code: string) => {
+    onChange(0, code);
+  };
+
+  const insertAtCursor = (text: string) => {
+    const ta = textareaRef.current;
+    if (!ta) { onChange(0, str(params[0]) + text); return; }
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const current = str(params[0]);
+    const next = current.slice(0, start) + text + current.slice(end);
+    onChange(0, next);
+    requestAnimationFrame(() => {
+      ta.selectionStart = ta.selectionEnd = start + text.length;
+      ta.focus();
+    });
+  };
+
+  return (
+    <EditorShell title="Script (Ruby)" onDone={onDone}>
+      <textarea
+        ref={textareaRef}
+        className="prop-input"
+        value={str(params[0])}
+        onChange={(e) => onChange(0, e.target.value)}
+        rows={4}
+        style={{ width: "100%", fontFamily: "monospace", fontSize: 11, resize: "vertical", boxSizing: "border-box" }}
+        spellCheck={false}
+      />
+
+      {/* PE Snippets */}
+      <div style={{ marginTop: 6 }}>
+        <div style={{ fontSize: 10, fontWeight: 600, color: "#8c8fa1", marginBottom: 3 }}>PE Snippets</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+          {PE_SNIPPETS.map((s) => (
+            <button
+              key={s.label}
+              onClick={() => insertSnippet(s.code)}
+              style={{ fontSize: 10, padding: "2px 6px", background: "#e6e9ef", border: "1px solid #ccd0da", borderRadius: 3, cursor: "pointer", color: "#4c4f69" }}
+            >{s.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* PBS entity name inserters */}
+      {(speciesNames.length > 0 || itemNames.length > 0 || moveNames.length > 0) && (
+        <div style={{ marginTop: 6 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: "#8c8fa1", marginBottom: 3 }}>Insert PBS Name</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {speciesNames.length > 0 && (
+              <PbsNamePicker label="Species" names={speciesNames} prefix="PBSpecies::" onPick={insertAtCursor} />
+            )}
+            {itemNames.length > 0 && (
+              <PbsNamePicker label="Item" names={itemNames} prefix=":" onPick={insertAtCursor} />
+            )}
+            {moveNames.length > 0 && (
+              <PbsNamePicker label="Move" names={moveNames} prefix="PBMoves::" onPick={insertAtCursor} />
+            )}
+            {abilityNames.length > 0 && (
+              <PbsNamePicker label="Ability" names={abilityNames} prefix="PBAbilities::" onPick={insertAtCursor} />
+            )}
+          </div>
+        </div>
+      )}
+    </EditorShell>
+  );
+}
+
+function PbsNamePicker({ label, names, prefix, onPick }: { label: string; names: string[]; prefix: string; onPick: (s: string) => void }) {
+  const [value, setValue] = useState("");
+  const dlId = useId();
+  return (
+    <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
+      <datalist id={dlId}>{names.map((n) => <option key={n} value={n} />)}</datalist>
+      <input
+        list={dlId}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={label}
+        style={{ padding: "2px 5px", fontSize: 11, border: "1px solid #ccd0da", borderRadius: 3, width: 110 }}
+      />
+      <button
+        onClick={() => { if (value) { onPick(`${prefix}${value}`); setValue(""); } }}
+        style={{ padding: "2px 6px", fontSize: 10, background: "#1e66f5", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer" }}
+      >Insert</button>
+    </div>
   );
 }
 

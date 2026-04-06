@@ -16,6 +16,8 @@ export interface CommandDef {
   isBranchEnd?: boolean;
   /** The continuation code for multi-line commands (e.g., 101 → 401) */
   continuationCode?: number;
+  /** Pre-filled parameters (used for PE script shortcuts — code 355 with a template) */
+  defaultParams?: unknown[];
 }
 
 export const COMMAND_CATEGORIES = [
@@ -30,6 +32,7 @@ export const COMMAND_CATEGORIES = [
   "System",
   "Battle",
   "Other",
+  "Pokémon Essentials",
 ] as const;
 
 export type CommandCategory = (typeof COMMAND_CATEGORIES)[number];
@@ -151,6 +154,56 @@ export const COMMAND_DEFS: CommandDef[] = [
   { code: 353, name: "Game Over", category: "Other", description: "Trigger game over" },
   { code: 354, name: "Return to Title Screen", category: "Other", description: "Go back to title" },
   { code: 355, name: "Script", category: "Other", description: "Execute Ruby script code", continuationCode: 655 },
+
+  // --- Pokémon Essentials (all are Script/355 with pre-filled templates) ---
+  { code: 355, name: "PE: Wild Battle", category: "Pokémon Essentials",
+    description: "Start a wild Pokémon battle",
+    defaultParams: ["pbBattle(PBSpecies::POKEMON, 5, false, false)"] },
+  { code: 355, name: "PE: Trainer Battle", category: "Pokémon Essentials",
+    description: "Start a trainer battle",
+    defaultParams: ['pbTrainerBattle(:TRAINERTYPE, "Trainer Name", _I("You lost!"))'] },
+  { code: 355, name: "PE: Give Item", category: "Pokémon Essentials",
+    description: "Give an item to the player",
+    defaultParams: ["pbReceiveItem(:ITEM, 1)"] },
+  { code: 355, name: "PE: Take Item", category: "Pokémon Essentials",
+    description: "Remove an item from the player",
+    defaultParams: ["pbTakeItem(:ITEM, 1)"] },
+  { code: 355, name: "PE: Has Item?", category: "Pokémon Essentials",
+    description: "Check if player has item (use in Conditional Branch > Script)",
+    defaultParams: ["pbHasItem?(:ITEM)"] },
+  { code: 355, name: "PE: Give Pokémon", category: "Pokémon Essentials",
+    description: "Add a Pokémon to the party",
+    defaultParams: ["pbAddPokemon(:POKEMON, 5)"] },
+  { code: 355, name: "PE: Heal Party", category: "Pokémon Essentials",
+    description: "Fully heal the player's party",
+    defaultParams: ["pbHealAll"] },
+  { code: 355, name: "PE: Message", category: "Pokémon Essentials",
+    description: "Show a formatted Pokémon Essentials message",
+    defaultParams: ['pbMessage(_INTL("Hello, {1}!", $Trainer.name))'] },
+  { code: 355, name: "PE: Give Badge", category: "Pokémon Essentials",
+    description: "Give the player a gym badge",
+    defaultParams: ["pbSetBadge(1)"] },
+  { code: 355, name: "PE: Has Badge?", category: "Pokémon Essentials",
+    description: "Check if player has a badge",
+    defaultParams: ["pbHasBadge?(1)"] },
+  { code: 355, name: "PE: Play BGM", category: "Pokémon Essentials",
+    description: "Play a background music track",
+    defaultParams: ['pbBGMPlay("Battle trainer")'] },
+  { code: 355, name: "PE: Play SE", category: "Pokémon Essentials",
+    description: "Play a sound effect",
+    defaultParams: ['pbSEPlay("Pkmn level up")'] },
+  { code: 355, name: "PE: Fade In/Out", category: "Pokémon Essentials",
+    description: "Fade screen out, run code, fade back in",
+    defaultParams: ["pbFadeOutIn { }"] },
+  { code: 355, name: "PE: Fly to Map", category: "Pokémon Essentials",
+    description: "Teleport the player to a map position",
+    defaultParams: ["pbFlyToMap(1)"] },
+  { code: 355, name: "PE: Get Player Name", category: "Pokémon Essentials",
+    description: "Reference player's trainer name",
+    defaultParams: ["$Trainer.name"] },
+  { code: 355, name: "PE: Script (blank)", category: "Pokémon Essentials",
+    description: "Empty Ruby script command to write freely",
+    defaultParams: [""] },
 
   // --- Continuations / branch markers (hidden from picker) ---
   { code: 0, name: "(end)", category: "Other", description: "", isBranchEnd: true },

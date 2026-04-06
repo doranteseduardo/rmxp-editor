@@ -17,6 +17,7 @@ import {
   saveSystemData,
   loadEvent,
   saveEvent,
+  launchGame,
 } from "./services/tauriApi";
 import { loadAllTilesetImages } from "./services/imageLoader";
 import { MapTreePanel } from "./components/MapTree/MapTreePanel";
@@ -27,6 +28,8 @@ import { MapPropertiesDialog } from "./components/MapProperties/MapPropertiesDia
 import { CreateMapDialog } from "./components/MapProperties/CreateMapDialog";
 import { ScriptEditor } from "./components/ScriptEditor/ScriptEditor";
 import { DatabaseEditor } from "./components/DatabaseEditor/DatabaseEditor";
+import { PbsEntityEditor } from "./components/PbsEntityEditor/PbsEntityEditor";
+import { buildPbsIndex, type PbsIndex } from "./services/pbsIndex";
 import {
   ProjectSaveProvider,
   useProjectSave,
@@ -41,7 +44,7 @@ async function showFolderPicker(): Promise<string | null> {
     const selected = await open({
       directory: true,
       multiple: false,
-      title: "Select RMXP Project Folder",
+      title: "Select Pokémon Essentials Project Folder",
     });
     return selected as string | null;
   } catch (err) {
@@ -58,6 +61,7 @@ function AppContent() {
   const { saveAll, dirtyCount } = useProjectSave();
 
   const [project, setProject] = useState<ProjectInfo | null>(null);
+  const [pbsIndex, setPbsIndex] = useState<PbsIndex>(new Map());
   const [currentMapId, setCurrentMapId] = useState<number | null>(null);
   const [mapData, setMapData] = useState<MapRenderData | null>(null);
   const [tilesetInfo, setTilesetInfo] = useState<TilesetRenderInfo | null>(null);
@@ -94,6 +98,7 @@ function AppContent() {
   // Modal editor windows
   const [showDatabase, setShowDatabase] = useState(false);
   const [showScripts, setShowScripts] = useState(false);
+  const [showPbs, setShowPbs] = useState(false);
 
   // Refs let callbacks always read the latest values without stale closures.
   const mapDataRef = useRef<MapRenderData | null>(null);
@@ -151,6 +156,7 @@ function AppContent() {
       // Update ref immediately so handleSelectMap sees the new project path.
       projectRef.current = proj;
       setProject(proj);
+      buildPbsIndex(proj.path).then(setPbsIndex).catch(() => {});
 
       setMapData(null);
       mapDataRef.current = null;
@@ -464,6 +470,16 @@ function AppContent() {
     }
   }, [clipboardEvent]);
 
+  const handleLaunchGame = useCallback(async () => {
+    const proj = projectRef.current;
+    if (!proj) return;
+    try {
+      await launchGame(proj.path);
+    } catch (err) {
+      setError(`Launch failed: ${err}`);
+    }
+  }, []);
+
   // ── Keyboard shortcuts ─────────────────────────────────────────────────────
 
   // Ctrl+S saves ALL dirty editors (map tiles + database + scripts).
@@ -488,15 +504,15 @@ function AppContent() {
     return (
       <div className="app">
         <div className="app-titlebar">
-          <span className="app-title">RMXP Editor</span>
+          <span className="app-title">Essentials Studio</span>
           <div className="app-titlebar-right">
             {loading && <span className="app-loading">Loading...</span>}
           </div>
         </div>
         <div className="app-welcome">
           <div className="app-welcome-content">
-            <h1>RMXP Editor</h1>
-            <p>A modern editor for RPG Maker XP projects</p>
+            <h1>Essentials Studio</h1>
+            <p>A modern editor for Pokémon Essentials projects</p>
             <button
               className="app-welcome-btn"
               onClick={handleBrowseProject}
@@ -528,7 +544,7 @@ function AppContent() {
       {/* Title bar — * reflects all dirty editors via dirtyCount */}
       <div className="app-titlebar">
         <span className="app-title">
-          RMXP Editor — {project.name}{dirtyCount > 0 ? " *" : ""}
+          Essentials Studio — {project.name}{dirtyCount > 0 ? " *" : ""}
         </span>
         <div className="app-titlebar-right">
           <button className="app-titlebar-btn" onClick={() => setShowDatabase(true)}>
@@ -536,6 +552,15 @@ function AppContent() {
           </button>
           <button className="app-titlebar-btn" onClick={() => setShowScripts(true)}>
             Scripts
+          </button>
+          <button className="app-titlebar-btn" onClick={() => setShowPbs(true)}>
+            PBS Data
+          </button>
+          <button
+            className="app-titlebar-btn app-titlebar-btn--play"
+            onClick={handleLaunchGame}
+          >
+            ▶ Play
           </button>
           <button className="app-titlebar-btn" onClick={handleBrowseProject}>
             Open...
@@ -596,6 +621,19 @@ function AppContent() {
         </div>
       )}
 
+      {/* PBS Data editor modal */}
+      {showPbs && (
+        <div className="editor-modal-overlay">
+          <div className="editor-modal">
+            <PbsEntityEditor
+              projectPath={project.path}
+              mapNames={new Map(Object.entries(project.map_infos).map(([k, v]) => [Number(k), v.name]))}
+              onClose={() => setShowPbs(false)}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Script editor modal */}
       {showScripts && (
         <div className="editor-modal-overlay">
@@ -614,6 +652,7 @@ function AppContent() {
           eventName={editingEvent.eventName}
           onClose={() => setEditingEvent(null)}
           mapInfos={project.map_infos}
+          pbsIndex={pbsIndex}
         />
       )}
 

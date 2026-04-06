@@ -330,6 +330,57 @@
   min-width: 0;
 }
 
+/* Multi-line command block (Show Text / Comment / Script with continuations) */
+.event-command-block {
+  cursor: pointer;
+  border-left: 2px solid transparent;
+}
+.event-command-block:hover {
+  background: var(--color-mantle);
+}
+.event-command-block.selected {
+  background: var(--color-surface0);
+  border-left-color: var(--color-accent);
+}
+.event-command-block.editing {
+  background: var(--color-surface0);
+}
+.event-command-cont-line {
+  display: flex;
+  align-items: flex-start;
+  padding: 1px 12px 1px 34px;
+  color: var(--color-subtext0);
+  font-size: 12px;
+  font-family: monospace;
+}
+.event-command-cont-line.cmd-comment {
+  color: var(--color-success);
+  font-style: italic;
+}
+.event-command-cont-line.cmd-script {
+  color: var(--color-warning);
+}
+.event-command-cont-line::before {
+  content: "└";
+  color: var(--color-surface1);
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+.event-command-edit-textarea {
+  width: 100%;
+  background: var(--color-crust);
+  border: 1px solid var(--color-accent);
+  border-radius: 3px;
+  color: var(--color-text);
+  font-family: monospace;
+  font-size: 12px;
+  padding: 4px 8px;
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+  margin: 2px 0;
+}
+
 .event-command-edit-input:focus {
   border-color: var(--color-accent-hover);
   box-shadow: 0 0 0 1px rgba(32, 159, 181, 0.3);

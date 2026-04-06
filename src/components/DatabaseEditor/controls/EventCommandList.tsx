@@ -116,6 +116,133 @@ function isTextEditableCommand(code: number): boolean {
   );
 }
 
+const PARENT_CONT: Record<number, number> = { 101: 401, 108: 408, 355: 655 };
+
+type VisualBlock =
+  | { kind: "single"; rawIndex: number; cmd: EventCommand }
+  | { kind: "multi"; rawIndex: number; cmd: EventCommand; contIndices: number[]; contCmds: EventCommand[] };
+
+function toVisualBlocks(list: EventCommand[]): VisualBlock[] {
+  const blocks: VisualBlock[] = [];
+  let i = 0;
+  while (i < list.length) {
+    const cmd = list[i];
+    const contCode = PARENT_CONT[cmd.code];
+    if (contCode !== undefined) {
+      const contIndices: number[] = [];
+      const contCmds: EventCommand[] = [];
+      let j = i + 1;
+      while (j < list.length && list[j].code === contCode) {
+        contIndices.push(j);
+        contCmds.push(list[j]);
+        j++;
+      }
+      if (contIndices.length > 0) {
+        blocks.push({ kind: "multi", rawIndex: i, cmd, contIndices, contCmds });
+        i = j;
+        continue;
+      }
+    }
+    blocks.push({ kind: "single", rawIndex: i, cmd });
+    i++;
+  }
+  return blocks;
+}
+
+function getBlockEnd(list: EventCommand[], index: number): number {
+  const contCode = PARENT_CONT[list[index]?.code ?? -1];
+  if (contCode === undefined) return index;
+  let j = index + 1;
+  while (j < list.length && list[j].code === contCode) j++;
+  return j - 1;
+}
+
+function MultiLineBlock({
+  block,
+  selected,
+  editing,
+  editable,
+  onSelect,
+  onStartEdit,
+  onUpdateLines,
+  onStopEditing,
+}: {
+  block: Extract<VisualBlock, { kind: "multi" }>;
+  selected: boolean;
+  editing: boolean;
+  editable: boolean;
+  onSelect: () => void;
+  onStartEdit: () => void;
+  onUpdateLines: (lines: string[]) => void;
+  onStopEditing: () => void;
+}) {
+  const def = getCommandDef(block.cmd.code);
+  const icon = getCommandIcon(block.cmd.code);
+  const allLines = [
+    String(block.cmd.parameters[0] ?? ""),
+    ...block.contCmds.map((c) => String(c.parameters[0] ?? "")),
+  ];
+  const isComment = block.cmd.code === 108;
+  const isScript = block.cmd.code === 355;
+
+  let blockClass = "event-command-block";
+  if (selected) blockClass += " selected";
+  if (editing) blockClass += " editing";
+
+  let rowClass = "event-command-row";
+  if (selected) rowClass += " selected";
+  if (isComment) rowClass += " cmd-comment";
+  if (isScript) rowClass += " cmd-script";
+
+  const indentBars = Array.from({ length: block.cmd.indent }, (_, i) => (
+    <span key={i} className="event-command-indent-bar" />
+  ));
+
+  if (editing && editable) {
+    return (
+      <div className={blockClass} onClick={(e) => e.stopPropagation()}>
+        <div className={rowClass} onClick={onSelect}>
+          <span className="event-command-indent">{indentBars}</span>
+          <span className="event-command-icon">{icon}</span>
+          <span className="event-command-name">{def.name}</span>
+        </div>
+        <div style={{ padding: "2px 12px 4px 34px" }}>
+          <textarea
+            className="event-command-edit-textarea"
+            defaultValue={allLines.join("\n")}
+            autoFocus
+            rows={Math.max(2, allLines.length + 1)}
+            onBlur={(e) => {
+              const lines = e.target.value.split("\n");
+              onUpdateLines(lines.length > 0 ? lines : [""]);
+              onStopEditing();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") { onStopEditing(); e.preventDefault(); e.stopPropagation(); }
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={blockClass} onClick={onSelect} onDoubleClick={editable ? onStartEdit : undefined}>
+      <div className={rowClass} style={{ background: "transparent" }}>
+        <span className="event-command-indent">{indentBars}</span>
+        <span className="event-command-icon">{icon}</span>
+        <span className="event-command-name">{def.name}</span>
+        <span className="event-command-params">{allLines[0]}</span>
+      </div>
+      {allLines.slice(1).map((line, idx) => (
+        <div key={idx} className={`event-command-cont-line${isComment ? " cmd-comment" : isScript ? " cmd-script" : ""}`}>
+          {line}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ─── CommandRow (same as map editor) ──────────────────────────── */
 
 function CommandRow({
@@ -250,9 +377,11 @@ export function EventCommandList({ commands, onChange, maxHeight = 400 }: Props)
     const newCmd: EventCommand = {
       code: def.code,
       indent,
-      parameters: getDefaultParams(def.code),
+      parameters: def.defaultParams ?? getDefaultParams(def.code),
     };
-    const insertAt = selectedCommand >= 0 ? selectedCommand + 1 : commands.length - 1;
+    const insertAt = selectedCommand >= 0
+      ? getBlockEnd(commands, selectedCommand) + 1
+      : commands.length - 1;
     const copy = [...commands];
     copy.splice(insertAt, 0, newCmd);
     onChange(copy);
@@ -264,8 +393,10 @@ export function EventCommandList({ commands, onChange, maxHeight = 400 }: Props)
     if (!onChange) return;
     const cmd = commands[index];
     if (!cmd || cmd.code === 0) return;
+    const blockEnd = getBlockEnd(commands, index);
+    const deleteCount = blockEnd - index + 1;
     const copy = [...commands];
-    copy.splice(index, 1);
+    copy.splice(index, deleteCount);
     onChange(copy);
     setSelectedCommand(Math.max(0, index - 1));
     setEditingCommand(null);
@@ -369,18 +500,47 @@ export function EventCommandList({ commands, onChange, maxHeight = 400 }: Props)
 
       {/* Command list */}
       <div className="event-command-list" style={{ maxHeight, fontFamily: "monospace", fontSize: 12 }}>
-        {commands.map((cmd, i) => (
-          <CommandRow
-            key={i}
-            command={cmd}
-            selected={selectedCommand === i}
-            editing={editingCommand === i && editable}
-            onClick={() => { setSelectedCommand(i); if (editingCommand !== i) setEditingCommand(null); }}
-            onDoubleClick={() => { if (editable && cmd.code !== 0) setEditingCommand(i); }}
-            onParamChange={(paramIdx, value) => handleUpdateCommandParam(i, paramIdx, value)}
-            onStopEditing={() => setEditingCommand(null)}
-          />
-        ))}
+        {toVisualBlocks(commands).map((block) => {
+          if (block.kind === "multi") {
+            return (
+              <MultiLineBlock
+                key={block.rawIndex}
+                block={block}
+                selected={selectedCommand === block.rawIndex}
+                editing={editingCommand === block.rawIndex}
+                editable={editable}
+                onSelect={() => { setSelectedCommand(block.rawIndex); setEditingCommand(null); }}
+                onStartEdit={() => setEditingCommand(block.rawIndex)}
+                onUpdateLines={(lines) => {
+                  if (!onChange) return;
+                  const contCode = PARENT_CONT[block.cmd.code]!;
+                  const newCmds: EventCommand[] = lines.map((text, idx) => ({
+                    code: idx === 0 ? block.cmd.code : contCode,
+                    indent: block.cmd.indent,
+                    parameters: [text],
+                  }));
+                  const copy = [...commands];
+                  copy.splice(block.rawIndex, 1 + block.contIndices.length, ...newCmds);
+                  onChange(copy);
+                }}
+                onStopEditing={() => setEditingCommand(null)}
+              />
+            );
+          }
+          const { rawIndex: i, cmd } = block;
+          return (
+            <CommandRow
+              key={i}
+              command={cmd}
+              selected={selectedCommand === i}
+              editing={editingCommand === i && editable}
+              onClick={() => { setSelectedCommand(i); if (editingCommand !== i) setEditingCommand(null); }}
+              onDoubleClick={() => { if (editable && cmd.code !== 0) setEditingCommand(i); }}
+              onParamChange={(paramIdx, value) => handleUpdateCommandParam(i, paramIdx, value)}
+              onStopEditing={() => setEditingCommand(null)}
+            />
+          );
+        })}
       </div>
 
       {/* Footer hint */}

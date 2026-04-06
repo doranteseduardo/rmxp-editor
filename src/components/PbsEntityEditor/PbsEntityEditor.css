@@ -1,0 +1,172 @@
+/* PBS Entity Editor — sidebar-navigated modal shell */
+
+.pbs-entity-editor {
+  display: flex;
+  flex-direction: column;
+  width: 1000px;
+  height: 720px;
+  background: var(--color-base);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+
+.pbs-entity-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--color-surface0);
+  border-bottom: 1px solid var(--color-surface1);
+  flex-shrink: 0;
+}
+
+.pbs-entity-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  flex: 1;
+}
+
+.pbs-entity-dirty-badge {
+  font-size: 10px;
+  color: var(--color-peach);
+  background: rgba(254, 100, 11, 0.12);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.pbs-entity-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--color-subtext0);
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.pbs-entity-close:hover {
+  color: var(--color-danger);
+}
+
+/* ── Body ────────────────────────────────────────────────────────── */
+
+.pbs-entity-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────── */
+
+.pbs-entity-sidebar {
+  width: 120px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-mantle);
+  border-right: 1px solid var(--color-surface0);
+  padding: 6px 0;
+  gap: 1px;
+  overflow-y: auto;
+}
+
+.pbs-entity-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  color: var(--color-subtext0);
+  transition: background 0.1s, color 0.1s;
+}
+
+.pbs-entity-nav-item:hover {
+  background: var(--color-surface0);
+  color: var(--color-text);
+}
+
+.pbs-entity-nav-item.active {
+  background: var(--color-surface0);
+  color: var(--color-accent);
+  border-left: 3px solid var(--color-accent);
+}
+
+.pbs-entity-nav-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.pbs-entity-nav-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.pbs-entity-nav-dirty {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-peach);
+}
+
+/* ── Panel area ──────────────────────────────────────────────────── */
+
+.pbs-entity-panels {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  background: var(--color-base);
+}
+
+/* ── Bottom bar ──────────────────────────────────────────────────── */
+
+.pbs-entity-bottom-bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--color-mantle);
+  border-top: 1px solid var(--color-surface0);
+  flex-shrink: 0;
+}
+
+.pbs-btn {
+  padding: 5px 16px;
+  font-size: 12px;
+  border: 1px solid var(--color-surface1);
+  border-radius: 4px;
+  background: var(--color-surface0);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.pbs-btn:hover:not(:disabled) {
+  background: var(--color-surface1);
+}
+
+.pbs-btn-primary {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+
+.pbs-btn-primary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.pbs-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
