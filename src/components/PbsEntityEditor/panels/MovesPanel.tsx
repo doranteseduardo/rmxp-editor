@@ -67,7 +67,7 @@ export function MovesPanel() {
       id: `MOVE_${Date.now()}`, name: "New Move",
       type: "NORMAL", category: "Physical",
       power: 40, accuracy: 100, pp: 35,
-      target: "NearOther", priority: 0,
+      target: "NearOther", priority: 0, effectChance: 0,
       functionCode: "000", flags: [], description: "",
     });
   };

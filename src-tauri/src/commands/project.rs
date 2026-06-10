@@ -168,33 +168,7 @@ pub async fn load_map(project_path: String, map_id: i64) -> Result<MapRenderData
     }
 
     // Extract event info
-    let events: Vec<EventInfo> = map
-        .events
-        .values()
-        .map(|e| {
-            let (graphic_name, graphic_dir, graphic_pattern) =
-                if let Some(page) = e.pages.first() {
-                    (
-                        page.graphic.character_name.clone(),
-                        page.graphic.direction,
-                        page.graphic.pattern,
-                    )
-                } else {
-                    (String::new(), 2, 0)
-                };
-
-            EventInfo {
-                id: e.id,
-                name: e.name.clone(),
-                x: e.x,
-                y: e.y,
-                page_count: e.pages.len(),
-                graphic_name,
-                graphic_direction: graphic_dir,
-                graphic_pattern: graphic_pattern,
-            }
-        })
-        .collect();
+    let events: Vec<EventInfo> = event_infos(&map);
 
     Ok(MapRenderData {
         id: map_id,
@@ -272,31 +246,12 @@ pub async fn get_asset_path(
     asset_type: String,
     asset_name: String,
 ) -> Result<String, String> {
+    // asset_name comes from the (untrusted) frontend; reject path traversal.
+    crate::commands::util::validate_asset_name(&asset_name)?;
     let project = PathBuf::from(&project_path);
 
-    let (base_dir, dir, extensions): (&str, &str, &[&str]) = match asset_type.as_str() {
-        // Graphics
-        "tileset" => ("Graphics", "Tilesets", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "autotile" => ("Graphics", "Autotiles", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "character" => ("Graphics", "Characters", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "panorama" => ("Graphics", "Panoramas", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "fog" => ("Graphics", "Fogs", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "battleback" => ("Graphics", "Battlebacks", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "picture" => ("Graphics", "Pictures", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "animation" => ("Graphics", "Animations", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "icon" => ("Graphics", "Icons", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "battler" => ("Graphics", "Battlers", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "windowskin" => ("Graphics", "Windowskins", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "title" => ("Graphics", "Titles", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "gameover" => ("Graphics", "Gameovers", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "transition" => ("Graphics", "Transitions", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        // Audio
-        "bgm" => ("Audio", "BGM", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
-        "bgs" => ("Audio", "BGS", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
-        "me" => ("Audio", "ME", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
-        "se" => ("Audio", "SE", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
-        _ => return Err(format!("Unknown asset type: {}", asset_type)),
-    };
+    let (base_dir, dir, extensions) = crate::commands::util::asset_dirs(&asset_type)
+        .ok_or_else(|| format!("Unknown asset type: {}", asset_type))?;
 
     let base_path = project.join(base_dir).join(dir).join(&asset_name);
     eprintln!("[get_asset_path] Looking for {}/{} at base: {:?}", asset_type, asset_name, base_path);
@@ -334,29 +289,8 @@ pub async fn list_asset_files(
     let base = PathBuf::from(&project_path);
 
     // Determine base directory and subdirectory, plus valid extensions
-    let (base_dir, dir, extensions): (&str, &str, &[&str]) = match asset_type.as_str() {
-        // Graphics
-        "tileset" => ("Graphics", "Tilesets", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "autotile" => ("Graphics", "Autotiles", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "character" => ("Graphics", "Characters", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "panorama" => ("Graphics", "Panoramas", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "fog" => ("Graphics", "Fogs", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "battleback" => ("Graphics", "Battlebacks", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "picture" => ("Graphics", "Pictures", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "animation" => ("Graphics", "Animations", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "icon" => ("Graphics", "Icons", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "battler" => ("Graphics", "Battlers", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "windowskin" => ("Graphics", "Windowskins", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "title" => ("Graphics", "Titles", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "gameover" => ("Graphics", "Gameovers", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        "transition" => ("Graphics", "Transitions", &["png", "jpg", "jpeg", "bmp", "gif"]),
-        // Audio
-        "bgm" => ("Audio", "BGM", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
-        "bgs" => ("Audio", "BGS", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
-        "me" => ("Audio", "ME", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
-        "se" => ("Audio", "SE", &["mid", "midi", "ogg", "mp3", "wav", "wma"]),
-        _ => return Err(format!("Unknown asset type: {}", asset_type)),
-    };
+    let (base_dir, dir, extensions) = crate::commands::util::asset_dirs(&asset_type)
+        .ok_or_else(|| format!("Unknown asset type: {}", asset_type))?;
 
     let dir_path = base.join(base_dir).join(dir);
     if !dir_path.exists() {
@@ -434,24 +368,42 @@ pub async fn save_event(
         .map_err(|e| format!("Failed to read map: {}", e))?;
 
     // Find the @events ivar (a Hash of Integer → RPG::Event) and replace the target event
+    let mut found_events_hash = false;
+    let mut replaced = false;
     if let marshal::types::RubyValue::Object(ref mut obj) = value {
         for (name, val) in obj.instance_vars.iter_mut() {
             if name == "@events" {
                 if let marshal::types::RubyValue::Hash(ref mut pairs) = val {
+                    found_events_hash = true;
                     // Find the matching event by ID key
                     for (key, event_val) in pairs.iter_mut() {
                         if let Some(id) = key.as_int() {
                             if id == event.id {
                                 *event_val = event.to_ruby_value();
-                                eprintln!("[save_event] Updated event {} on map {}", event.id, map_id);
+                                replaced = true;
                                 break;
                             }
                         }
+                    }
+                    // Event id not present yet (e.g. created client-side): insert it
+                    // rather than silently dropping the edit.
+                    if !replaced {
+                        pairs.push((
+                            marshal::types::RubyValue::Integer(event.id),
+                            event.to_ruby_value(),
+                        ));
                     }
                 }
                 break;
             }
         }
+    }
+
+    if !found_events_hash {
+        return Err(format!(
+            "Could not locate @events hash on Map{:03}; save aborted to avoid corrupting the file",
+            map_id
+        ));
     }
 
     // Write back to file
@@ -535,27 +487,7 @@ pub async fn create_event(
     let updated_map = RpgMap::from_ruby_value(&updated_value)
         .ok_or_else(|| "Failed to interpret updated map".to_string())?;
 
-    let events: Vec<EventInfo> = updated_map
-        .events
-        .values()
-        .map(|e| {
-            let (gn, gd, gp) = if let Some(page) = e.pages.first() {
-                (page.graphic.character_name.clone(), page.graphic.direction, page.graphic.pattern)
-            } else {
-                (String::new(), 2, 0)
-            };
-            EventInfo {
-                id: e.id,
-                name: e.name.clone(),
-                x: e.x,
-                y: e.y,
-                page_count: e.pages.len(),
-                graphic_name: gn,
-                graphic_direction: gd,
-                graphic_pattern: gp,
-            }
-        })
-        .collect();
+    let events: Vec<EventInfo> = event_infos(&updated_map);
 
     eprintln!("[create_event] Created event {} at ({},{}) on map {}", new_id, x, y, map_id);
     Ok((new_event, events))
@@ -597,27 +529,7 @@ pub async fn delete_event(
     let updated_map = RpgMap::from_ruby_value(&updated_value)
         .ok_or_else(|| "Failed to interpret updated map".to_string())?;
 
-    let events: Vec<EventInfo> = updated_map
-        .events
-        .values()
-        .map(|e| {
-            let (gn, gd, gp) = if let Some(page) = e.pages.first() {
-                (page.graphic.character_name.clone(), page.graphic.direction, page.graphic.pattern)
-            } else {
-                (String::new(), 2, 0)
-            };
-            EventInfo {
-                id: e.id,
-                name: e.name.clone(),
-                x: e.x,
-                y: e.y,
-                page_count: e.pages.len(),
-                graphic_name: gn,
-                graphic_direction: gd,
-                graphic_pattern: gp,
-            }
-        })
-        .collect();
+    let events: Vec<EventInfo> = event_infos(&updated_map);
 
     eprintln!("[delete_event] Deleted event {} from map {}", event_id, map_id);
     Ok(events)
@@ -644,12 +556,26 @@ pub async fn save_map(
         return Err(format!("Map file not found: Map{:03}.rxdata", map_id));
     }
 
+    // Validate the incoming tile buffer matches the declared dimensions before we
+    // rebuild the Table, so we never write a truncated/oversized layer.
+    let expected = (width as usize)
+        .checked_mul(height as usize)
+        .and_then(|v| v.checked_mul(3))
+        .ok_or_else(|| "Map dimensions overflow".to_string())?;
+    if tiles.len() != expected {
+        return Err(format!(
+            "Tile count {} does not match {}x{}x3 = {}",
+            tiles.len(), width, height, expected
+        ));
+    }
+
     // Read the original map data
     let mut value = marshal::load_file(&map_file)
         .map_err(|e| format!("Failed to read map: {}", e))?;
 
     // Update the Table's raw data
     // Find the @data instance variable and replace the UserDefined bytes
+    let mut replaced = false;
     if let marshal::types::RubyValue::Object(ref mut obj) = value {
         // Rebuild the Table binary data
         let table = Table::new_3d(width as u32, height as u32, 3);
@@ -680,9 +606,17 @@ pub async fn save_map(
                     class_name: "Table".to_string(),
                     data: table_bytes.clone(),
                 };
+                replaced = true;
                 break;
             }
         }
+    }
+
+    if !replaced {
+        return Err(format!(
+            "Could not locate @data table on Map{:03}; save aborted to avoid corrupting the file",
+            map_id
+        ));
     }
 
     // Write back to file
@@ -779,6 +713,17 @@ pub async fn save_map_properties(
         .map_err(|e| format!("Failed to read map: {}", e))?;
 
     if let marshal::types::RubyValue::Object(ref mut obj) = value {
+        // Capture the original dimensions BEFORE we overwrite @width/@height below,
+        // otherwise the resize check always compares a value against itself.
+        let old_width = obj.instance_vars.iter()
+            .find(|(n, _)| n == "@width")
+            .and_then(|(_, v)| v.as_int())
+            .unwrap_or(props.width);
+        let old_height = obj.instance_vars.iter()
+            .find(|(n, _)| n == "@height")
+            .and_then(|(_, v)| v.as_int())
+            .unwrap_or(props.height);
+
         for (name, val) in obj.instance_vars.iter_mut() {
             match name.as_str() {
                 "@tileset_id" => *val = marshal::types::RubyValue::Integer(props.tileset_id),
@@ -807,18 +752,7 @@ pub async fn save_map_properties(
             }
         }
 
-        // Handle resize — rebuild the Table if dimensions changed
-        let old_width = obj.instance_vars.iter()
-            .find(|(n, _)| n == "@width")
-            .and_then(|(_, v)| v.as_int())
-            .unwrap_or(props.width);
-        let old_height = obj.instance_vars.iter()
-            .find(|(n, _)| n == "@height")
-            .and_then(|(_, v)| v.as_int())
-            .unwrap_or(props.height);
-
-        // Note: width/height were already updated above. Check if they differ from original loaded data.
-        // We need to read the current table and resize it if needed.
+        // Handle resize — rebuild the Table if dimensions changed from the original.
         if old_width != props.width || old_height != props.height {
             // Find the @data ivar and resize the table
             for (name, val) in obj.instance_vars.iter_mut() {
@@ -1023,6 +957,36 @@ pub async fn rename_map(
 }
 
 // --- Internal helpers ---
+
+/// Build the lightweight `EventInfo` list for the map editor overlay from a map.
+fn event_infos(map: &RpgMap) -> Vec<EventInfo> {
+    map.events
+        .values()
+        .map(|e| {
+            let (graphic_name, graphic_dir, graphic_pattern) =
+                if let Some(page) = e.pages.first() {
+                    (
+                        page.graphic.character_name.clone(),
+                        page.graphic.direction,
+                        page.graphic.pattern,
+                    )
+                } else {
+                    (String::new(), 2, 0)
+                };
+
+            EventInfo {
+                id: e.id,
+                name: e.name.clone(),
+                x: e.x,
+                y: e.y,
+                page_count: e.pages.len(),
+                graphic_name,
+                graphic_direction: graphic_dir,
+                graphic_pattern,
+            }
+        })
+        .collect()
+}
 
 fn parse_ini_title(content: &str) -> Option<String> {
     for line in content.lines() {

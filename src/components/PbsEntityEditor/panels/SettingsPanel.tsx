@@ -5,7 +5,8 @@ import { usePbsEntityContext } from "../PbsEntityContext";
 import { useEditorRegistration } from "../../../context/ProjectSaveContext";
 import type { MetadataEntry, PlayerChar } from "../../../types/pbsEntityTypes";
 import { ChipListEditor } from "../shared/ChipListEditor";
-import { previewAudio } from "../../../services/tauriApi";
+import { previewAudioSafe } from "../../../services/tauriApi";
+import { buildAssetUrl } from "../../../services/assetUrl";
 
 const EMPTY_CHAR: PlayerChar = { trainerType: "", walkCharset: "" };
 
@@ -27,7 +28,7 @@ function BgmField({
         />
         {value && (
           <button
-            onClick={() => previewAudio(projectPath, type, value, 0.8)}
+            onClick={() => previewAudioSafe(projectPath, type, value, 0.8)}
             style={{ padding: "4px 8px", fontSize: 11, background: "#1e66f5", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer" }}
           >▶</button>
         )}
@@ -130,10 +131,6 @@ function PlayerCharEditor({
       </div>
     </div>
   );
-}
-
-function buildAssetUrl(p: string) {
-  return `asset://localhost/${encodeURIComponent(p)}`;
 }
 
 function TrainerSprite({ projectPath, id }: { projectPath: string; id: string }) {

@@ -120,6 +120,8 @@ fn resolve_audio_path(
     asset_type: &str,
     asset_name: &str,
 ) -> Result<PathBuf, String> {
+    // asset_name comes from the (untrusted) frontend; reject path traversal.
+    crate::commands::util::validate_asset_name(asset_name)?;
     let project = PathBuf::from(project_path);
     let (base_dir, dir, extensions): (&str, &str, &[&str]) = match asset_type {
         "bgm" => ("Audio", "BGM", &["ogg", "mp3", "wav", "mid", "midi", "wma"]),

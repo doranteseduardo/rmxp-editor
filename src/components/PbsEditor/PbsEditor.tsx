@@ -62,18 +62,24 @@ export function PbsEditor({ projectPath, onClose }: Props) {
     return () => { cancelled = true; };
   }, [projectPath]);
 
-  const handleApply = useCallback(async () => {
+  const handleApply = useCallback(async (): Promise<boolean> => {
     setSaving(true);
     try {
       await saveAll("pbs-");
+      return true;
+    } catch {
+      return false;
     } finally {
       setSaving(false);
     }
   }, [saveAll]);
 
-  const handleCancel = useCallback(() => {
+  // Confirm before discarding unsaved edits, then discard and close.
+  const requestClose = useCallback(() => {
+    if (hasDirty && !window.confirm("You have unsaved PBS changes. Discard them and close?")) return;
     discardAll("pbs-");
-  }, [discardAll]);
+    onClose();
+  }, [hasDirty, discardAll, onClose]);
 
   return (
     <PbsContext.Provider value={{ pbsIndex, projectPath }}>
@@ -81,7 +87,7 @@ export function PbsEditor({ projectPath, onClose }: Props) {
         {/* Header */}
         <div className="pbs-header">
           <span className="pbs-title">PBS Data Editor</span>
-          <button className="pbs-close-btn" onClick={onClose}>×</button>
+          <button className="pbs-close-btn" onClick={requestClose}>×</button>
         </div>
 
         {/* Tab bar */}
@@ -121,14 +127,14 @@ export function PbsEditor({ projectPath, onClose }: Props) {
         <div className="pbs-bottom-bar">
           <button
             className="pbs-btn pbs-btn-primary"
-            onClick={async () => { await handleApply(); onClose(); }}
+            onClick={async () => { if (await handleApply()) onClose(); }}
             disabled={saving}
           >
             OK
           </button>
           <button
             className="pbs-btn"
-            onClick={() => { handleCancel(); onClose(); }}
+            onClick={requestClose}
           >
             Cancel
           </button>

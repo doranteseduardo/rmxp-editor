@@ -5,6 +5,7 @@
  */
 import { useCallback, useState, useRef, useEffect } from "react";
 import { useEntityEditor } from "../../../hooks/useEntityEditor";
+import { useEditorRegistration } from "../../../context/ProjectSaveContext";
 import { loadMapMeta } from "../../../services/pbsUnified";
 import { saveMapMeta } from "../../../services/pbsDistributor";
 import { usePbsEntityContext } from "../PbsEntityContext";
@@ -12,15 +13,12 @@ import type { MapMetaEntry } from "../../../types/pbsEntityTypes";
 import { EntityListPanel } from "../shared/EntityListPanel";
 import { ChipListEditor } from "../shared/ChipListEditor";
 import { readRawPbsFile, writeRawPbsFile } from "../../../services/tauriApi";
+import { buildAssetUrl } from "../../../services/assetUrl";
 
 const ENVIRONMENTS = ["None", "Grass", "TallGrass", "Rock", "Cave", "Sand", "Underwater", "Snow", "Ice", "Volcano", "Sky"] as const;
 const MAP_FLAG_OPTIONS = ["DisableBoxLink", "HideEncountersInPokedex", "MossRock", "IcedRock", "Magnetized", "HiveQueen", "NoTeleport", "NoSurf"] as const;
 
 const getId = (m: MapMetaEntry) => String(m.mapId);
-
-function buildAssetUrl(p: string) {
-  return `asset://localhost/${encodeURIComponent(p)}`;
-}
 
 // ── Region Map Pin Editor (canvas overlay) ────────────────────────────────────
 
@@ -48,14 +46,17 @@ function RegionPinCanvas({
 
   useEffect(() => {
     setImgLoaded(false);
+    let cancelled = false;
     const img = new Image();
     img.src = townMapPath;
     img.onload = () => {
+      if (cancelled) return;
       imgRef.current = img;
       setImgDims([img.naturalWidth || 480, img.naturalHeight || 320]);
       setImgLoaded(true);
     };
-    img.onerror = () => { imgRef.current = null; setImgLoaded(false); };
+    img.onerror = () => { if (!cancelled) { imgRef.current = null; setImgLoaded(false); } };
+    return () => { cancelled = true; img.onload = null; img.onerror = null; };
   }, [townMapPath]);
 
   useEffect(() => {
@@ -616,23 +617,48 @@ function ConnectionsEditor({ projectPath, mapNames, entries }: { projectPath: st
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "visual">("table");
+  const snapshotRef = useRef<MapConnection[]>([]);
+  const loadedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    loadedRef.current = false;
     readRawPbsFile(projectPath, "map_connections.txt")
-      .then((raw) => { if (!cancelled) { setConnections(parseConnections(raw)); setDirty(false); } })
+      .then((raw) => {
+        if (cancelled) return;
+        const parsed = parseConnections(raw);
+        setConnections(parsed);
+        snapshotRef.current = parsed;
+        loadedRef.current = true;
+        setDirty(false);
+      })
       .catch((e) => { if (!cancelled) setError(String(e)); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [projectPath]);
 
   const save = async () => {
+    if (!loadedRef.current) {
+      const msg = "Cannot save connections: the file failed to load.";
+      setError(msg);
+      throw new Error(msg);
+    }
     try {
       await writeRawPbsFile(projectPath, "map_connections.txt", serializeConnections(connections));
+      snapshotRef.current = connections;
       setDirty(false);
-    } catch (e) { setError(String(e)); }
+    } catch (e) { setError(String(e)); throw e; }
   };
+
+  // Register with the global save context so the PBS dirty badge / Apply / OK
+  // and the unsaved-changes guard cover connections too.
+  useEditorRegistration(
+    "pbs-connections",
+    save,
+    () => { setConnections(snapshotRef.current); setDirty(false); },
+    dirty
+  );
 
   const update = (idx: number, patch: Partial<MapConnection>) => {
     setConnections((prev) => prev.map((c, i) => i === idx ? { ...c, ...patch } : c));

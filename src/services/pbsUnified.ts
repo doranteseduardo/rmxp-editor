@@ -3,7 +3,7 @@
  * Handles PE v21.1 actual field names and formats.
  */
 import { loadPbsFile, readRawPbsFile } from "./tauriApi";
-import type { PbsSection, PbsField } from "../types/pbsTypes";
+import type { PbsField } from "../types/pbsTypes";
 import type {
   PokemonEntry, MoveEntry, AbilityEntry, ItemEntry, TypeEntry,
   TrainerEntry, TrainerTypeEntry, EncounterEntry,
@@ -13,23 +13,38 @@ import type {
 
 // ── Field helpers ─────────────────────────────────────────────────────────────
 
+// Loaders call field*(sec.fields, ...) dozens of times per section. A naive
+// .find() is O(n) per call; cache a key→value Map per fields array (keyed on the
+// array's identity so it's GC'd with the section). First match wins, matching the
+// previous .find() semantics for keys that appear more than once.
+const fieldMapCache = new WeakMap<PbsField[], Map<string, string>>();
+function fieldMap(fields: PbsField[]): Map<string, string> {
+  let m = fieldMapCache.get(fields);
+  if (!m) {
+    m = new Map();
+    for (const f of fields) if (!m.has(f.key)) m.set(f.key, f.value);
+    fieldMapCache.set(fields, m);
+  }
+  return m;
+}
+
 function field(fields: PbsField[], key: string): string {
-  return fields.find((f) => f.key === key)?.value ?? "";
+  return fieldMap(fields).get(key) ?? "";
 }
 
 function fieldOr(fields: PbsField[], key: string, fallback: string): string {
-  return fields.find((f) => f.key === key)?.value ?? fallback;
+  return fieldMap(fields).get(key) ?? fallback;
 }
 
 function fieldNum(fields: PbsField[], key: string, fallback = 0): number {
-  const v = fields.find((f) => f.key === key)?.value;
+  const v = fieldMap(fields).get(key);
   if (!v) return fallback;
   const n = parseFloat(v);
   return isNaN(n) ? fallback : n;
 }
 
 function fieldBool(fields: PbsField[], key: string): boolean {
-  const v = (fields.find((f) => f.key === key)?.value ?? "").toLowerCase();
+  const v = (fieldMap(fields).get(key) ?? "").toLowerCase();
   return v === "true" || v === "yes" || v === "1";
 }
 
@@ -267,9 +282,9 @@ const TYPE_COLORS: Record<string, string> = {
 /** Load pokemon.txt + pokemon_forms.txt + pokemon_metrics.txt → PokemonEntry[] */
 export async function loadPokemon(projectPath: string): Promise<PokemonEntry[]> {
   const [baseSections, formSections, metricSections] = await Promise.all([
-    loadPbsFile(projectPath, "pokemon.txt").catch(() => [] as PbsSection[]),
-    loadPbsFile(projectPath, "pokemon_forms.txt").catch(() => [] as PbsSection[]),
-    loadPbsFile(projectPath, "pokemon_metrics.txt").catch(() => [] as PbsSection[]),
+    loadPbsFile(projectPath, "pokemon.txt"),
+    loadPbsFile(projectPath, "pokemon_forms.txt"),
+    loadPbsFile(projectPath, "pokemon_metrics.txt"),
   ]);
 
   // Build form map: SPECIES -> form list
@@ -345,13 +360,13 @@ export async function loadPokemon(projectPath: string): Promise<PokemonEntry[]> 
       evYield: field(sec.fields, "EVs"),
       abilities: fieldList(sec.fields, "Abilities"),
       hiddenAbility: field(sec.fields, "HiddenAbilities") || undefined,
-      genderRatio: fieldOr(sec.fields, "GenderRatio", "FemaleOneEighth"),
+      genderRatio: fieldOr(sec.fields, "GenderRate", "FemaleOneEighth"),
       catchRate: parseInt(fieldOr(sec.fields, "CatchRate", "45"), 10),
       happiness: parseInt(fieldOr(sec.fields, "Happiness", "70"), 10),
-      expYield: parseInt(fieldOr(sec.fields, "BaseExp", "64"), 10),
+      expYield: parseInt(fieldOr(sec.fields, "BaseEXP", "64"), 10),
       growthRate: fieldOr(sec.fields, "GrowthRate", "Medium"),
       eggGroups: fieldList(sec.fields, "EggGroups"),
-      hatchSteps: parseInt(fieldOr(sec.fields, "HatchSteps", "1"), 10),
+      hatchSteps: parseInt(fieldOr(sec.fields, "StepsToHatch", "1"), 10),
       height: parseFloat(fieldOr(sec.fields, "Height", "0.1")),
       weight: parseFloat(fieldOr(sec.fields, "Weight", "0.1")),
       moves: parseMoves(field(sec.fields, "Moves")),
@@ -377,7 +392,7 @@ export async function loadPokemon(projectPath: string): Promise<PokemonEntry[]> 
 
 /** Load moves.txt → MoveEntry[] */
 export async function loadMoves(projectPath: string): Promise<MoveEntry[]> {
-  const sections = await loadPbsFile(projectPath, "moves.txt").catch(() => [] as PbsSection[]);
+  const sections = await loadPbsFile(projectPath, "moves.txt");
   return sections.map((sec) => ({
     id: sec.header,
     name: fieldOr(sec.fields, "Name", sec.header),
@@ -397,7 +412,7 @@ export async function loadMoves(projectPath: string): Promise<MoveEntry[]> {
 
 /** Load abilities.txt → AbilityEntry[] */
 export async function loadAbilities(projectPath: string): Promise<AbilityEntry[]> {
-  const sections = await loadPbsFile(projectPath, "abilities.txt").catch(() => [] as PbsSection[]);
+  const sections = await loadPbsFile(projectPath, "abilities.txt");
   return sections.map((sec) => ({
     id: sec.header,
     name: fieldOr(sec.fields, "Name", sec.header),
@@ -408,7 +423,7 @@ export async function loadAbilities(projectPath: string): Promise<AbilityEntry[]
 
 /** Load items.txt → ItemEntry[] */
 export async function loadItems(projectPath: string): Promise<ItemEntry[]> {
-  const sections = await loadPbsFile(projectPath, "items.txt").catch(() => [] as PbsSection[]);
+  const sections = await loadPbsFile(projectPath, "items.txt");
   return sections.map((sec) => {
     const price = parseInt(fieldOr(sec.fields, "Price", "0"), 10);
     const sellRaw = field(sec.fields, "SellPrice");
@@ -434,7 +449,7 @@ export async function loadItems(projectPath: string): Promise<ItemEntry[]> {
 
 /** Load types.txt → TypeEntry[] */
 export async function loadTypes(projectPath: string): Promise<TypeEntry[]> {
-  const sections = await loadPbsFile(projectPath, "types.txt").catch(() => [] as PbsSection[]);
+  const sections = await loadPbsFile(projectPath, "types.txt");
   return sections.map((sec) => ({
     id: sec.header,
     name: fieldOr(sec.fields, "Name", sec.header),
@@ -455,8 +470,8 @@ export async function loadTrainers(projectPath: string): Promise<{
   trainerTypes: TrainerTypeEntry[];
 }> {
   const [trainerSections, typeSections] = await Promise.all([
-    loadPbsFile(projectPath, "trainers.txt").catch(() => [] as PbsSection[]),
-    loadPbsFile(projectPath, "trainer_types.txt").catch(() => [] as PbsSection[]),
+    loadPbsFile(projectPath, "trainers.txt"),
+    loadPbsFile(projectPath, "trainer_types.txt"),
   ]);
 
   const trainerTypes: TrainerTypeEntry[] = typeSections.map((sec) => ({
@@ -493,7 +508,7 @@ export async function loadEncounters(
   projectPath: string,
   mapNames: Map<number, string>
 ): Promise<EncounterEntry[]> {
-  const raw = await readRawPbsFile(projectPath, "encounters.txt").catch(() => "");
+  const raw = await readRawPbsFile(projectPath, "encounters.txt");
   const entries = parseEncountersRaw(raw);
   for (const e of entries) {
     const name = mapNames.get(e.mapId);
@@ -507,7 +522,7 @@ export async function loadMapMeta(
   projectPath: string,
   mapNames: Map<number, string>
 ): Promise<MapMetaEntry[]> {
-  const sections = await loadPbsFile(projectPath, "map_metadata.txt").catch(() => [] as PbsSection[]);
+  const sections = await loadPbsFile(projectPath, "map_metadata.txt");
   return sections.map((sec) => {
     const mapId = parseInt(sec.header, 10);
 
@@ -570,7 +585,7 @@ export async function loadMapMeta(
  *   [1], [2], ... — player character definitions
  */
 export async function loadMetadata(projectPath: string): Promise<MetadataEntry> {
-  const sections = await loadPbsFile(projectPath, "metadata.txt").catch(() => [] as PbsSection[]);
+  const sections = await loadPbsFile(projectPath, "metadata.txt");
 
   const globalSec = sections.find((s) => s.header === "0") ?? sections[0];
   const charSections = sections.filter((s) => s.header !== "0" && /^\d+$/.test(s.header));

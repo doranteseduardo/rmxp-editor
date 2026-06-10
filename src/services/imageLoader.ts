@@ -7,7 +7,21 @@
 
 import { getAssetPath } from "./tauriApi";
 
+// Bounded LRU cache. Without a cap this grew for the whole session as the user
+// browsed maps/tilesets/characters, retaining every decoded image. Map preserves
+// insertion order, so the oldest entry is evicted once we exceed the cap, and a
+// cache hit re-inserts to mark the entry most-recently-used.
+const MAX_CACHED_IMAGES = 256;
 const imageCache = new Map<string, HTMLImageElement>();
+
+function cacheImage(path: string, img: HTMLImageElement) {
+  imageCache.delete(path);
+  imageCache.set(path, img);
+  if (imageCache.size > MAX_CACHED_IMAGES) {
+    const oldest = imageCache.keys().next().value;
+    if (oldest !== undefined) imageCache.delete(oldest);
+  }
+}
 
 // Lazy-loaded convertFileSrc from Tauri — same pattern as tauriApi.ts
 type ConvertFn = (filePath: string, protocol?: string) => string;
@@ -55,7 +69,9 @@ async function convertFilePathToUrl(filePath: string): Promise<string> {
  */
 export async function loadImage(path: string): Promise<HTMLImageElement> {
   if (imageCache.has(path)) {
-    return imageCache.get(path)!;
+    const cached = imageCache.get(path)!;
+    cacheImage(path, cached); // mark most-recently-used
+    return cached;
   }
 
   // In Tauri, convert filesystem path to asset protocol URL
@@ -66,10 +82,7 @@ export async function loadImage(path: string): Promise<HTMLImageElement> {
     new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
-        console.log(
-          `[imageLoader] Loaded image: ${path} (${img.width}x${img.height}) from ${src}`
-        );
-        imageCache.set(path, img);
+        cacheImage(path, img);
         resolve(img);
       };
       img.onerror = (e) => {

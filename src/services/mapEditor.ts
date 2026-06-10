@@ -226,11 +226,11 @@ export function paintTile(
 
     // Place the autotile with a temporary ID (will be resolved immediately)
     const tempId = (atSlot + 1) * 48; // pattern 0 as placeholder
-    const placeChange = paintTileRaw(mapData, x, y, layer, tempId);
-    // Don't push placeChange yet — resolveAutotile will set the correct ID
+    paintTileRaw(mapData, x, y, layer, tempId);
+    // Don't push yet — resolveAutotile will set the correct ID
 
     // Resolve correct pattern based on neighbors
-    const resolveChange = resolveAutotile(mapData, x, y, layer, atSlot);
+    resolveAutotile(mapData, x, y, layer, atSlot);
 
     // Build the final change from original oldTileId to resolved newTileId
     const finalNewId = mapData.tiles[layer * mapData.width * mapData.height + y * mapData.width + x];

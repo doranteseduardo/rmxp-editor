@@ -35,6 +35,24 @@ export function MapTreePanel({
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Expansion state lives here (keyed by map id) rather than inside each node so
+  // it survives tree rebuilds when mapInfos changes (create/rename/delete).
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(() => {
+    const s = new Set<number>();
+    for (const [idStr, info] of Object.entries(mapInfos)) {
+      if (info.expanded) s.add(Number(idStr));
+    }
+    return s;
+  });
+
+  const toggleExpanded = useCallback((id: number) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
   const handleContextMenu = useCallback(
     (e: React.MouseEvent, mapId: number, mapName: string) => {
       e.preventDefault();
@@ -95,6 +113,8 @@ export function MapTreePanel({
             currentMapId={currentMapId}
             onSelectMap={onSelectMap}
             onContextMenu={handleContextMenu}
+            expandedIds={expandedIds}
+            onToggle={toggleExpanded}
           />
         ))}
       </div>
@@ -134,14 +154,18 @@ function MapTreeNodeItem({
   currentMapId,
   onSelectMap,
   onContextMenu,
+  expandedIds,
+  onToggle,
 }: {
   node: MapTreeNode;
   depth: number;
   currentMapId: number | null;
   onSelectMap: (id: number) => void;
   onContextMenu: (e: React.MouseEvent, id: number, name: string) => void;
+  expandedIds: Set<number>;
+  onToggle: (id: number) => void;
 }) {
-  const [expanded, setExpanded] = useState(node.expanded);
+  const expanded = expandedIds.has(node.id);
   const hasChildren = node.children.length > 0;
   const isSelected = node.id === currentMapId;
 
@@ -150,16 +174,25 @@ function MapTreeNodeItem({
       <div
         className={`map-tree-item ${isSelected ? "selected" : ""}`}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
+        role="treeitem"
+        tabIndex={0}
+        aria-selected={isSelected}
+        aria-expanded={hasChildren ? expanded : undefined}
         onClick={() => onSelectMap(node.id)}
         onContextMenu={(e) => onContextMenu(e, node.id, node.name)}
         onDoubleClick={() => onSelectMap(node.id)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectMap(node.id); }
+          else if (e.key === "ArrowRight" && hasChildren && !expanded) onToggle(node.id);
+          else if (e.key === "ArrowLeft" && hasChildren && expanded) onToggle(node.id);
+        }}
       >
         {hasChildren && (
           <span
             className="map-tree-toggle"
             onClick={(e) => {
               e.stopPropagation();
-              setExpanded(!expanded);
+              onToggle(node.id);
             }}
           >
             {expanded ? "▾" : "▸"}
@@ -181,6 +214,8 @@ function MapTreeNodeItem({
             currentMapId={currentMapId}
             onSelectMap={onSelectMap}
             onContextMenu={onContextMenu}
+            expandedIds={expandedIds}
+            onToggle={onToggle}
           />
         ))}
     </div>

@@ -6,14 +6,11 @@ import { usePbsEntityContext } from "../PbsEntityContext";
 import type { ItemEntry } from "../../../types/pbsEntityTypes";
 import { EntityListPanel } from "../shared/EntityListPanel";
 import { ChipListEditor } from "../shared/ChipListEditor";
+import { buildAssetUrl } from "../../../services/assetUrl";
 
 const getId = (it: ItemEntry) => it.id;
 
 const POCKET_NAMES = ["", "Items", "Medicine", "Poké Balls", "TMs & HMs", "Berries", "Mail", "Battle Items", "Key Items"];
-
-function buildAssetUrl(p: string) {
-  return `asset://localhost/${encodeURIComponent(p)}`;
-}
 
 function ItemIcon({ projectPath, id }: { projectPath: string; id: string }) {
   const [failed, setFailed] = useState(false);

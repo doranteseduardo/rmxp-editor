@@ -16,6 +16,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { renderAutotilePattern } from "../../../services/autotileData";
 import { loadImage } from "../../../services/imageLoader";
+import { graphicAssetUrl } from "../../../services/assetUrl";
 
 export type PropertyMode = "passage" | "passage_4dir" | "priorities" | "bush_flag" | "counter_flag" | "terrain_tags";
 
@@ -69,12 +70,6 @@ const TAG_LABELS: Record<number, string> = {
   13: "Neutral", 14: "SootGrass", 15: "Bridge", 16: "Puddle",
   17: "NoEffect",
 };
-
-/** Build a Tauri asset protocol URL */
-function buildAssetUrl(projectPath: string, subdir: string, name: string): string {
-  const fullPath = `${projectPath}/Graphics/${subdir}/${name}.png`;
-  return `asset://localhost/${encodeURIComponent(fullPath)}`;
-}
 
 /* ─── Overlay badges ──────────────────────────────────────────── */
 
@@ -233,24 +228,6 @@ function cycleBackward(mode: PropertyMode, val: number): number {
   }
 }
 
-/* ─── Hook: get tileset image dimensions ──────────────────────── */
-
-function useTilesetSize(projectPath?: string, tilesetName?: string) {
-  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
-
-  useEffect(() => {
-    if (!projectPath || !tilesetName) { setSize(null); return; }
-    let cancelled = false;
-    const img = new Image();
-    img.onload = () => { if (!cancelled) setSize({ w: img.width, h: img.height }); };
-    img.onerror = () => { if (!cancelled) setSize(null); };
-    img.src = buildAssetUrl(projectPath, "Tilesets", tilesetName);
-    return () => { cancelled = true; };
-  }, [projectPath, tilesetName]);
-
-  return size;
-}
-
 /**
  * Hook: load autotile HTMLImageElements for direct canvas rendering.
  * Returns an array of 7 images (or null for empty/missing slots).
@@ -314,12 +291,6 @@ function AutotileCanvas({ img }: { img: HTMLImageElement | null }) {
   );
 }
 
-/* ─── 4-Dir click handler for individual direction toggling ───── */
-
-function toggle4Dir(val: number, dir: number): number {
-  return val ^ dir; // XOR toggles the individual direction bit
-}
-
 /* ─── Main Component ───────────────────────────────────────────── */
 
 export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autotileNames, onChange }: Props) {
@@ -330,11 +301,10 @@ export function TilePropertyEditor({ data, mode, projectPath, tilesetName, autot
   const regularTileStartRow = Math.floor(AUTOTILE_ID_COUNT / COLS);
   const regularTileRows = Math.max(0, rows - regularTileStartRow);
 
-  const tilesetSize = useTilesetSize(projectPath, tilesetName);
   const autotileImages = useAutotileImages(projectPath, autotileNames);
 
   const tilesetBgUrl = (projectPath && tilesetName)
-    ? `url("${buildAssetUrl(projectPath, "Tilesets", tilesetName)}")`
+    ? `url("${graphicAssetUrl(projectPath, "Tilesets", tilesetName)}")`
     : undefined;
 
   /** Left-click handler for regular tiles */

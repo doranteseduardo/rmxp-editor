@@ -129,14 +129,14 @@ export function ScriptEditor({ projectPath, onClose }: Props) {
     [selectedId]
   );
 
-  // Save all dirty scripts
-  const handleSave = useCallback(async () => {
+  // Save all dirty scripts. Returns true on success (or nothing to save), false on failure.
+  const handleSave = useCallback(async (): Promise<boolean> => {
     // Update cache with latest editor content
     if (selectedId !== null && currentSource !== null) {
       cacheRef.current.set(selectedId, currentSource);
     }
 
-    if (dirtyIds.size === 0) return;
+    if (dirtyIds.size === 0) return true;
 
     setSaving(true);
     try {
@@ -160,8 +160,10 @@ export function ScriptEditor({ projectPath, onClose }: Props) {
         originalsRef.current.set(script.id, script.source);
       }
       setDirtyIds(new Set());
+      return true;
     } catch (err) {
       setError(`Save failed: ${err}`);
+      return false;
     } finally {
       setSaving(false);
     }
@@ -183,7 +185,14 @@ export function ScriptEditor({ projectPath, onClose }: Props) {
   }, [dirtyIds, selectedId]);
 
   const isDirty = dirtyIds.size > 0;
-  useEditorRegistration("scripts", handleSave, handleCancel, isDirty);
+  // Registered save must reject on failure so the global saveAll surfaces it;
+  // handleSave itself returns a boolean for the OK button's close decision.
+  useEditorRegistration(
+    "scripts",
+    useCallback(async () => { if (!(await handleSave())) throw new Error("Script save failed"); }, [handleSave]),
+    handleCancel,
+    isDirty
+  );
 
   // Create a new script
   const handleCreate = useCallback(
@@ -391,7 +400,7 @@ export function ScriptEditor({ projectPath, onClose }: Props) {
       </div>
       {/* Unified OK / Cancel / Apply bar */}
       <div className="db-bottom-bar">
-        <button className="db-save-btn" onClick={async () => { await handleSave(); onClose?.(); }} disabled={saving}>
+        <button className="db-save-btn" onClick={async () => { if (await handleSave()) onClose?.(); }} disabled={saving}>
           OK
         </button>
         <button className="db-cancel-btn" onClick={() => { handleCancel(); onClose?.(); }}>

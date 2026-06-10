@@ -154,6 +154,13 @@ pub async fn save_pbs_file(
 }
 
 /// Check if an asset file exists at the given absolute path.
+///
+/// NOTE: This probes an arbitrary frontend-supplied path. In practice it is only
+/// ever called with paths returned by `get_asset_path` (which are validated and
+/// confined to the project), so it is a boolean existence check on already-known
+/// paths. If a caller ever needs to probe a frontend-derived name, switch this to
+/// take `(project_path, asset_type, asset_name)` and route through
+/// `get_asset_path` so traversal validation applies.
 #[tauri::command]
 pub async fn asset_exists(path: String) -> Result<bool, String> {
     Ok(std::path::Path::new(&path).exists())

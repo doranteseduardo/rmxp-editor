@@ -16,6 +16,13 @@ import {
 } from "../types";
 import { AUTOTILE_RECTS } from "./autotileData";
 
+/**
+ * Debug instrumentation toggle. Off by default so production builds carry no
+ * per-frame console logging and no on-canvas debug overlay. Flip to true (in a
+ * dev build) to re-enable the diagnostics below.
+ */
+const DEBUG = false;
+
 export interface RenderOptions {
   showGrid: boolean;
   showEvents: boolean;
@@ -70,34 +77,33 @@ export class MapRenderer {
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
-    console.log("[MapRenderer] Created renderer for canvas");
   }
 
   setMapData(tiles: number[], width: number, height: number) {
     this.tiles = tiles;
     this.mapWidth = width;
     this.mapHeight = height;
-    // Log tile type distribution per layer
-    const layerSize = width * height;
-    for (let z = 0; z < 3; z++) {
-      const start = z * layerSize;
-      const end = start + layerSize;
-      const layer = tiles.slice(start, end);
-      const autotiles = layer.filter(t => t >= 48 && t < 384);
-      const regular = layer.filter(t => t >= 384);
-      console.log(`[MapRenderer] Layer ${z}: autotile=${autotiles.length}, regular=${regular.length}, empty=${layer.filter(t => t <= 0).length}${autotiles.length > 0 ? `, AT sample=[${autotiles.slice(0, 10).join(",")}]` : ""}`);
+    if (DEBUG) {
+      // Log tile type distribution per layer (allocates — gated off by default).
+      const layerSize = width * height;
+      for (let z = 0; z < 3; z++) {
+        const start = z * layerSize;
+        const end = start + layerSize;
+        const layer = tiles.slice(start, end);
+        const autotiles = layer.filter(t => t >= 48 && t < 384);
+        const regular = layer.filter(t => t >= 384);
+        console.log(`[MapRenderer] Layer ${z}: autotile=${autotiles.length}, regular=${regular.length}, empty=${layer.filter(t => t <= 0).length}${autotiles.length > 0 ? `, AT sample=[${autotiles.slice(0, 10).join(",")}]` : ""}`);
+      }
     }
   }
 
   setTilesetImage(img: HTMLImageElement) {
     this.tilesetImage = img;
-    console.log(`[MapRenderer] setTilesetImage: ${img.width}x${img.height}`);
   }
 
   setAutotileImage(slot: number, img: HTMLImageElement | null) {
     if (slot >= 0 && slot < 7) {
       this.autotileImages[slot] = img;
-      console.log(`[MapRenderer] setAutotileImage[${slot}]: ${img ? `${img.width}x${img.height}` : "null"}`);
     }
   }
 
@@ -202,33 +208,34 @@ export class MapRenderer {
       this.renderSelectionRect(options.selectionRect, viewportX, viewportY, tileSize);
     }
 
-    // Debug overlay — always visible for first 5 seconds, scaled for DPR
-    this.frameCount++;
-    if (this.frameCount < 300) {
-      this.ctx.save();
-      this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // Draw in CSS pixels
-      this.ctx.fillStyle = "rgba(0,0,0,0.85)";
-      this.ctx.fillRect(4, 4, 380, 130);
-      this.ctx.fillStyle = "#ff0";
-      this.ctx.font = "bold 13px monospace";
-      const lines = [
-        `Canvas: ${canvasW}x${canvasH} (DPR=${dpr.toFixed(1)})`,
-        `Map: ${this.mapWidth}x${this.mapHeight}, Tiles: ${this.tiles.length}`,
-        `Visible: (${startX},${startY})-(${endX},${endY})`,
-        `TileSize: ${tileSize.toFixed(0)}px  Zoom: ${zoom}`,
-        `Tileset: ${this.tilesetImage ? `${this.tilesetImage.width}x${this.tilesetImage.height} OK` : "*** NULL ***"}`,
-        `Autotiles: [${this.autotileImages.map(a => a ? "OK" : "--").join(",")}]`,
-        `Drawn: ${tilesDrawn} tiles | Frame: ${this.frameCount}`,
-      ];
-      lines.forEach((line, i) => {
-        this.ctx.fillText(line, 10, 22 + i * 16);
-      });
-      this.ctx.restore();
-    }
-
-    // Console log once per second
-    if (this.frameCount % 60 === 1) {
-      console.log(`[MapRenderer] f=${this.frameCount} canvas=${canvasW}x${canvasH} drawn=${tilesDrawn} tileset=${this.tilesetImage ? "OK" : "null"} map=${this.mapWidth}x${this.mapHeight}`);
+    // Debug overlay + per-second console log — gated off by default so it never
+    // paints over the map or spams the console in production.
+    if (DEBUG) {
+      this.frameCount++;
+      if (this.frameCount < 300) {
+        this.ctx.save();
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // Draw in CSS pixels
+        this.ctx.fillStyle = "rgba(0,0,0,0.85)";
+        this.ctx.fillRect(4, 4, 380, 130);
+        this.ctx.fillStyle = "#ff0";
+        this.ctx.font = "bold 13px monospace";
+        const lines = [
+          `Canvas: ${canvasW}x${canvasH} (DPR=${dpr.toFixed(1)})`,
+          `Map: ${this.mapWidth}x${this.mapHeight}, Tiles: ${this.tiles.length}`,
+          `Visible: (${startX},${startY})-(${endX},${endY})`,
+          `TileSize: ${tileSize.toFixed(0)}px  Zoom: ${zoom}`,
+          `Tileset: ${this.tilesetImage ? `${this.tilesetImage.width}x${this.tilesetImage.height} OK` : "*** NULL ***"}`,
+          `Autotiles: [${this.autotileImages.map(a => a ? "OK" : "--").join(",")}]`,
+          `Drawn: ${tilesDrawn} tiles | Frame: ${this.frameCount}`,
+        ];
+        lines.forEach((line, i) => {
+          this.ctx.fillText(line, 10, 22 + i * 16);
+        });
+        this.ctx.restore();
+      }
+      if (this.frameCount % 60 === 1) {
+        console.log(`[MapRenderer] f=${this.frameCount} canvas=${canvasW}x${canvasH} drawn=${tilesDrawn} tileset=${this.tilesetImage ? "OK" : "null"} map=${this.mapWidth}x${this.mapHeight}`);
+      }
     }
   }
 

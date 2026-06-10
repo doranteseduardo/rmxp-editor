@@ -7,6 +7,7 @@ import type { PbsSection } from "../../types/pbsTypes";
 import { getFieldMeta, POKEMON_SPRITE_FILES } from "../../services/pbsMeta";
 import { usePbsContext } from "./PbsContext";
 import { PbsFieldRow } from "./PbsFieldRow";
+import { buildAssetUrl } from "../../services/assetUrl";
 
 interface Props {
   filename: string;
@@ -14,10 +15,6 @@ interface Props {
   onUpdateField: (key: string, value: string) => void;
   onAddField: (key: string) => void;
   onDeleteField: (key: string) => void;
-}
-
-function buildAssetUrl(path: string): string {
-  return `asset://localhost/${encodeURIComponent(path)}`;
 }
 
 function PokemonHeader({ header, projectPath }: { header: string; projectPath: string }) {

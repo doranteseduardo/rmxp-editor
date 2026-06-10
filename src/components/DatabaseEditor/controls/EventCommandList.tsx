@@ -9,7 +9,6 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import {
   getCommandDef,
   summarizeCommand,
-  MOVE_COMMAND_NAMES,
   type CommandDef,
 } from "../../../services/eventCommands";
 import { CommandParamEditor, hasParamEditor } from "../../EventEditor/CommandParamEditor";

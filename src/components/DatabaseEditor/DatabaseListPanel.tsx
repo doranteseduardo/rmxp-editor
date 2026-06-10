@@ -2,8 +2,6 @@
  * Shared left-side list panel for database tabs.
  * Shows a scrollable list of [id] Name entries with selection.
  */
-import { useCallback } from "react";
-
 interface Props {
   items: ({ id: number; name: string } | null)[];
   selectedId: number | null;
@@ -37,14 +35,20 @@ export function DatabaseListPanel({
           {realCount} {label}
         </span>
       </div>
-      <div className="db-list-scroll">
+      <div className="db-list-scroll" role="listbox" aria-label={label}>
         {items.map((item, i) => {
           if (i === 0 || item == null) return null;
           return (
             <div
               key={i}
+              role="option"
+              tabIndex={0}
+              aria-selected={selectedId === i}
               className={`db-list-item${selectedId === i ? " selected" : ""}`}
               onClick={() => onSelect(i)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(i); }
+              }}
             >
               <span className="db-list-id">
                 {String(i).padStart(3, "0")}

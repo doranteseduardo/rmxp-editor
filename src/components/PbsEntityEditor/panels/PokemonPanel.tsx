@@ -12,13 +12,10 @@ import type { PokemonEntry, BaseStats, LearnMove, Evolution, PokemonForm } from 
 import { EntityListPanel } from "../shared/EntityListPanel";
 import { TypeChip } from "../shared/TypeChip";
 import { ChipListEditor } from "../shared/ChipListEditor";
-import { previewAudio } from "../../../services/tauriApi";
+import { previewAudioSafe } from "../../../services/tauriApi";
+import { buildAssetUrl } from "../../../services/assetUrl";
 
 const getId = (p: PokemonEntry) => p.id;
-
-function buildAssetUrl(path: string) {
-  return `asset://localhost/${encodeURIComponent(path)}`;
-}
 
 // ── Pokémon Icon Sprite (animated, shows first frame of 2-frame sheet) ─────────
 
@@ -34,6 +31,7 @@ function PokemonIconSprite({ projectPath, id, size = 32 }: { projectPath: string
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    let cancelled = false;
     const img = new Image();
     img.src = buildAssetUrl(`${projectPath}/Graphics/Pokemon/Icons/${id}.png`);
 
@@ -50,6 +48,9 @@ function PokemonIconSprite({ projectPath, id, size = 32 }: { projectPath: string
     };
 
     img.onload = () => {
+      // The effect may have been torn down (deps changed) before this fired —
+      // bail so we don't start an interval the stale cleanup won't clear.
+      if (cancelled) return;
       imgRef.current = img;
       canvas.style.opacity = "1";
       draw(0);
@@ -62,9 +63,14 @@ function PokemonIconSprite({ projectPath, id, size = 32 }: { projectPath: string
         }, 250);
       }
     };
-    img.onerror = () => { canvas.style.opacity = "0.15"; };
+    img.onerror = () => { if (!cancelled) canvas.style.opacity = "0.15"; };
 
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    return () => {
+      cancelled = true;
+      img.onload = null;
+      img.onerror = null;
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    };
   }, [projectPath, id, size]);
 
   return (
@@ -236,14 +242,18 @@ function MetricsVisualEditor({
   const backImg = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    const imgs: HTMLImageElement[] = [];
     const loadSprite = (src: string, ref: React.MutableRefObject<HTMLImageElement | null>, redraw: () => void) => {
       const img = new Image();
-      img.onload = () => { ref.current = img; redraw(); };
-      img.onerror = () => { ref.current = null; redraw(); };
+      imgs.push(img);
+      img.onload = () => { if (!cancelled) { ref.current = img; redraw(); } };
+      img.onerror = () => { if (!cancelled) { ref.current = null; redraw(); } };
       img.src = src;
     };
     loadSprite(buildAssetUrl(`${projectPath}/Graphics/Pokemon/Front/${pokemonId}.png`), frontImg, () => drawCanvas("front"));
     loadSprite(buildAssetUrl(`${projectPath}/Graphics/Pokemon/Back/${pokemonId}.png`), backImg, () => drawCanvas("back"));
+    return () => { cancelled = true; imgs.forEach((i) => { i.onload = null; i.onerror = null; }); };
   }, [pokemonId, projectPath]);
 
   const drawCanvas = (side: "front" | "back") => {
@@ -395,20 +405,21 @@ function LearnsetTable({
   onChange: (m: LearnMove[]) => void;
 }) {
   const dlId = useId();
-  const sorted = [...moves].sort((a, b) => a.level - b.level);
+  // Display sorted by level, but keep each row's identity tied to its index in
+  // the backing `moves` array. Editing operates on that original index, and rows
+  // are keyed by it, so a re-sort never reassigns an edit to a different move.
+  const order = moves.map((m, i) => ({ m, i })).sort((a, b) => a.m.level - b.m.level);
 
-  const updateMove = (idx: number, patch: Partial<LearnMove>) => {
-    const next = [...sorted];
-    next[idx] = { ...next[idx], ...patch };
-    onChange(next);
+  const updateMove = (origIdx: number, patch: Partial<LearnMove>) => {
+    onChange(moves.map((m, i) => (i === origIdx ? { ...m, ...patch } : m)));
   };
 
-  const removeMove = (idx: number) => {
-    onChange(sorted.filter((_, i) => i !== idx));
+  const removeMove = (origIdx: number) => {
+    onChange(moves.filter((_, i) => i !== origIdx));
   };
 
   const addMove = () => {
-    onChange([...sorted, { level: 1, move: "" }]);
+    onChange([...moves, { level: 1, move: "" }]);
   };
 
   return (
@@ -424,8 +435,8 @@ function LearnsetTable({
             </tr>
           </thead>
           <tbody>
-            {sorted.map((m, i) => (
-              <tr key={i} style={{ borderTop: "1px solid #e6e9ef", background: i % 2 ? "#f8f9fb" : "#fff" }}>
+            {order.map(({ m, i }, row) => (
+              <tr key={i} style={{ borderTop: "1px solid #e6e9ef", background: row % 2 ? "#f8f9fb" : "#fff" }}>
                 <td style={{ padding: "2px 8px" }}>
                   <input
                     type="number"
@@ -545,9 +556,9 @@ function EvolutionsTab({
             <span style={{ fontSize: 10, color: "#8c8fa1", width: 16 }}>→</span>
             <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1 }}>
               <div style={{ display: "flex", gap: 4 }}>
-                <input list={dlId} value={evo.species} onChange={(e) => { const next = [...evolutions]; next[i] = { ...evo, species: e.target.value }; onChange(next); }} placeholder="Species" style={{ ...evInp, flex: 1 }} />
-                <input list={methodDlId} value={evo.method} onChange={(e) => { const next = [...evolutions]; next[i] = { ...evo, method: e.target.value }; onChange(next); }} placeholder="Method" style={{ ...evInp, flex: 1 }} />
-                <input value={evo.parameter} onChange={(e) => { const next = [...evolutions]; next[i] = { ...evo, parameter: e.target.value }; onChange(next); }} placeholder="Param (level/item/etc)" style={{ ...evInp, flex: 1 }} />
+                <input list={dlId} value={evo.species ?? ""} onChange={(e) => { const next = [...evolutions]; next[i] = { ...evo, species: e.target.value }; onChange(next); }} placeholder="Species" style={{ ...evInp, flex: 1 }} />
+                <input list={methodDlId} value={evo.method ?? ""} onChange={(e) => { const next = [...evolutions]; next[i] = { ...evo, method: e.target.value }; onChange(next); }} placeholder="Method" style={{ ...evInp, flex: 1 }} />
+                <input value={evo.parameter ?? ""} onChange={(e) => { const next = [...evolutions]; next[i] = { ...evo, parameter: e.target.value }; onChange(next); }} placeholder="Param (level/item/etc)" style={{ ...evInp, flex: 1 }} />
               </div>
             </div>
             <button onClick={() => onChange(evolutions.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", color: "#fe640b", fontSize: 13 }}>×</button>
@@ -667,7 +678,7 @@ export function PokemonPanel() {
                   }}
                 >✨ Shiny</button>
                 <button
-                  onClick={() => previewAudio(projectPath, "se", `Cries/${selected.id}`, 0.8)}
+                  onClick={() => previewAudioSafe(projectPath, "se", `Cries/${selected.id}`, 0.8)}
                   style={{ padding: "3px 10px", fontSize: 10, background: "#1e66f5", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer" }}
                 >▶ Cry</button>
               </div>
@@ -855,6 +866,7 @@ export function PokemonPanel() {
               {/* Forms tab */}
               {tab === "forms" && (
                 <FormsTab
+                  key={selected.id}
                   forms={selected.forms ?? []}
                   typeNames={typeNames}
                   abilityNames={abilityNames}
@@ -890,7 +902,7 @@ export function PokemonPanel() {
 // ── Forms tab ─────────────────────────────────────────────────────────────────
 
 function FormsTab({
-  forms, typeNames, abilityNames, moveNames, itemNames, onChange,
+  forms, typeNames, abilityNames, itemNames, onChange,
 }: {
   forms: PokemonForm[];
   typeNames: string[];

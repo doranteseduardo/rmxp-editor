@@ -4,20 +4,17 @@
  * - Right (type selected): type detail (name, gender, money, skill, BGM)
  * - Right (trainer selected): loseText, items, team cards
  */
-import { useCallback, useState, useId } from "react";
+import { useCallback, useState, useId, useRef, useEffect } from "react";
 import { useEntityEditor } from "../../../hooks/useEntityEditor";
 import { loadTrainers } from "../../../services/pbsUnified";
 import { saveTrainers } from "../../../services/pbsDistributor";
 import { usePbsEntityContext } from "../PbsEntityContext";
 import type { TrainerEntry, TrainerTypeEntry, TrainerPokemon } from "../../../types/pbsEntityTypes";
-import { previewAudio } from "../../../services/tauriApi";
+import { previewAudioSafe } from "../../../services/tauriApi";
+import { buildAssetUrl } from "../../../services/assetUrl";
 
 const getTrainerId = (t: TrainerEntry) => t.id;
 const getTypeId = (t: TrainerTypeEntry) => t.id;
-
-function buildAssetUrl(p: string) {
-  return `asset://localhost/${encodeURIComponent(p)}`;
-}
 
 function TrainerTypeSprite({ projectPath, id }: { projectPath: string; id: string }) {
   return (
@@ -124,6 +121,14 @@ export function TrainersPanel() {
   const moveNames = pbsIndex.get("moves.txt") ?? [];
   const itemNames = pbsIndex.get("items.txt") ?? [];
 
+  // trainers.txt holds BOTH trainer types and trainers, and saveTrainers rewrites
+  // the whole file. The two editors below each persist the file, so every save
+  // must include the current value of the *other* list — otherwise saving types
+  // would write an empty trainers array (and vice versa), wiping data. We read the
+  // latest of each through refs to avoid an initialization-order cycle.
+  const trainersItemsRef = useRef<TrainerEntry[]>([]);
+  const typesItemsRef = useRef<TrainerTypeEntry[]>([]);
+
   // Two separate entity editors: one for trainer types, one for trainers
   const typesEditor = useEntityEditor(
     "pbs-trainer-types",
@@ -133,7 +138,7 @@ export function TrainersPanel() {
       return trainerTypes;
     }, [projectPath]),
     useCallback(
-      (types: TrainerTypeEntry[]) => saveTrainers(projectPath, [], types),
+      (types: TrainerTypeEntry[]) => saveTrainers(projectPath, trainersItemsRef.current, types),
       [projectPath]
     )
   );
@@ -146,10 +151,15 @@ export function TrainersPanel() {
       return trainers;
     }, [projectPath]),
     useCallback(
-      (trainers: TrainerEntry[]) => saveTrainers(projectPath, trainers, typesEditor.items),
-      [projectPath, typesEditor.items]
+      (trainers: TrainerEntry[]) => saveTrainers(projectPath, trainers, typesItemsRef.current),
+      [projectPath]
     )
   );
+
+  // Keep the cross-reference refs in sync after each render (saves are triggered
+  // by later user actions, so the effect timing is fine).
+  useEffect(() => { trainersItemsRef.current = trainersEditor.items; }, [trainersEditor.items]);
+  useEffect(() => { typesItemsRef.current = typesEditor.items; }, [typesEditor.items]);
 
   // Selection: either a trainer type or a trainer
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null);
@@ -302,7 +312,7 @@ export function TrainersPanel() {
                     <input value={selectedType[key] ?? ""} onChange={(e) => typesEditor.update(selectedType.id, { [key]: e.target.value || undefined })} style={{ ...inp, flex: 1 }} />
                     {selectedType[key] && (
                       <button
-                        onClick={() => previewAudio(projectPath, "BGM", selectedType[key]!, 0.8)}
+                        onClick={() => previewAudioSafe(projectPath, "BGM", selectedType[key]!, 0.8)}
                         style={{ padding: "4px 8px", fontSize: 11, background: "#1e66f5", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer" }}
                       >▶</button>
                     )}

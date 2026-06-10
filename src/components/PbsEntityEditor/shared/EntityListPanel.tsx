@@ -66,7 +66,13 @@ export function EntityListPanel<T>({
           return (
             <div
               key={id}
+              role="option"
+              tabIndex={0}
+              aria-selected={isSelected}
               onClick={() => onSelect(id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(id); }
+              }}
               style={{
                 display: "flex", alignItems: "center", gap: 6,
                 padding: "5px 8px", cursor: "pointer",

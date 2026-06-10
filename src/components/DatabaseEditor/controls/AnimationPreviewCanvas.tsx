@@ -21,7 +21,7 @@
  *   7: blend_type (0=normal, 1=add, 2=sub)
  */
 import { useRef, useEffect, useState, useCallback } from "react";
-import type { RpgAnimationFrame, RpgTable } from "../../../types/rpgTypes";
+import type { RpgAnimationFrame } from "../../../types/rpgTypes";
 import { getAssetPath } from "../../../services/tauriApi";
 import { loadImage } from "../../../services/imageLoader";
 
@@ -47,10 +47,8 @@ const COLS = 5;         // Sprite sheet columns
 export function AnimationPreviewCanvas({
   projectPath,
   animationName,
-  animationHue,
   frame,
   frameIndex,
-  isPlaying,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [spriteSheet, setSpriteSheet] = useState<HTMLImageElement | null>(null);
@@ -143,7 +141,6 @@ export function AnimationPreviewCanvas({
       return;
     }
 
-    const ySize = 8; // 8 properties per cell
     const scale = CANVAS_WIDTH / 384; // Scale from RMXP's 384px viewport to our canvas
 
     // Render each cell

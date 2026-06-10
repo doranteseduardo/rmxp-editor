@@ -456,6 +456,7 @@ export function EventEditor({
                         mapInfos={mapInfos}
                         switchNames={switchNames}
                         variableNames={variableNames}
+                        pbsIndex={pbsIndex}
                       />
                     );
                   })}
@@ -990,6 +991,7 @@ function CommandRow({
   mapInfos,
   switchNames,
   variableNames,
+  pbsIndex,
 }: {
   command: EventCommand;
   index: number;
@@ -1002,6 +1004,7 @@ function CommandRow({
   mapInfos?: Record<number, import("../../types").MapInfo>;
   switchNames?: string[];
   variableNames?: string[];
+  pbsIndex?: PbsIndex;
 }) {
   const def = getCommandDef(command.code);
   const summary = summarizeCommand(command.code, command.parameters, mapInfos, switchNames, variableNames);

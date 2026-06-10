@@ -62,18 +62,26 @@ export function PbsEntityEditor({ projectPath, mapNames, onClose }: Props) {
     buildPbsIndex(projectPath).then(setPbsIndex).catch(() => {});
   }, [projectPath]);
 
-  const handleApply = useCallback(async () => {
+  const handleApply = useCallback(async (): Promise<boolean> => {
     setSaving(true);
     try {
       await saveAll("pbs-");
+      return true;
+    } catch {
+      // Save failed — the persistent "Unsaved changes" badge signals it and the
+      // dialog stays open so edits aren't lost.
+      return false;
     } finally {
       setSaving(false);
     }
   }, [saveAll]);
 
-  const handleCancel = useCallback(() => {
+  // Confirm before discarding unsaved edits, then discard and close.
+  const requestClose = useCallback(() => {
+    if (hasDirty && !window.confirm("You have unsaved PBS changes. Discard them and close?")) return;
     discardAll("pbs-");
-  }, [discardAll]);
+    onClose();
+  }, [hasDirty, discardAll, onClose]);
 
   return (
     <PbsEntityContext.Provider value={{ pbsIndex, projectPath, mapNames }}>
@@ -82,7 +90,7 @@ export function PbsEntityEditor({ projectPath, mapNames, onClose }: Props) {
         <div className="pbs-entity-header">
           <span className="pbs-entity-title">PBS Data Editor</span>
           {hasDirty && <span className="pbs-entity-dirty-badge">Unsaved changes</span>}
-          <button className="pbs-entity-close" onClick={onClose}>×</button>
+          <button className="pbs-entity-close" onClick={requestClose}>×</button>
         </div>
 
         <div className="pbs-entity-body">
@@ -123,14 +131,14 @@ export function PbsEntityEditor({ projectPath, mapNames, onClose }: Props) {
         <div className="pbs-entity-bottom-bar">
           <button
             className="pbs-btn pbs-btn-primary"
-            onClick={async () => { await handleApply(); onClose(); }}
+            onClick={async () => { if (await handleApply()) onClose(); }}
             disabled={saving}
           >
             OK
           </button>
           <button
             className="pbs-btn"
-            onClick={() => { handleCancel(); onClose(); }}
+            onClick={requestClose}
           >
             Cancel
           </button>

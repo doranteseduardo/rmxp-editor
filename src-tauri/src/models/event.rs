@@ -89,21 +89,6 @@ fn ruby_obj(class: &str, vars: Vec<(&str, RubyValue)>) -> RubyValue {
     RubyValue::Object(obj)
 }
 
-fn ruby_str(s: &str) -> RubyValue {
-    RubyValue::String(RubyString::with_encoding(
-        s.as_bytes().to_vec(),
-        "UTF-8".to_string(),
-    ))
-}
-
-fn ruby_int(v: i64) -> RubyValue {
-    RubyValue::Integer(v)
-}
-
-fn ruby_bool(v: bool) -> RubyValue {
-    if v { RubyValue::True } else { RubyValue::False }
-}
-
 impl RpgEvent {
     /// Convert back to a RubyValue for writing to .rxdata
     pub fn to_ruby_value(&self) -> RubyValue {

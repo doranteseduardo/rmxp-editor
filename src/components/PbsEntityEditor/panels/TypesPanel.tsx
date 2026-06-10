@@ -55,7 +55,7 @@ function EffectivenessMatrix({ types }: { types: TypeEntry[] }) {
   const LABEL_H = 72;
 
   return (
-    <div style={{ overflowAuto: "auto", marginTop: 12 } as React.CSSProperties}>
+    <div style={{ overflow: "auto", marginTop: 12 }}>
       <div style={{ fontSize: 11, fontWeight: 600, color: "#5c5f77", marginBottom: 6 }}>
         Effectiveness Matrix — Attacker (row) → Defender (column)
       </div>
@@ -127,7 +127,7 @@ export function TypesPanel() {
 
   const handleAdd = () => {
     add({
-      id: `NEWTYPE`, name: "New Type",
+      id: `NEWTYPE_${Date.now()}`, name: "New Type",
       iconPosition: 0, isSpecial: false,
       weaknesses: [], resistances: [], immunities: [],
       color: "#888888",

@@ -118,14 +118,24 @@ export function ProjectSaveProvider({ children }: { children: ReactNode }) {
   }, [recalcDirty]);
 
   const saveAll = useCallback(async (prefix?: string) => {
-    const promises: Promise<void>[] = [];
+    const jobs: { id: string; promise: Promise<void> }[] = [];
     editorsRef.current.forEach((entry, id) => {
       if (entry.isDirty && (!prefix || id.startsWith(prefix))) {
-        promises.push(entry.save());
+        jobs.push({ id, promise: entry.save() });
       }
     });
-    await Promise.all(promises);
+    // allSettled so one failing editor doesn't abort the others, and we always
+    // refresh dirty state afterwards. Failures are aggregated and re-thrown so
+    // callers can keep their dialog open instead of silently "succeeding".
+    const results = await Promise.allSettled(jobs.map((j) => j.promise));
     recalcDirty();
+    const failures = results
+      .map((r, i) => ({ r, id: jobs[i].id }))
+      .filter((x): x is { r: PromiseRejectedResult; id: string } => x.r.status === "rejected");
+    if (failures.length > 0) {
+      const detail = failures.map((f) => `${f.id}: ${f.r.reason}`).join("; ");
+      throw new Error(`Failed to save ${failures.length} editor(s): ${detail}`);
+    }
   }, [recalcDirty]);
 
   const discardAll = useCallback((prefix?: string) => {

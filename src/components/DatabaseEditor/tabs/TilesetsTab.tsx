@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState } from "react";
 import type { RpgTileset } from "../../../types/rpgTypes";
 import { useDatabase } from "../useDatabase";
 import { DatabaseListPanel } from "../DatabaseListPanel";
@@ -124,7 +124,7 @@ export function TilesetsTab({ projectPath }: Props) {
   return (
     <>
       <div className="db-content">
-        <DatabaseListPanel items={db.items as any} selectedId={db.selectedId} onSelect={db.select}
+        <DatabaseListPanel items={db.items} selectedId={db.selectedId} onSelect={db.select}
           onAdd={() => db.addNew(DEFAULT)} label="tilesets" />
         {t ? (
           <div className="db-detail-panel">

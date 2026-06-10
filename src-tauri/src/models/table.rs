@@ -26,7 +26,10 @@ pub struct Table {
 impl Table {
     /// Create a new empty table with given dimensions.
     pub fn new(x_size: u32, y_size: u32, z_size: u32) -> Self {
-        let total = (x_size * y_size * z_size) as usize;
+        // Widen to usize before multiplying so large dimensions can't overflow u32.
+        let total = (x_size as usize)
+            .saturating_mul(y_size as usize)
+            .saturating_mul(z_size as usize);
         Self {
             dim_count: if z_size > 1 {
                 3
@@ -88,9 +91,18 @@ impl Table {
         let x_size = read_i32_le(data, 4) as u32;
         let y_size = read_i32_le(data, 8) as u32;
         let z_size = read_i32_le(data, 12) as u32;
-        let total = read_i32_le(data, 16) as usize;
 
-        let expected_size = 20 + total * 2;
+        // `total` comes from untrusted file bytes; reject negatives and guard the
+        // size computation against overflow before trusting it to size the buffer.
+        let total_raw = read_i32_le(data, 16);
+        if total_raw < 0 {
+            return None;
+        }
+        let total = total_raw as usize;
+
+        let expected_size = total
+            .checked_mul(2)
+            .and_then(|v| v.checked_add(20))?;
         if data.len() < expected_size {
             return None;
         }
@@ -142,7 +154,10 @@ impl Table {
 
     /// Resize the table, preserving existing data where possible.
     pub fn resize(&mut self, new_x: u32, new_y: u32, new_z: u32) {
-        let mut new_data = vec![0i16; (new_x * new_y * new_z) as usize];
+        let total = (new_x as usize)
+            .saturating_mul(new_y as usize)
+            .saturating_mul(new_z as usize);
+        let mut new_data = vec![0i16; total];
 
         let copy_x = self.x_size.min(new_x);
         let copy_y = self.y_size.min(new_y);

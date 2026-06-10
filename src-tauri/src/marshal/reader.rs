@@ -249,7 +249,11 @@ impl<R: Read> MarshalReader<R> {
 
             b'I' => {
                 // Instance variables wrapper (wraps another value + adds ivars)
-                // Common pattern: String with encoding info
+                // Common pattern: String with encoding info.
+                // Capture the slot the inner value will occupy in the object cache
+                // BEFORE reading it, so we can update exactly that slot afterwards
+                // (the encoding ivar may itself push more strings into the cache).
+                let inner_idx = self.objects.len();
                 let inner = self.read_value()?;
                 let ivar_count = self.read_long()? as usize;
 
@@ -275,14 +279,13 @@ impl<R: Read> MarshalReader<R> {
                 match inner {
                     RubyValue::String(mut s) => {
                         s.encoding = encoding;
-                        // Update in object cache
                         let result = RubyValue::String(s);
-                        // The inner string already registered in objects,
-                        // update the last string entry
-                        if let Some(last) = self.objects.iter_mut().rev().find(|v| {
-                            matches!(v, RubyValue::String(_))
-                        }) {
-                            *last = result.clone();
+                        // Update the exact cache slot the inner string registered into,
+                        // so back-references (`@idx`) resolve to the encoded string.
+                        if let Some(slot) = self.objects.get_mut(inner_idx) {
+                            if matches!(slot, RubyValue::String(_)) {
+                                *slot = result.clone();
+                            }
                         }
                         Ok(result)
                     }
