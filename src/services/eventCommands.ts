@@ -224,10 +224,13 @@ export const COMMAND_DEFS: CommandDef[] = [
   { code: 655, name: "(script continuation)", category: "Other", description: "", isContinuation: true },
 ];
 
-/** Lookup command definition by code */
+/** Lookup command definition by code.
+ *  Several codes (notably 355 = Script) appear multiple times because PE template
+ *  variants reuse the same RGSS code. The FIRST definition is the canonical one
+ *  (e.g. plain "Script"), so keep it rather than letting a later PE template win. */
 const commandDefMap = new Map<number, CommandDef>();
 for (const def of COMMAND_DEFS) {
-  commandDefMap.set(def.code, def);
+  if (!commandDefMap.has(def.code)) commandDefMap.set(def.code, def);
 }
 
 export function getCommandDef(code: number): CommandDef {
@@ -241,20 +244,29 @@ export function getCommandDef(code: number): CommandDef {
   );
 }
 
-/** Get only the commands that should appear in the picker (not continuations/branch ends). */
-export function getPickerCommands(): CommandDef[] {
-  return COMMAND_DEFS.filter((d) => !d.isContinuation && !d.isBranchEnd && d.code !== 0);
-}
+// The picker lists are derived from static data, so compute them once.
+const PICKER_COMMANDS: CommandDef[] = COMMAND_DEFS.filter(
+  (d) => !d.isContinuation && !d.isBranchEnd && d.code !== 0
+);
 
-/** Group picker commands by category. */
-export function getPickerCommandsByCategory(): Map<string, CommandDef[]> {
+const PICKER_COMMANDS_BY_CATEGORY: Map<string, CommandDef[]> = (() => {
   const map = new Map<string, CommandDef[]>();
-  for (const def of getPickerCommands()) {
+  for (const def of PICKER_COMMANDS) {
     const existing = map.get(def.category) ?? [];
     existing.push(def);
     map.set(def.category, existing);
   }
   return map;
+})();
+
+/** Get only the commands that should appear in the picker (not continuations/branch ends). */
+export function getPickerCommands(): CommandDef[] {
+  return PICKER_COMMANDS;
+}
+
+/** Group picker commands by category. */
+export function getPickerCommandsByCategory(): Map<string, CommandDef[]> {
+  return PICKER_COMMANDS_BY_CATEGORY;
 }
 
 // --- Helpers used by summarizeCommand ---

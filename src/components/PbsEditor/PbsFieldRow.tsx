@@ -2,10 +2,11 @@
  * PbsFieldRow — renders a single key/value pair with smart widgets
  * based on field metadata (cross-ref autocomplete, asset preview, stat inputs, etc.).
  */
-import { useState, useCallback, useId } from "react";
+import { useState, useCallback, useEffect, useId, useRef } from "react";
 import type { FieldMeta } from "../../types/pbsTypes";
 import { usePbsContext } from "./PbsContext";
 import { previewAudio } from "../../services/tauriApi";
+import { buildAssetUrl } from "../../services/assetUrl";
 
 interface Props {
   fieldKey: string;
@@ -13,10 +14,6 @@ interface Props {
   meta: FieldMeta;
   onChange: (value: string) => void;
   onDelete: () => void;
-}
-
-function buildAssetUrl(filePath: string): string {
-  return `asset://localhost/${encodeURIComponent(filePath)}`;
 }
 
 // ── Stat list: 6 HP/Atk/Def/SpAtk/SpDef/Speed inputs ──────────────────────
@@ -148,20 +145,27 @@ function AssetPreview({ projectPath, assetDir, name, suffix }: { projectPath: st
 
 function AudioPlayButton({ projectPath, assetDir, name }: { projectPath: string; assetDir?: string; name: string }) {
   const [playing, setPlaying] = useState(false);
-  if (!name) return null;
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   const dir = assetDir ?? "Audio/BGM";
   // assetDir is like "Audio/BGM" — split into assetType="BGM" and the name
   const assetType = dir.split("/").pop() ?? "BGM";
 
+  // Hooks must run unconditionally, so this guard comes after them.
   const handlePlay = useCallback(async () => {
     setPlaying(true);
     try {
       await previewAudio(projectPath, assetType, name, 0.8);
-    } finally {
-      setTimeout(() => setPlaying(false), 2000);
+    } catch {
+      // Missing/unsupported audio — reset immediately, no preview.
+      setPlaying(false);
+      return;
     }
+    timerRef.current = setTimeout(() => setPlaying(false), 2000);
   }, [projectPath, assetType, name]);
+
+  if (!name) return null;
 
   return (
     <button

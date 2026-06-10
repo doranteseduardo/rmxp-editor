@@ -44,12 +44,15 @@ export function ChipListEditor({ values, options, placeholder = "Add…", maxIte
     // If the user typed a comma, commit the word before it
     if (val.endsWith(",")) {
       add(val.slice(0, -1));
-    } else {
-      setInput(val);
-      // Check if the value matches an option exactly (from datalist selection)
-      if (options?.includes(val)) {
-        add(val);
-      }
+      return;
+    }
+    setInput(val);
+    // Only auto-commit when the value came from picking a datalist suggestion —
+    // not while the typed text merely happens to equal (or prefix) an option,
+    // which previously made it impossible to type names that share a prefix.
+    const inputType = (e.nativeEvent as InputEvent).inputType;
+    if (inputType === "insertReplacementText" && options?.includes(val)) {
+      add(val);
     }
   };
 

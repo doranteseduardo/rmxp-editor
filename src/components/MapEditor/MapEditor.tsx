@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MapRenderData, TilesetRenderInfo, PaintTool } from "../../types";
-import { MapRenderer, type EventMarker } from "../../services/mapRenderer";
+import { MapRenderer, type EventMarker, type RenderOptions } from "../../services/mapRenderer";
 import { TILE_SIZE } from "../../types";
 import {
   paintTile,
@@ -95,8 +95,9 @@ export function MapEditor({
   const isSelecting = useRef(false);
   const [tileClipboard, setTileClipboard] = useState<TileClipboard | null>(null);
 
-  // Force re-render trigger
-  const [renderTick, setRenderTick] = useState(0);
+  // Force re-render trigger (the value is unused; setting it re-runs the
+  // component so the render-params ref and derived UI refresh).
+  const [, setRenderTick] = useState(0);
 
   // Tile context menu state (right-click on any tile)
   const [contextMenu, setContextMenu] = useState<{
@@ -159,6 +160,13 @@ export function MapEditor({
     rendererRef.current.setPriorities(tilesetInfo.priorities);
   }, [tilesetInfo]);
 
+  // Drop cached character sprites when switching maps/projects so the cache
+  // doesn't accumulate every sprite visited this session. (Re-loading the same
+  // map keeps currentMapId stable, so its sprites are preserved.)
+  useEffect(() => {
+    setCharacterImages(new Map());
+  }, [currentMapId, _projectPath]);
+
   // Load character sprite images for events
   useEffect(() => {
     if (!mapData || !_projectPath) return;
@@ -196,68 +204,62 @@ export function MapEditor({
     return () => { cancelled = true; };
   }, [mapData, _projectPath]);
 
-  // Animation loop — only runs when we have map data
+  // Event markers only depend on the map data and loaded sprite images, not on
+  // viewport/zoom — memoize so panning doesn't rebuild this array every frame.
+  const events: EventMarker[] = useMemo(
+    () =>
+      mapData
+        ? mapData.events.map((e) => ({
+            id: e.id,
+            name: e.name,
+            x: e.x,
+            y: e.y,
+            graphicName: e.graphic_name,
+            graphicDirection: e.graphic_direction,
+            graphicPattern: e.graphic_pattern,
+            graphicImage: e.graphic_name ? characterImages.get(e.graphic_name) : null,
+          }))
+        : [],
+    [mapData, characterImages]
+  );
+
+  // Mirror the latest render params into a ref every render. The persistent RAF
+  // loop below reads from this ref, so pan/zoom/selection changes never tear down
+  // and recreate the animation loop (which previously happened on every mousemove).
+  const renderStateRef = useRef<{ options: RenderOptions; events: EventMarker[] } | null>(null);
+  const startMarker =
+    currentMapId !== undefined && startPosition && currentMapId === startPosition.mapId
+      ? { x: startPosition.x, y: startPosition.y }
+      : undefined;
+  const selectionRect = (selectionStart && selectionEnd)
+    ? { x1: selectionStart.x, y1: selectionStart.y, x2: selectionEnd.x, y2: selectionEnd.y }
+    : null;
+  renderStateRef.current = {
+    options: {
+      showGrid,
+      showEvents: true,
+      showLayer: showLayers,
+      activeLayer: selectedLayer,
+      zoom,
+      viewportX,
+      viewportY,
+      startMarker,
+      selectionRect,
+    },
+    events,
+  };
+
+  // Animation loop — started once per map; reads live params from the ref above.
   useEffect(() => {
     if (!rendererRef.current || !mapData) return;
-
-    const events: EventMarker[] = mapData.events.map((e) => ({
-      id: e.id,
-      name: e.name,
-      x: e.x,
-      y: e.y,
-      graphicName: e.graphic_name,
-      graphicDirection: e.graphic_direction,
-      graphicPattern: e.graphic_pattern,
-      graphicImage: e.graphic_name ? characterImages.get(e.graphic_name) : null,
-    }));
-
-    const startMarker =
-      currentMapId !== undefined &&
-      startPosition &&
-      currentMapId === startPosition.mapId
-        ? { x: startPosition.x, y: startPosition.y }
-        : undefined;
-
-    const selectionRect = (selectionStart && selectionEnd)
-      ? { x1: selectionStart.x, y1: selectionStart.y, x2: selectionEnd.x, y2: selectionEnd.y }
-      : null;
-
     const animate = (time: number) => {
-      rendererRef.current?.render(
-        time,
-        {
-          showGrid,
-          showEvents: true,
-          showLayer: showLayers,
-          activeLayer: selectedLayer,
-          zoom,
-          viewportX,
-          viewportY,
-          startMarker,
-          selectionRect,
-        },
-        events
-      );
+      const st = renderStateRef.current;
+      if (st) rendererRef.current?.render(time, st.options, st.events);
       animFrameRef.current = requestAnimationFrame(animate);
     };
-
     animFrameRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animFrameRef.current);
-  }, [
-    mapData,
-    showGrid,
-    showLayers,
-    selectedLayer,
-    zoom,
-    viewportX,
-    viewportY,
-    renderTick,
-    characterImages,
-    currentMapId,
-    startPosition,
-    selectionStart,
-    selectionEnd,
-  ]);
+  }, [mapData]);
 
   // Resize canvas to fill container
   useEffect(() => {

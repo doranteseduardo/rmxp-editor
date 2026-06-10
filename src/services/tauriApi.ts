@@ -283,6 +283,23 @@ export async function previewAudio(
   await invoke("preview_audio", { projectPath, assetType, assetName, volume });
 }
 
+/**
+ * Fire-and-forget audio preview that surfaces failures (missing/unsupported file)
+ * to the user instead of producing an unhandled promise rejection. Safe to use
+ * directly as an onClick handler.
+ */
+export function previewAudioSafe(
+  projectPath: string,
+  assetType: string,
+  assetName: string,
+  volume: number = 0.8
+): void {
+  previewAudio(projectPath, assetType, assetName, volume).catch((e) => {
+    console.error("Audio preview failed:", e);
+    alert(`Could not play "${assetName}": ${e}`);
+  });
+}
+
 /** Stop the currently playing audio preview. */
 export async function stopAudio(): Promise<void> {
   await invoke("stop_audio", {});

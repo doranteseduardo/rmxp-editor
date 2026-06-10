@@ -46,6 +46,11 @@ export function useDatabase<K extends DatabaseFilename>(
   // Snapshot of last saved/loaded state for cancel support
   const snapshotRef = useRef<(T | null)[]>([]);
 
+  // Mirror of current items so callbacks can read the latest length without a
+  // stale closure (and without a setState side-effect inside an updater).
+  const itemsRef = useRef<(T | null)[]>([]);
+  itemsRef.current = items;
+
   // Load on mount or filename change
   useEffect(() => {
     filenameRef.current = filename;
@@ -124,13 +129,10 @@ export function useDatabase<K extends DatabaseFilename>(
   }, []);
 
   const addNew = useCallback((template: T) => {
-    setItems((prev) => {
-      const newId = prev.length;
-      const entry = { ...template, id: newId } as T;
-      const copy = [...prev, entry];
-      setSelectedId(newId);
-      return copy;
-    });
+    const newId = itemsRef.current.length;
+    const entry = { ...template, id: newId } as T;
+    setItems((prev) => [...prev, entry]);
+    setSelectedId(newId);
     setDirty(true);
   }, []);
 

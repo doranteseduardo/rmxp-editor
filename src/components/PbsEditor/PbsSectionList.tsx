@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import type { PbsSection } from "../../types/pbsTypes";
 import { usePbsContext } from "./PbsContext";
 import { POKEMON_SPRITE_FILES, TRAINER_SPRITE_FILES, ITEM_ICON_FILES } from "../../services/pbsMeta";
+import { buildAssetUrl } from "../../services/assetUrl";
 
 interface Props {
   filename: string;
@@ -10,10 +11,6 @@ interface Props {
   onSelect: (header: string) => void;
   onAdd: (header: string) => void;
   onDelete: (header: string) => void;
-}
-
-function buildAssetUrl(filePath: string): string {
-  return `asset://localhost/${encodeURIComponent(filePath)}`;
 }
 
 function SectionIcon({ filename, header, projectPath }: { filename: string; header: string; projectPath: string }) {

@@ -3,7 +3,7 @@ use std::fmt;
 
 /// Represents any value that can appear in a Ruby Marshal stream.
 /// Ruby Marshal v4.8 supports these core types.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "value")]
 pub enum RubyValue {
     Nil,
@@ -48,7 +48,7 @@ pub enum RubyValue {
 }
 
 /// Ruby string with optional encoding info
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RubyString {
     pub bytes: Vec<u8>,
     pub encoding: Option<String>,
@@ -76,7 +76,7 @@ impl RubyString {
 }
 
 /// Represents a Ruby object instance (class + instance variables)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RubyObject {
     pub class_name: String,
     pub instance_vars: Vec<(String, RubyValue)>,
@@ -404,6 +404,28 @@ impl RubyValue {
             RubyValue::UserDefined { class_name, data } => Some((class_name, data)),
             _ => None,
         }
+    }
+}
+
+/// Build a UTF-8 encoded Ruby string value.
+pub fn ruby_str(s: &str) -> RubyValue {
+    RubyValue::String(RubyString::with_encoding(
+        s.as_bytes().to_vec(),
+        "UTF-8".to_string(),
+    ))
+}
+
+/// Build a Ruby integer value.
+pub fn ruby_int(v: i64) -> RubyValue {
+    RubyValue::Integer(v)
+}
+
+/// Build a Ruby boolean value (`true`/`false`).
+pub fn ruby_bool(v: bool) -> RubyValue {
+    if v {
+        RubyValue::True
+    } else {
+        RubyValue::False
     }
 }
 

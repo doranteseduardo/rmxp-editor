@@ -66,18 +66,24 @@ export function DatabaseEditor({ projectPath, onClose }: Props) {
   // Check if any database editor is dirty
   const hasAnyDirty = Array.from(dirtyIds).some(id => id.startsWith("db-"));
 
-  const handleApply = useCallback(async () => {
+  const handleApply = useCallback(async (): Promise<boolean> => {
     setSaving(true);
     try {
       await saveAll("db-");
+      return true;
+    } catch {
+      return false;
     } finally {
       setSaving(false);
     }
   }, [saveAll]);
 
-  const handleCancel = useCallback(() => {
+  // Confirm before discarding unsaved edits, then discard and close.
+  const requestClose = useCallback(() => {
+    if (hasAnyDirty && !window.confirm("You have unsaved database changes. Discard them and close?")) return;
     discardAll("db-");
-  }, [discardAll]);
+    onClose?.();
+  }, [hasAnyDirty, discardAll, onClose]);
 
   return (
     <DatabaseNamesProvider projectPath={projectPath}>
@@ -116,10 +122,10 @@ export function DatabaseEditor({ projectPath, onClose }: Props) {
 
         {/* Unified OK / Cancel / Apply bar */}
         <div className="db-bottom-bar">
-          <button className="db-save-btn" onClick={async () => { await handleApply(); onClose?.(); }} disabled={saving}>
+          <button className="db-save-btn" onClick={async () => { if (await handleApply()) onClose?.(); }} disabled={saving}>
             OK
           </button>
-          <button className="db-cancel-btn" onClick={() => { handleCancel(); onClose?.(); }}>
+          <button className="db-cancel-btn" onClick={requestClose}>
             Cancel
           </button>
           <button className="db-save-btn" onClick={handleApply} disabled={!hasAnyDirty || saving}>

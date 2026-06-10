@@ -149,38 +149,38 @@ impl<W: Write> MarshalWriter<W> {
             }
 
             RubyValue::String(s) => {
-                // Strings with encoding get wrapped in 'I' (instance variables)
-                if s.encoding.is_some() || true {
-                    // RMXP typically wraps all strings with encoding info
-                    self.write_byte(b'I')?;
-                    self.write_byte(b'"')?;
-                    self.object_count += 1;
-                    self.write_raw_string(&s.bytes)?;
-                    // Write encoding ivar
-                    if let Some(ref enc) = s.encoding {
-                        if enc == "UTF-8" {
-                            self.write_long(1)?; // 1 ivar
-                            self.write_symbol("E")?;
-                            self.write_byte(b'T')?; // true = UTF-8
-                        } else {
-                            self.write_long(1)?;
-                            self.write_symbol("encoding")?;
-                            // Write encoding name as string
-                            self.write_byte(b'"')?;
-                            self.write_raw_string(enc.as_bytes())?;
-                        }
-                    } else {
-                        // No encoding, check if we need E: false
-                        self.write_long(1)?;
+                // RMXP/Essentials .rxdata stores strings Marshal-wrapped with a single
+                // encoding instance variable (the 'I' wrapper). We always emit the
+                // wrapper to match the files the toolchain produces; the encoding ivar
+                // mirrors `s.encoding`.
+                //
+                // NOTE: This intentionally always wraps. Faithfully reproducing a mix of
+                // bare (Ruby 1.8) and wrapped (1.9+) strings would require the reader to
+                // record whether each string was wrapped; today the reader collapses that
+                // distinction into `encoding: Option`, so round-tripping to "always
+                // wrapped" is the behavior the rest of the app already depends on.
+                self.write_byte(b'I')?;
+                self.write_byte(b'"')?;
+                self.object_count += 1;
+                self.write_raw_string(&s.bytes)?;
+                self.write_long(1)?; // exactly one ivar (the encoding marker)
+                match &s.encoding {
+                    Some(enc) if enc == "UTF-8" => {
                         self.write_symbol("E")?;
-                        self.write_byte(b'F')?; // false = ASCII-8BIT
+                        self.write_byte(b'T')?; // E = true  → UTF-8
                     }
-                    Ok(())
-                } else {
-                    self.write_byte(b'"')?;
-                    self.object_count += 1;
-                    self.write_raw_string(&s.bytes)
+                    Some(enc) => {
+                        self.write_symbol("encoding")?;
+                        // Encoding name written as a bare (unwrapped) string.
+                        self.write_byte(b'"')?;
+                        self.write_raw_string(enc.as_bytes())?;
+                    }
+                    None => {
+                        self.write_symbol("E")?;
+                        self.write_byte(b'F')?; // E = false → ASCII-8BIT
+                    }
                 }
+                Ok(())
             }
 
             RubyValue::Symbol(s) => self.write_symbol(s),

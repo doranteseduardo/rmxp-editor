@@ -175,14 +175,6 @@ pub struct RpgSystem {
     pub edit_map_id: i64,
 }
 
-fn ruby_str(s: &str) -> RubyValue {
-    RubyValue::String(RubyString::with_encoding(s.as_bytes().to_vec(), "UTF-8".to_string()))
-}
-
-fn ruby_int(v: i64) -> RubyValue {
-    RubyValue::Integer(v)
-}
-
 fn parse_string_array(value: Option<&RubyValue>) -> Vec<String> {
     value
         .and_then(|v| v.as_array())

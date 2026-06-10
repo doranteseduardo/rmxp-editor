@@ -3,7 +3,7 @@
  * Replaces usePbsFile.ts with a typed, entity-centric approach.
  * Modelled on useDatabase.ts — snapshot ref for cancel, useEditorRegistration for global save.
  */
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useEditorRegistration } from "../context/ProjectSaveContext";
 
 export interface UseEntityEditorResult<T> {
@@ -42,6 +42,9 @@ export function useEntityEditor<T>(
   const snapshotRef = useRef<T[]>([]);
   const itemsRef = useRef<T[]>([]);
   itemsRef.current = items;
+  // True only after a successful load. Guards doSave so a failed load can never
+  // persist an empty array over the real file.
+  const loadedRef = useRef(false);
 
   // Load on mount
   useEffect(() => {
@@ -50,12 +53,14 @@ export function useEntityEditor<T>(
     setError(null);
     setSelectedId(null);
     setDirty(false);
+    loadedRef.current = false;
 
     load()
       .then((data) => {
         if (cancelled) return;
         setItems(data);
         snapshotRef.current = data;
+        loadedRef.current = true;
         if (data.length > 0) setSelectedId(getId(data[0]));
       })
       .catch((err) => {
@@ -70,18 +75,28 @@ export function useEntityEditor<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registrationId]);
 
-  const selected = selectedId !== null
-    ? items.find((item) => getId(item) === selectedId) ?? null
-    : null;
+  const selected = useMemo(
+    () => selectedId !== null
+      ? items.find((item) => getId(item) === selectedId) ?? null
+      : null,
+    [items, selectedId, getId]
+  );
 
   const select = useCallback((id: string) => {
     setSelectedId(id);
   }, []);
 
   const update = useCallback((id: string, patch: Partial<T>) => {
+    // If the patch renames the entity's key, the selection (which tracks the old
+    // id) would otherwise point at nothing and the detail panel would vanish.
+    const current = itemsRef.current.find((item) => getId(item) === id);
+    const newId = current ? getId({ ...current, ...patch }) : null;
     setItems((prev) =>
       prev.map((item) => getId(item) === id ? { ...item, ...patch } : item)
     );
+    if (newId !== null && newId !== id) {
+      setSelectedId((cur) => (cur === id ? newId : cur));
+    }
     setDirty(true);
   }, [getId]);
 
@@ -105,6 +120,11 @@ export function useEntityEditor<T>(
   }, [getId]);
 
   const doSave = useCallback(async () => {
+    if (!loadedRef.current) {
+      const msg = "Cannot save: the data failed to load. Resolve the load error first to avoid overwriting the file with empty data.";
+      setError(msg);
+      throw new Error(msg);
+    }
     try {
       setLoading(true);
       setError(null);
@@ -113,6 +133,7 @@ export function useEntityEditor<T>(
       setDirty(false);
     } catch (err) {
       setError(`Save failed: ${err}`);
+      throw err;
     } finally {
       setLoading(false);
     }

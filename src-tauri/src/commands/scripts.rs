@@ -79,15 +79,11 @@ fn parse_script_entry(entry: &RubyValue) -> Option<(i64, String, &[u8])> {
     Some((id, title, data))
 }
 
-// ── Commands ─────────────────────────────────────────────────────────
-
-/// Load the script list (id + title only, no decompression).
-#[tauri::command]
-pub async fn load_script_list(project_path: String) -> Result<Vec<ScriptEntry>, String> {
-    let arr = load_scripts_raw(&project_path)?;
+/// Build the lightweight script list (id + title) from the raw scripts array,
+/// skipping nil entries and anything that isn't a valid 3-element script entry.
+fn script_entries(arr: &[RubyValue]) -> Vec<ScriptEntry> {
     let mut result = Vec::new();
-
-    for entry in &arr {
+    for entry in arr {
         if let RubyValue::Nil = entry {
             continue;
         }
@@ -95,6 +91,16 @@ pub async fn load_script_list(project_path: String) -> Result<Vec<ScriptEntry>, 
             result.push(ScriptEntry { id, title });
         }
     }
+    result
+}
+
+// ── Commands ─────────────────────────────────────────────────────────
+
+/// Load the script list (id + title only, no decompression).
+#[tauri::command]
+pub async fn load_script_list(project_path: String) -> Result<Vec<ScriptEntry>, String> {
+    let arr = load_scripts_raw(&project_path)?;
+    let result = script_entries(&arr);
 
     eprintln!("[scripts] Loaded {} script entries", result.len());
     Ok(result)
@@ -208,15 +214,7 @@ pub async fn create_script(
         .map_err(|e| format!("Failed to save Scripts.rxdata: {}", e))?;
 
     // Return updated list
-    let mut result = Vec::new();
-    for entry in &arr {
-        if let RubyValue::Nil = entry {
-            continue;
-        }
-        if let Some((id, t, _)) = parse_script_entry(entry) {
-            result.push(ScriptEntry { id, title: t });
-        }
-    }
+    let result = script_entries(&arr);
 
     eprintln!("[scripts] Created script '{}' (id={})", title, new_id);
     Ok(result)
@@ -253,15 +251,7 @@ pub async fn delete_script(
         .map_err(|e| format!("Failed to save Scripts.rxdata: {}", e))?;
 
     // Return updated list
-    let mut result = Vec::new();
-    for entry in &arr {
-        if let RubyValue::Nil = entry {
-            continue;
-        }
-        if let Some((id, t, _)) = parse_script_entry(entry) {
-            result.push(ScriptEntry { id, title: t });
-        }
-    }
+    let result = script_entries(&arr);
 
     eprintln!("[scripts] Deleted script id={}", script_id);
     Ok(result)

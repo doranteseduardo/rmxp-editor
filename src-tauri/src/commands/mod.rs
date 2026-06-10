@@ -4,6 +4,7 @@ pub mod pbs;
 pub mod playtest;
 pub mod project;
 pub mod scripts;
+pub mod util;
 
 pub use audio::*;
 pub use database::*;

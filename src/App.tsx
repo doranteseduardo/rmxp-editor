@@ -378,6 +378,16 @@ function AppContent() {
     }
   }, [handleSelectMap]);
 
+  // Close the event editor and reload the current map so any saved changes to the
+  // event (graphic, name, position) are reflected on the canvas immediately.
+  const handleCloseEventEditor = useCallback(async () => {
+    setEditingEvent(null);
+    const mapId = currentMapIdRef.current;
+    if (mapId !== null) {
+      await handleSelectMap(mapId, true);
+    }
+  }, [handleSelectMap]);
+
   // ── Event management handlers ──────────────────────────────────────────────
 
   const handleCreateEvent = useCallback(async (x: number, y: number) => {
@@ -650,7 +660,7 @@ function AppContent() {
           mapId={currentMapId}
           eventId={editingEvent.eventId}
           eventName={editingEvent.eventName}
-          onClose={() => setEditingEvent(null)}
+          onClose={handleCloseEventEditor}
           mapInfos={project.map_infos}
           pbsIndex={pbsIndex}
         />
