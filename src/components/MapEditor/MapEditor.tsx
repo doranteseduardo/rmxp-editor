@@ -16,6 +16,9 @@ import {
   type TileClipboard,
 } from "../../services/mapEditor";
 import { loadCharacterImage } from "../../services/imageLoader";
+import { MapScrollbars } from "./MapScrollbars";
+import { MapToolbar } from "./MapToolbar";
+import { MapContextMenu } from "./MapContextMenu";
 import "./MapEditor.css";
 
 interface Props {
@@ -613,92 +616,17 @@ export function MapEditor({
     <div className="map-editor">
       {/* Toolbar — only show controls when a map is loaded */}
       {mapData && (
-        <div className="map-editor-toolbar">
-          <div className="toolbar-group">
-            <span className="toolbar-label">Tool:</span>
-            {(["pencil", "rectangle", "bucket", "eraser", "select"] as PaintTool[]).map(
-              (tool) => (
-                <button
-                  key={tool}
-                  className={`toolbar-btn ${paintTool === tool ? "active" : ""}`}
-                  onClick={() => setPaintTool(tool)}
-                  title={tool}
-                >
-                  {tool === "pencil"
-                    ? "Pen"
-                    : tool === "rectangle"
-                    ? "Rect"
-                    : tool === "bucket"
-                    ? "Fill"
-                    : tool === "eraser"
-                    ? "Erase"
-                    : "Sel"}
-                </button>
-              )
-            )}
-            {paintTool === "select" && tileClipboard && (
-              <span style={{ fontSize: 10, color: "#40a02b", marginLeft: 4 }}>
-                ✓ Copied ({tileClipboard.width}×{tileClipboard.height})
-              </span>
-            )}
-          </div>
-
-          <div className="toolbar-separator" />
-
-          <div className="toolbar-group">
-            <span className="toolbar-label">Layer:</span>
-            {[0, 1, 2].map((l) => (
-              <button
-                key={l}
-                className={`toolbar-btn ${selectedLayer === l ? "active" : ""}`}
-                onClick={() => setSelectedLayer(l)}
-              >
-                L{l + 1}
-              </button>
-            ))}
-            <button
-              className={`toolbar-btn ${selectedLayer === 3 ? "active" : ""}`}
-              onClick={() => setSelectedLayer(3)}
-              title="Events layer — view and select events"
-              style={selectedLayer === 3 ? { borderColor: "#fe640b", color: "#fe640b" } : {}}
-            >
-              Ev
-            </button>
-            <button
-              className={`toolbar-btn ${selectedLayer === -1 ? "active" : ""}`}
-              onClick={() => setSelectedLayer(-1)}
-              title="Show all layers at full opacity"
-            >
-              All
-            </button>
-          </div>
-
-          <div className="toolbar-separator" />
-
-          <div className="toolbar-group">
-            <label className="toolbar-check">
-              <input
-                type="checkbox"
-                checked={showGrid}
-                onChange={(e) => setShowGrid(e.target.checked)}
-              />
-              Grid
-            </label>
-          </div>
-
-          <div className="toolbar-group toolbar-right">
-            <span className="toolbar-label">
-              Zoom: {Math.round(zoom * 100)}%
-            </span>
-            <button
-              className="toolbar-btn toolbar-btn-sm"
-              onClick={() => setZoom(1)}
-              title="Reset zoom"
-            >
-              1:1
-            </button>
-          </div>
-        </div>
+        <MapToolbar
+          paintTool={paintTool}
+          setPaintTool={setPaintTool}
+          tileClipboard={tileClipboard}
+          selectedLayer={selectedLayer}
+          setSelectedLayer={setSelectedLayer}
+          showGrid={showGrid}
+          setShowGrid={setShowGrid}
+          zoom={zoom}
+          setZoom={setZoom}
+        />
       )}
 
       {/* Canvas container — ALWAYS rendered */}
@@ -782,70 +710,16 @@ export function MapEditor({
 
       {/* Tile context menu */}
       {contextMenu && (
-        <div
-          className="map-tree-context-overlay"
-          onClick={() => setContextMenu(null)}
-          onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
-        >
-          <div
-            className="map-tree-context-menu"
-            style={{ left: contextMenu.x, top: contextMenu.y }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {contextMenu.event && (
-              <>
-                <button
-                  onClick={() => {
-                    if (onOpenEvent) onOpenEvent(contextMenu.event!.id, contextMenu.event!.name);
-                    setContextMenu(null);
-                  }}
-                >
-                  Open Event
-                </button>
-                <button
-                  onClick={async () => {
-                    if (onCopyEvent) await onCopyEvent(contextMenu.event!.id);
-                    setContextMenu(null);
-                  }}
-                >
-                  Copy Event
-                </button>
-                <div className="map-tree-context-separator" />
-                <button
-                  className="map-tree-context-danger"
-                  onClick={() => {
-                    if (onDeleteEvent) onDeleteEvent(contextMenu.event!.id, contextMenu.event!.name);
-                    setContextMenu(null);
-                  }}
-                >
-                  Delete Event
-                </button>
-                <div className="map-tree-context-separator" />
-              </>
-            )}
-            {!contextMenu.event && hasClipboardEvent && (
-              <>
-                <button
-                  onClick={async () => {
-                    if (onPasteEvent) await onPasteEvent(contextMenu.tileX, contextMenu.tileY);
-                    setContextMenu(null);
-                  }}
-                >
-                  Paste Event
-                </button>
-                <div className="map-tree-context-separator" />
-              </>
-            )}
-            <button
-              onClick={async () => {
-                if (onSetStartPosition) await onSetStartPosition(contextMenu.tileX, contextMenu.tileY);
-                setContextMenu(null);
-              }}
-            >
-              Set as Starting Point
-            </button>
-          </div>
-        </div>
+        <MapContextMenu
+          contextMenu={contextMenu}
+          setContextMenu={setContextMenu}
+          hasClipboardEvent={hasClipboardEvent}
+          onOpenEvent={onOpenEvent}
+          onCopyEvent={onCopyEvent}
+          onDeleteEvent={onDeleteEvent}
+          onPasteEvent={onPasteEvent}
+          onSetStartPosition={onSetStartPosition}
+        />
       )}
 
       {/* Status bar */}
@@ -869,168 +743,5 @@ export function MapEditor({
         </div>
       )}
     </div>
-  );
-}
-
-// --- Scrollbar overlay component ---
-
-function MapScrollbars({
-  mapWidth,
-  mapHeight,
-  viewportX,
-  viewportY,
-  zoom,
-  canvasRef,
-  onViewportChange,
-}: {
-  mapWidth: number;
-  mapHeight: number;
-  viewportX: number;
-  viewportY: number;
-  zoom: number;
-  canvasRef: React.RefObject<HTMLCanvasElement | null>;
-  onViewportChange: (x: number, y: number) => void;
-}) {
-  const hDragRef = useRef(false);
-  const vDragRef = useRef(false);
-  const dragStartRef = useRef({ mouse: 0, viewport: 0 });
-
-  // Calculate visible tiles based on canvas size
-  const canvas = canvasRef.current;
-  const containerWidth = canvas ? canvas.clientWidth : 800;
-  const containerHeight = canvas ? canvas.clientHeight : 600;
-  const tilePixels = TILE_SIZE * zoom;
-  const visibleTilesX = containerWidth / tilePixels;
-  const visibleTilesY = containerHeight / tilePixels;
-
-  // Scrollbar thumb proportions
-  const hThumbRatio = Math.min(1, visibleTilesX / mapWidth);
-  const vThumbRatio = Math.min(1, visibleTilesY / mapHeight);
-
-  // Thumb positions (0-1 range)
-  const hThumbPos = mapWidth > visibleTilesX ? viewportX / (mapWidth - visibleTilesX) : 0;
-  const vThumbPos = mapHeight > visibleTilesY ? viewportY / (mapHeight - visibleTilesY) : 0;
-
-  // Clamp positions
-  const hPos = Math.max(0, Math.min(1 - hThumbRatio, hThumbPos * (1 - hThumbRatio)));
-  const vPos = Math.max(0, Math.min(1 - vThumbRatio, vThumbPos * (1 - vThumbRatio)));
-
-  const SCROLLBAR_SIZE = 10;
-  const TRACK_MARGIN = 2;
-
-  // Don't show if the whole map fits
-  const showH = hThumbRatio < 1;
-  const showV = vThumbRatio < 1;
-
-  const handleHMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      hDragRef.current = true;
-      dragStartRef.current = { mouse: e.clientX, viewport: viewportX };
-
-      const onMove = (me: MouseEvent) => {
-        if (!hDragRef.current) return;
-        const trackElem = (e.target as HTMLElement).parentElement;
-        if (!trackElem) return;
-        const trackWidth = trackElem.clientWidth - TRACK_MARGIN * 2;
-        const thumbWidth = trackWidth * hThumbRatio;
-        const availableTrack = trackWidth - thumbWidth;
-        if (availableTrack <= 0) return;
-        const delta = me.clientX - dragStartRef.current.mouse;
-        const posRatio = delta / availableTrack;
-        const maxScroll = mapWidth - visibleTilesX;
-        const newX = dragStartRef.current.viewport + posRatio * maxScroll;
-        onViewportChange(Math.max(0, Math.min(maxScroll, newX)), viewportY);
-      };
-
-      const onUp = () => {
-        hDragRef.current = false;
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-      };
-
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
-    },
-    [viewportX, viewportY, mapWidth, visibleTilesX, hThumbRatio, onViewportChange]
-  );
-
-  const handleVMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      vDragRef.current = true;
-      dragStartRef.current = { mouse: e.clientY, viewport: viewportY };
-
-      const onMove = (me: MouseEvent) => {
-        if (!vDragRef.current) return;
-        const trackElem = (e.target as HTMLElement).parentElement;
-        if (!trackElem) return;
-        const trackHeight = trackElem.clientHeight - TRACK_MARGIN * 2;
-        const thumbHeight = trackHeight * vThumbRatio;
-        const availableTrack = trackHeight - thumbHeight;
-        if (availableTrack <= 0) return;
-        const delta = me.clientY - dragStartRef.current.mouse;
-        const posRatio = delta / availableTrack;
-        const maxScroll = mapHeight - visibleTilesY;
-        const newY = dragStartRef.current.viewport + posRatio * maxScroll;
-        onViewportChange(viewportX, Math.max(0, Math.min(maxScroll, newY)));
-      };
-
-      const onUp = () => {
-        vDragRef.current = false;
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-      };
-
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
-    },
-    [viewportX, viewportY, mapHeight, visibleTilesY, vThumbRatio, onViewportChange]
-  );
-
-  return (
-    <>
-      {/* Horizontal scrollbar */}
-      {showH && (
-        <div
-          className="map-scrollbar map-scrollbar-h"
-          style={{
-            height: SCROLLBAR_SIZE,
-            bottom: showV ? SCROLLBAR_SIZE : 0,
-            right: showV ? SCROLLBAR_SIZE : 0,
-          }}
-        >
-          <div
-            className="map-scrollbar-thumb"
-            style={{
-              left: `${hPos * 100}%`,
-              width: `${hThumbRatio * 100}%`,
-            }}
-            onMouseDown={handleHMouseDown}
-          />
-        </div>
-      )}
-      {/* Vertical scrollbar */}
-      {showV && (
-        <div
-          className="map-scrollbar map-scrollbar-v"
-          style={{
-            width: SCROLLBAR_SIZE,
-            bottom: showH ? SCROLLBAR_SIZE : 0,
-          }}
-        >
-          <div
-            className="map-scrollbar-thumb"
-            style={{
-              top: `${vPos * 100}%`,
-              height: `${vThumbRatio * 100}%`,
-            }}
-            onMouseDown={handleVMouseDown}
-          />
-        </div>
-      )}
-    </>
   );
 }
